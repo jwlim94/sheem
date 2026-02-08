@@ -1,71 +1,74 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import { PositionalAudio, Html } from '@react-three/drei';
+import { useControls, folder } from 'leva';
 import type { PositionalAudio as PositionalAudioType } from 'three';
 
-// 오디오 소스 설정
-const AUDIO_SOURCES = [
-  {
-    id: 'light-rain',
-    label: '잔잔한 빗소리',
-    url: '/sounds/rain.mp3',
-    position: [-5, 0.5, 0] as [number, number, number],
-    color: '#00aaff',
-    refDistance: 3,
-    maxDistance: 15,
-  },
-  {
-    id: 'metal-rain',
-    label: '양철 지붕',
-    url: '/sounds/rain-metal.mp3',
-    position: [0, 2, -5] as [number, number, number],
-    color: '#888888',
-    refDistance: 2,
-    maxDistance: 10,
-  },
-  {
-    id: 'thunder',
-    label: '천둥',
-    url: '/sounds/thunder.mp3',
-    position: [0, 5, 5] as [number, number, number],
-    color: '#ffcc00',
-    refDistance: 5,
-    maxDistance: 30,
-  },
-];
-
 export function SpatialAudio() {
-  const [audioEnabled, setAudioEnabled] = useState(false);
+  // 마스터 컨트롤
+  const { audioEnabled } = useControls('Audio', {
+    audioEnabled: { value: false, label: 'Audio On/Off' },
+  });
+
+  // 개별 오디오 소스 컨트롤
+  const rain = useControls('Audio', {
+    'Rain': folder({
+      rainEnabled: { value: true, label: 'On/Off' },
+      rainVolume: { value: 1, min: 0, max: 1, step: 0.05, label: 'Volume' },
+      rainRefDistance: { value: 3, min: 0.5, max: 20, step: 0.5, label: 'Ref Distance' },
+      rainMaxDistance: { value: 15, min: 5, max: 100, step: 1, label: 'Max Distance' },
+    }),
+  });
+
+  const metalRain = useControls('Audio', {
+    'Metal Rain': folder({
+      metalEnabled: { value: true, label: 'On/Off' },
+      metalVolume: { value: 1, min: 0, max: 1, step: 0.05, label: 'Volume' },
+      metalRefDistance: { value: 2, min: 0.5, max: 20, step: 0.5, label: 'Ref Distance' },
+      metalMaxDistance: { value: 10, min: 5, max: 100, step: 1, label: 'Max Distance' },
+    }),
+  });
+
+  const thunder = useControls('Audio', {
+    'Thunder': folder({
+      thunderEnabled: { value: true, label: 'On/Off' },
+      thunderVolume: { value: 1, min: 0, max: 1, step: 0.05, label: 'Volume' },
+      thunderRefDistance: { value: 5, min: 0.5, max: 20, step: 0.5, label: 'Ref Distance' },
+      thunderMaxDistance: { value: 30, min: 5, max: 100, step: 1, label: 'Max Distance' },
+    }),
+  });
 
   return (
     <group>
-      {/* 오디오 활성화 버튼 (한 번만 클릭하면 전체 활성화) */}
-      {!audioEnabled && (
-        <group position={[0, 3, 0]}>
-          <mesh onClick={() => setAudioEnabled(true)}>
-            <boxGeometry args={[2, 0.5, 0.5]} />
-            <meshStandardMaterial color="#22c55e" />
-          </mesh>
-          <Html center position={[0, 0.5, 0]}>
-            <div
-              style={{
-                color: 'white',
-                background: '#22c55e',
-                padding: '4px 8px',
-                borderRadius: '4px',
-                fontSize: '12px',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              클릭하여 오디오 시작
-            </div>
-          </Html>
-        </group>
-      )}
-
-      {/* 각 오디오 소스 */}
-      {AUDIO_SOURCES.map((source) => (
-        <AudioSource key={source.id} {...source} enabled={audioEnabled} />
-      ))}
+      <AudioSource
+        label="잔잔한 빗소리"
+        url="/sounds/rain.mp3"
+        position={[-5, 0.5, 0]}
+        color="#00aaff"
+        enabled={audioEnabled && rain.rainEnabled}
+        volume={rain.rainVolume}
+        refDistance={rain.rainRefDistance}
+        maxDistance={rain.rainMaxDistance}
+      />
+      <AudioSource
+        label="양철 지붕"
+        url="/sounds/rain-metal.mp3"
+        position={[0, 2, -5]}
+        color="#888888"
+        enabled={audioEnabled && metalRain.metalEnabled}
+        volume={metalRain.metalVolume}
+        refDistance={metalRain.metalRefDistance}
+        maxDistance={metalRain.metalMaxDistance}
+      />
+      <AudioSource
+        label="천둥"
+        url="/sounds/thunder.mp3"
+        position={[0, 5, 5]}
+        color="#ffcc00"
+        enabled={audioEnabled && thunder.thunderEnabled}
+        volume={thunder.thunderVolume}
+        refDistance={thunder.thunderRefDistance}
+        maxDistance={thunder.thunderMaxDistance}
+      />
     </group>
   );
 }
@@ -77,6 +80,7 @@ function AudioSource({
   color,
   refDistance,
   maxDistance,
+  volume,
   enabled,
 }: {
   label: string;
@@ -85,6 +89,7 @@ function AudioSource({
   color: string;
   refDistance: number;
   maxDistance: number;
+  volume: number;
   enabled: boolean;
 }) {
   const audioRef = useRef<PositionalAudioType>(null);
@@ -95,8 +100,9 @@ function AudioSource({
       audio.setRefDistance(refDistance);
       audio.setRolloffFactor(1);
       audio.setMaxDistance(maxDistance);
+      audio.setVolume(volume);
     }
-  }, [refDistance, maxDistance]);
+  }, [refDistance, maxDistance, volume]);
 
   return (
     <group position={position}>

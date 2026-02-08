@@ -1,7 +1,5 @@
+// MVP 씬
 export { Playground } from './Playground';
-export { BasicShapes } from './BasicShapes';
-export { Lights } from './Lights';
-export { SpringAnimation } from './SpringAnimation';
-export { ModelLoader } from './ModelLoader';
-export { SpatialAudio } from './SpatialAudio';
-export { CharacterController } from './CharacterController';
+
+// 학습용 실험 (Lab)
+export { Lab } from './Lab';

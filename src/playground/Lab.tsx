@@ -1,20 +1,22 @@
 import { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { Leva } from 'leva';
+import { OrbitControls } from '@react-three/drei';
+import { BasicShapes } from './BasicShapes';
 import { Lights } from './Lights';
-import { SpatialAudio } from './SpatialAudio';
-import { CharacterController } from './CharacterController';
+import { SpringAnimation } from './SpringAnimation';
+import { ModelLoader } from './ModelLoader';
 
-export function Playground() {
+export function Lab() {
   return (
     <div className="w-screen h-screen">
-      <Leva collapsed={false} />
       <Canvas camera={{ position: [5, 5, 5], fov: 50 }}>
         <Lights />
-        <CharacterController />
+        <BasicShapes />
+        <SpringAnimation />
         <Suspense fallback={null}>
-          <SpatialAudio />
+          <ModelLoader />
         </Suspense>
+        <OrbitControls />
         <gridHelper args={[20, 20, '#444', '#222']} />
         <axesHelper args={[5]} />
       </Canvas>
