@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Audio originals (pre-normalization backup)
+public/sounds/_original/

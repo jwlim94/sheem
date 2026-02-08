@@ -9,6 +9,7 @@ import {
 import { useControls, folder } from 'leva';
 import { Vector3 } from 'three';
 import type { Group } from 'three';
+import { playerPosition } from './playerState';
 
 // 키 매핑 정의
 const keyboardMap = [
@@ -105,6 +106,9 @@ function Player({ modelPath }: { modelPath: string }) {
       playerPos.z + _cameraOffset.z,
     );
     camera.lookAt(playerPos);
+
+    // 공유 상태 업데이트 (SpatialAudio의 AudioListener 위치용)
+    playerPosition.copy(playerPos);
   });
 
   return (
