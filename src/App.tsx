@@ -3,6 +3,7 @@ import { Game } from './lib/Game';
 import { Playground } from './playground';
 import { Lab } from './playground/Lab';
 import { CharacterTest } from './playground/CharacterTest';
+import { SheemApp, SheemAppVanilla } from './sheem';
 import './App.css';
 
 function App() {
@@ -20,6 +21,12 @@ function App() {
 
         {/* 캐릭터 애니메이션 테스트 */}
         <Route path="/playground/character" element={<CharacterTest />} />
+
+        {/* Sheem 새 구현 (완성 시 / 로 승격 예정) */}
+        <Route path="/sheem" element={<SheemApp />} />
+
+        {/* 학습용: vanilla Three.js 버전 비교 */}
+        <Route path="/sheem/vanilla" element={<SheemAppVanilla />} />
       </Routes>
     </BrowserRouter>
   );
