@@ -42,13 +42,64 @@ export function SheemAppVanilla() {
     plane.rotation.x = -Math.PI / 2;
     scene.add(plane);
 
-    // Grid — <gridHelper args={[50, 50, '#444', '#333']} />
-    const grid = new THREE.GridHelper(50, 50, 0x444444, 0x333333);
-    scene.add(grid);
+    // Reference boxes — R3F의 <ReferenceBoxes />
+    const boxPositions: [number, number, number][] = [
+      [10, 1, 0],
+      [-10, 1, 0],
+      [0, 1, 10],
+      [0, 1, -10],
+      [7, 1, 7],
+      [-7, 1, -7],
+    ];
+    const boxGeometry = new THREE.BoxGeometry(2, 2, 2);
+    const boxMaterial = new THREE.MeshStandardMaterial({ color: 0x6b7fff });
+    const boxes: THREE.Mesh[] = [];
+    boxPositions.forEach(([x, y, z]) => {
+      const box = new THREE.Mesh(boxGeometry, boxMaterial);
+      box.position.set(x, y, z);
+      scene.add(box);
+      boxes.push(box);
+    });
+
+    // Keyboard state — R3F는 <KeyboardControls> + useKeyboardControls() 훅이 대신 처리
+    const keys = {
+      forward: false,
+      backward: false,
+      left: false,
+      right: false,
+    };
+
+    // keydown/keyup 이벤트로 keys 객체 갱신 — R3F는 Drei가 이걸 자동으로 해줌
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.forward = true;
+      if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.backward = true;
+      if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = true;
+      if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = true;
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.forward = false;
+      if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.backward = false;
+      if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = false;
+      if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = false;
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    // Delta time 계산용 Clock — R3F의 useFrame 콜백 인자인 delta와 동일
+    const clock = new THREE.Clock();
+    const MOVE_SPEED = 10;
 
     // Render loop — R3F는 useFrame / 자동 raf로 처리
     let frameId: number;
     const tick = () => {
+      const delta = clock.getDelta();
+
+      // 카메라 이동 — R3F의 CameraRig + useFrame에 해당
+      if (keys.forward) camera.position.z -= MOVE_SPEED * delta;
+      if (keys.backward) camera.position.z += MOVE_SPEED * delta;
+      if (keys.left) camera.position.x -= MOVE_SPEED * delta;
+      if (keys.right) camera.position.x += MOVE_SPEED * delta;
+
       renderer.render(scene, camera);
       frameId = requestAnimationFrame(tick);
     };
@@ -68,8 +119,12 @@ export function SheemAppVanilla() {
     return () => {
       cancelAnimationFrame(frameId);
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
       geometry.dispose();
       material.dispose();
+      boxGeometry.dispose();
+      boxMaterial.dispose();
       renderer.dispose();
       container.removeChild(renderer.domElement);
     };
