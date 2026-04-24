@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
 
 /**
  * SheemApp.tsx (R3F) 의 vanilla Three.js 버전.
@@ -26,6 +27,13 @@ export function SheemAppVanilla() {
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
+
+    // PointerLockControls — R3F의 <PointerLockControls />
+    // Drei 버전도 내부적으로 이걸 감싼 것
+    const controls = new PointerLockControls(camera, renderer.domElement);
+    // 클릭 시 포인터 락 — Drei는 Canvas 클릭 시 자동
+    const handleCanvasClick = () => controls.lock();
+    renderer.domElement.addEventListener('click', handleCanvasClick);
 
     // Lights — <ambientLight />, <directionalLight />
     const ambient = new THREE.AmbientLight(0xffffff, 0.5);
@@ -69,7 +77,6 @@ export function SheemAppVanilla() {
       right: false,
     };
 
-    // keydown/keyup 이벤트로 keys 객체 갱신 — R3F는 Drei가 이걸 자동으로 해줌
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.forward = true;
       if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.backward = true;
@@ -89,16 +96,26 @@ export function SheemAppVanilla() {
     const clock = new THREE.Clock();
     const MOVE_SPEED = 10;
 
+    // 매 프레임 재사용할 벡터 — R3F에선 useRef로 보관
+    const forwardVec = new THREE.Vector3();
+    const rightVec = new THREE.Vector3();
+
     // Render loop — R3F는 useFrame / 자동 raf로 처리
     let frameId: number;
     const tick = () => {
       const delta = clock.getDelta();
 
-      // 카메라 이동 — R3F의 CameraRig + useFrame에 해당
-      if (keys.forward) camera.position.z -= MOVE_SPEED * delta;
-      if (keys.backward) camera.position.z += MOVE_SPEED * delta;
-      if (keys.left) camera.position.x -= MOVE_SPEED * delta;
-      if (keys.right) camera.position.x += MOVE_SPEED * delta;
+      // 카메라 방향 기반 이동 — R3F의 CameraRig와 동일 로직
+      camera.getWorldDirection(forwardVec);
+      forwardVec.y = 0;
+      forwardVec.normalize();
+      rightVec.crossVectors(forwardVec, camera.up).normalize();
+
+      const step = MOVE_SPEED * delta;
+      if (keys.forward) camera.position.addScaledVector(forwardVec, step);
+      if (keys.backward) camera.position.addScaledVector(forwardVec, -step);
+      if (keys.right) camera.position.addScaledVector(rightVec, step);
+      if (keys.left) camera.position.addScaledVector(rightVec, -step);
 
       renderer.render(scene, camera);
       frameId = requestAnimationFrame(tick);
@@ -121,6 +138,8 @@ export function SheemAppVanilla() {
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      renderer.domElement.removeEventListener('click', handleCanvasClick);
+      controls.dispose();
       geometry.dispose();
       material.dispose();
       boxGeometry.dispose();
