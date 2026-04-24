@@ -25,3 +25,6 @@ dist-ssr
 
 # Audio originals (pre-normalization backup)
 public/sounds/_original/
+
+# Local MCP config
+.mcp.json
