@@ -1,5 +1,4 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Game } from './lib/Game';
 import { Playground } from './playground';
 import { Lab } from './playground/Lab';
 import { CharacterTest } from './playground/CharacterTest';
@@ -10,23 +9,16 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* 프로덕션 게임 */}
-        <Route path="/" element={<Game />} />
-
-        {/* MVP 개발 + 어드민 환경 */}
-        <Route path="/playground" element={<Playground />} />
-
-        {/* 학습용 실험 코드 (Phase 1.5) */}
-        <Route path="/playground/lab" element={<Lab />} />
-
-        {/* 캐릭터 애니메이션 테스트 */}
-        <Route path="/playground/character" element={<CharacterTest />} />
-
-        {/* Sheem 새 구현 (완성 시 / 로 승격 예정) */}
-        <Route path="/sheem" element={<SheemApp />} />
+        {/* Sheem 본체 */}
+        <Route path="/" element={<SheemApp />} />
 
         {/* 학습용: vanilla Three.js 버전 비교 */}
-        <Route path="/sheem/vanilla" element={<SheemAppVanilla />} />
+        <Route path="/vanilla" element={<SheemAppVanilla />} />
+
+        {/* 실험/검증 자산 — 지형, 오디오, 캐릭터 */}
+        <Route path="/playground" element={<Playground />} />
+        <Route path="/playground/lab" element={<Lab />} />
+        <Route path="/playground/character" element={<CharacterTest />} />
       </Routes>
     </BrowserRouter>
   );
