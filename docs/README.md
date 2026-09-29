@@ -1,9 +1,10 @@
 # Sheem documentation
 
-Current planning baseline: **2026-09-28**. This documentation pass changes no product implementation or infrastructure. Proposed architecture and acceptance targets below are not claims of shipped functionality.
+Planning baseline: **2026-09-28**. Proposed architecture and acceptance targets are not claims of shipped functionality. The first local title-screen implementation is tracked separately below.
 
 | Document | Purpose |
 | --- | --- |
+| [First start screen](start-screen.md) | Current local meadow preview, interaction, validation and first Short |
 | [Product vision and principles](product-vision.md) | Experience, priorities, guest entry, quiet presence |
 | [Repository audit](repository-audit.md) | Evidence from current files, routes, assets, tooling, and history |
 | [Technical architecture](technical-architecture.md) | Recommended stack, boundaries, decision register |
