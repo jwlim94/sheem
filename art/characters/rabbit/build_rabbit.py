@@ -126,11 +126,11 @@ for v in body.data.vertices:
 
 for side, s in [('L', 1), ('R', -1)]:
     ellipsoid('Thigh.'+side, (s*.235, .035, .37), (.21, .225, .31), fur, 'Leg.'+side, segments=18, rings=12)
-    ellipsoid('Foot.'+side, (s*.25, -.125, .12), (.205, .29, .13), fur, 'Leg.'+side, segments=20, rings=10)
+    ellipsoid('Foot.'+side, (s*.25, -.125, .12), (.205, .29, .13), fur, 'Foot.'+side, segments=20, rings=10)
     # Small toe seams follow the top of the forefoot, without separated fingers.
     for offset in [-.056, .056]:
         x = s*.25+offset
-        line('Toe seam', [(x,-.366,.139),(x,-.325,.19),(x,-.277,.222)], .005, peach, 'Leg.'+side)
+        line('Toe seam', [(x,-.366,.139),(x,-.325,.19),(x,-.277,.222)], .005, peach, 'Foot.'+side)
     ellipsoid('Arm.'+side, (s*.445, -.015, .89), (.145,.155,.405), fur, 'Arm.'+side, segments=18, rings=12, rotate=(0,s*-.28,0))
 
 ellipsoid('Cotton tail', (0, .365, .60), (.185,.18,.18), cream, 'Tail', segments=18, rings=12)
@@ -229,7 +229,7 @@ paint[:,:,:3]=np.where(linear<=.0031308,linear*12.92,1.055*linear**(1/2.4)-.055)
 face_image=bpy.data.images.new('Rabbit painted face',width=SIZE,height=SIZE,alpha=True)
 face_image.colorspace_settings.name='sRGB'
 face_image.pixels.foreach_set(paint.ravel())
-face_image.filepath_raw=str(SOURCE/'rabbit-face-v8.png')
+face_image.filepath_raw=str(SOURCE/'rabbit-face-v14.png')
 face_image.file_format='PNG'
 face_image.save();face_image.pack()
 face_mat=bpy.data.materials.new('Painted face');face_mat.use_nodes=True
@@ -297,10 +297,13 @@ for i in range(8):
     x=-.423+i*.039
     line('Bag stitch',[(x,-.426,.846),(x+.012,-.426,.846)],.0025,stitchmat,'Body')
 
-# One mesh with material slots and a genuine armature. Soft body deformation and
-# a walk cycle are deliberately left for the locomotion milestone.
+# Separate feet keep soles level through the planted part of the walk cycle.
+# The accepted V8 mesh shape is unchanged; only weights and animation change.
 bpy.ops.object.select_all(action='DESELECT')
 for obj in parts:
+    if obj.name.startswith(('Satchel', 'Bag flap', 'Clasp tab', 'Brass clasp', 'Bag stitch')):
+        obj.vertex_groups.clear()
+        obj.vertex_groups.new(name='Bag').add(list(range(len(obj.data.vertices))), 1.0, 'REPLACE')
     # Vertex paint carries the palette; only two roughness materials are needed.
     if obj != head:
         obj.data.materials[0] = dark if obj.data.materials[0] == dark else fur
@@ -328,6 +331,9 @@ bones={
  'Arm.R':((-.36,0,1.19),(-.53,-.05,.62),'Body'),
  'Leg.L':((.235,.035,.57),(.25,-.125,.12),'Root'),
  'Leg.R':((-.235,.035,.57),(-.25,-.125,.12),'Root'),
+ 'Foot.L':((.25,-.125,.12),(.25,-.35,.12),'Root'),
+ 'Foot.R':((-.25,-.125,.12),(-.25,-.35,.12),'Root'),
+ 'Bag':((-.285,-.307,.85),(-.285,-.307,.60),'Body'),
  'Tail':((0,.28,.60),(0,.47,.60),'Body'),
 }
 for name,(a,b,parent) in bones.items():
@@ -339,28 +345,146 @@ character.parent=rig
 mod=character.modifiers.new('Rabbit armature','ARMATURE');mod.object=rig
 rig.show_in_front=True
 
-# Quiet four-second loop, no constant bobbing or locomotion implied.
-for pb in rig.pose.bones: pb.rotation_mode='XYZ'
-for frame in [1,31,61,91,121]:
-    t=(frame-1)/120*math.tau
-    pb=rig.pose.bones['Body'];pb.location.z=.005*math.sin(t)
-    pb.keyframe_insert('location',frame=frame,group='Body')
-    pb=rig.pose.bones['Head'];pb.rotation_euler=(.015*math.sin(t),0,.025*math.sin(t))
-    pb.keyframe_insert('rotation_euler',frame=frame,group='Head')
-    for side,s in [('L',1),('R',-1)]:
-        pb=rig.pose.bones['Ear.'+side]
-        pb.rotation_euler=(.02*math.sin(t),s*.025*math.sin(t),0)
-        pb.keyframe_insert('rotation_euler',frame=frame,group='Ear.'+side)
-rig.animation_data.action.name='Idle'
-bpy.context.scene.frame_set(1)
-scene=bpy.context.scene
-scene.frame_start=1;scene.frame_end=121;scene.render.fps=30
+# All clips key every bone channel, so returning to Idle restores the feet.
+scene = bpy.context.scene
+scene.render.fps = 30
+for pb in rig.pose.bones:
+    pb.rotation_mode = 'QUATERNION'
+
+def reset_pose():
+    for pb in rig.pose.bones:
+        pb.location = (0, 0, 0)
+        pb.rotation_quaternion = (1, 0, 0, 0)
+        pb.scale = (1, 1, 1)
+
+def rotate_world(name, angles):
+    from mathutils import Euler
+    pb = rig.pose.bones[name]
+    basis = pb.bone.matrix_local.to_quaternion()
+    pb.rotation_quaternion = basis.inverted() @ Euler(angles).to_quaternion() @ basis
+
+def translate_world(name, delta):
+    pb = rig.pose.bones[name]
+    pb.location = pb.bone.matrix_local.to_3x3().inverted() @ Vector(delta)
+
+def key_pose(frame):
+    for pb in rig.pose.bones:
+        for channel in ('location', 'rotation_quaternion', 'scale'):
+            pb.keyframe_insert(channel, frame=frame, group=pb.name)
+
+for frame in [0,30,60,90,120]:
+    reset_pose()
+    t = frame / 120 * math.tau
+    translate_world('Body', (0, 0, .005 * math.sin(t)))
+    rotate_world('Head', (.015 * math.sin(t), 0, .025 * math.sin(t)))
+    for side, sign in [('L',1),('R',-1)]:
+        rotate_world('Ear.'+side, (.02 * math.sin(t), sign*.025 * math.sin(t), 0))
+    key_pose(frame)
+idle_action = rig.animation_data.action
+idle_action.name = 'Idle'
+idle_action.use_fake_user = True
+rig.animation_data.action = None
+
+# Brisk upright walk: 0.42 m stance travel / 0.4 s = 1.05 m/s.
+# Stance travels linearly backward, swing returns forward with eased lift.
+# Root translation stays zero for the later keyboard movement controller.
+for frame in range(25):
+    reset_pose()
+    phase = frame / 24
+    t = phase * math.tau
+    bounce = .006 * (1 - math.cos(2*t))
+    translate_world('Body', (.008 * math.sin(t), 0, bounce))
+    rotate_world('Body', (.025, .015 * math.sin(t), .025 * math.sin(t)))
+    rotate_world('Head', (-.015 + .012 * math.sin(2*t), -.010 * math.sin(t), -.018 * math.sin(t)))
+    rotate_world('Bag', (.025 * math.sin(t-.4), .020 * math.sin(t), 0))
+    rotate_world('Tail', (.04 * math.sin(2*t-.3), 0, .035 * math.sin(t)))
+    for side, offset in [('L',0),('R',.5)]:
+        p = (phase + offset) % 1
+        if p < .5:
+            forward = .20 - .42 * (p * 2)
+            lift = 0
+        else:
+            u = (p-.5) * 2
+            eased = u*u*(3-2*u)
+            forward = -.22 + .42 * eased
+            lift = .065 * math.sin(math.pi*u)**2
+        translate_world('Foot.'+side, (0, -forward, .006 + lift))
+        # Aim each thigh toward its foot while the independent sole stays level.
+        pb = rig.pose.bones['Leg.'+side]
+        rest = (pb.bone.tail_local - pb.bone.head_local)
+        target = rest + Vector((0, -forward, lift))
+        basis = pb.bone.matrix_local.to_quaternion()
+        pb.rotation_quaternion = basis.inverted() @ rest.rotation_difference(target) @ basis
+        # Keep the ankle attached through the wider stride.
+        pb.scale.y = target.length / rest.length
+        rotate_world('Arm.'+side, (.32 * math.cos((phase+offset)*math.tau), 0, 0))
+        rotate_world('Ear.'+side, (.035 * math.sin(2*t-.5), .018 * math.sin(t+offset*math.tau), 0))
+    key_pose(frame)
+walk_action = rig.animation_data.action
+walk_action.name = 'Walk'
+walk_action.use_fake_user = True
+# Upright game-style run: broad opposing arm/leg swings and two flight phases.
+# 0.575 m stance travel / 0.28 s contact at normal playback at normal playback.
+rig.animation_data.action = None
+for frame in range(25):
+    reset_pose()
+    phase = frame / 24
+    t = phase * math.tau
+    # Flight moves the whole skeleton, including feet, instead of hunching the torso.
+    half_phase = phase % .5
+    flight = .035 * math.sin(math.pi * (half_phase-.35)/.15)**2 if half_phase > .35 else 0
+    translate_world('Root', (0, 0, flight))
+    # Two soft torso rebounds per stride, with shoulder twist opposing each leg.
+    # Blender Z is vertical: twist is yaw, Y is the small lateral bank.
+    bounce = .018 * (1 - math.cos(2*t))
+    twist = .10 * math.cos(t)
+    bank = .035 * math.sin(t)
+    pitch = .035 + .022 * math.sin(2*t)
+    translate_world('Body', (.012 * math.sin(t), 0, bounce))
+    rotate_world('Body', (pitch, bank, twist))
+    # Counter-rotation keeps the face looking ahead while the shoulders move.
+    rotate_world('Head', (-.02 - .014 * math.sin(2*t), -.022 * math.sin(t), -.065 * math.cos(t)))
+    rotate_world('Bag', (.075 * math.sin(t-.4), .035 * math.sin(t), 0))
+    rotate_world('Tail', (.09 * math.sin(2*t-.3), 0, .05 * math.sin(t)))
+    for side, offset in [('L',0),('R',.5)]:
+        p = (phase + offset) % 1
+        if p < .35:
+            forward = .275 - .575 * (p / .35)
+            lift = 0
+        else:
+            u = (p-.35) / .65
+            forward = -.30 + .575 * u*u*(3-2*u)
+            lift = .14 * math.sin(math.pi*u)**2
+        translate_world('Foot.'+side, (0, -forward, .006 + lift))
+        pb = rig.pose.bones['Leg.'+side]
+        rest = pb.bone.tail_local - pb.bone.head_local
+        target = rest + Vector((0, -forward, lift))
+        basis = pb.bone.matrix_local.to_quaternion()
+        pb.rotation_quaternion = basis.inverted() @ rest.rotation_difference(target) @ basis
+        # Keep the ankle attached through the wider stride.
+        pb.scale.y = target.length / rest.length
+        rotate_world('Arm.'+side, (.65 * math.cos((phase+offset)*math.tau), 0, .06 if side == 'L' else -.06))
+        rotate_world('Ear.'+side, (-.025 + .085 * math.sin(2*t-.6), .03 * math.sin(t+offset*math.tau), 0))
+    key_pose(frame)
+run_action = rig.animation_data.action
+run_action.name = 'Run'
+run_action.use_fake_user = True
+
+# Per-frame samples use linear interpolation to avoid overshoot below the floor.
+for action in (idle_action, walk_action, run_action):
+    for curve in action.fcurves:
+        for key in curve.keyframe_points:
+            key.interpolation = 'BEZIER' if action == idle_action else 'LINEAR'
+rig.animation_data.action = idle_action
+scene.frame_start = 0
+scene.frame_end = 120
+scene.frame_set(0)
 
 OUT.mkdir(parents=True,exist_ok=True)
 bpy.ops.object.select_all(action='DESELECT')
 character.select_set(True);rig.select_set(True)
 bpy.context.view_layer.objects.active=rig
-bpy.ops.export_scene.gltf(filepath=str(OUT/'sheem-rabbit-v8.glb'),export_format='GLB',use_selection=True,export_animations=True,export_animation_mode='ACTIONS',export_yup=True,export_skins=True)
+bpy.ops.export_scene.gltf(filepath=str(OUT/'sheem-rabbit-v14.glb'),export_format='GLB',use_selection=True,export_animations=True,export_animation_mode='ACTIONS',export_yup=True,export_skins=True)
 
 # Save an editable model plus a small neutral presentation setup in the .blend.
 ground=material('Studio sand',(.64,.67,.52))
@@ -385,13 +509,13 @@ scene.render.engine='CYCLES';scene.cycles.samples=48;scene.cycles.use_denoising=
 scene.render.resolution_x=900;scene.render.resolution_y=1000;scene.render.resolution_percentage=100
 scene.view_settings.view_transform='AgX'
 bpy.context.preferences.filepaths.save_version=0
-bpy.ops.wm.save_as_mainfile(filepath=str(SOURCE/'sheem-rabbit-v8.blend'))
-scene.render.filepath=str(SOURCE/'rabbit-preview-v8.png')
+bpy.ops.wm.save_as_mainfile(filepath=str(SOURCE/'sheem-rabbit-v14.blend'))
+scene.render.filepath=str(SOURCE/'rabbit-preview-v14.png')
 bpy.ops.render.render(write_still=True)
 character.data.calc_loop_triangles()
 print('RABBIT_TRIANGLES',len(character.data.loop_triangles))
 print('RABBIT_HEIGHT_METERS',round(character.dimensions.z,3))
 
 cam.location=(0,5,1.75);aim(cam,(0,0,.87))
-scene.render.filepath=str(SOURCE/'rabbit-back-v8.png')
+scene.render.filepath=str(SOURCE/'rabbit-back-v14.png')
 bpy.ops.render.render(write_still=True)
