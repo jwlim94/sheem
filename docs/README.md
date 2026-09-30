@@ -14,6 +14,7 @@ Planning baseline: **2026-09-28**. Proposed architecture and acceptance targets 
 | [MVP scope](mvp-scope.md) | Included experience, exclusions, release acceptance |
 | [Milestone roadmap](milestone-roadmap.md) | Small implementation increments and local verification |
 | [YouTube Shorts roadmap](content-roadmap.md) | Demonstrations, viewer questions, feedback prioritization |
+| [Content visual identity draft](content/visual-identity.md) | Provisional palette, seven reusable Shorts backgrounds and readability review |
 | [Deployment workflow](deployment-workflow.md) | Local → feature preview → main → sheem.ai; prerequisites only |
 | [Technical debt and experiments](technical-debt.md) | Keep/refactor/retire decisions and triggers |
 | [Reference guide](reference-guide.md) | Existing learning material and historical document status |
