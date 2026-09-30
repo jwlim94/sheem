@@ -1,6 +1,6 @@
 # Rabbit character
 
-Status: V8 appearance approved by the user on 2026-09-30. The user selected the rabbit from the
+Status: V64 refinement approved by the user on 2026-09-30. The user selected the rabbit from the
 [human/rabbit concept](content/assets/characters/human-rabbit-concepts-v1.png).
 V9 adds a local in-place walk study while preserving the V8 appearance.
 This is an increment toward the next character-focused Short, not completion of
@@ -12,12 +12,12 @@ Warm oatmeal body, subtle cheek fullness, upright peach-lined ears, sage kerchie
 crossbody satchel and a round tail. Proportions and accessories follow the concept;
 the geometry is a first interpretation for review, not an exact reconstruction.
 
-- [Browser GLB](../public/models/rabbit/sheem-rabbit-v49.glb): 2,098,920 bytes, 11,423
+- [Browser GLB](../public/models/rabbit/sheem-rabbit-v64.glb): 2,912,236 bytes, 30,635
   triangles, three material primitives, fifteen bones, a four-second `Idle` and
   0.8-second `Walk` and `Run` clips. One embedded 768×768 face color texture and two fur normal textures (256×256 body, 768×768 head); no external texture or decoder requests.
-- [Editable Blender source](../art/characters/rabbit/sheem-rabbit-v49.blend).
+- [Editable Blender source](../art/characters/rabbit/sheem-rabbit-v64.blend).
 - [Rebuild script](../art/characters/rabbit/build_rabbit.py), tested in Blender 4.4.1.
-- [Studio render](../art/characters/rabbit/rabbit-preview-v49.png).
+- [Studio render](../art/characters/rabbit/rabbit-preview-v64.png).
 
 The model was authored locally from the in-session generated concept, using
 procedural mesh construction in Blender. No third-party character mesh or texture
@@ -38,8 +38,8 @@ entry behavior; the rabbit study is loaded only on its own route.
 
 V1–V8 GLBs and editable Blender files are retained in `public/models/rabbit/`
 and `art/characters/rabbit/`, alongside the available renders and face textures.
-V8 is the accepted appearance; V49 is the current animated runtime model. The current rebuild script
-recreates V49; historical `.blend` files preserve earlier geometry for comparison.
+V64 is the accepted appearance and current animated runtime model. The current rebuild script
+recreates V64; historical `.blend` files preserve earlier geometry for comparison.
 
 ## Face revision
 
@@ -858,3 +858,203 @@ front silhouette, resting oblique attachment and both extreme run arm poses;
 the resting slit remains closed and no inner flap is present. Focused browser
 check reported no exceptions. Lint/build passed (existing bundle-size advisory).
 Keyboard locomotion and device performance were not re-tested.
+
+## Flat soles and sculpted toes (V50)
+
+Replaced the rounded feet and separate colored toe lines with continuous smooth
+paws. The lower cap forms a broad flat sole with rounded sidewalls; two shallow
+mesh grooves divide the domed forefoot into three soft toe sections and continue
+down its front edge. The toes stay joined to the foot. A denser foot mesh preserves
+the creases, with a local decimation pass and final sole-plane correction. Existing
+Foot bone weights and floor-aware ankle roll use the new vertices automatically.
+
+Acceptance: flat resting contact, rounded tops and three toes distinguishable
+by geometry without painted lines. Earlier V49 assets remain preserved.
+
+Validation: inspected browser front/oblique and side foot close-ups. Both soles
+have coplanar contact vertices (62 combined); evaluated every authored Idle,
+Walk and Run frame, with minimum sole height approximately 0.0002 m and no
+floor penetration. Browser reported no exceptions. Lint/build passed with the
+existing bundle-size advisory. Per-foot terrain conformity was not added.
+
+## Gentle walking weight transfer (V51)
+
+Walk shifts the torso up to 0.018 m toward the supporting foot with a 0.035-rad
+lateral bank, peaking at mid-stance and crossing center during foot exchange.
+The head counter-translates 0.022 m and counter-banks 0.028 rad to retain a small
+amount of motion while stabilizing the face. Run and Idle motion are unchanged.
+
+Validation: both mid-stance poses move the body toward the supporting foot;
+head bone lateral displacement is about 0.0083 m versus the body's 0.018 m.
+Browser support poses were inspected without exceptions. All authored Idle,
+Walk and Run frames retain minimum sole height about 0.0002 m. Lint/build pass
+with the existing bundle-size advisory.
+
+## Connected head and ear movement while walking (V52)
+
+Removed V51's independent head counter-translation and strong counter-bank,
+which visually isolated the face from the torso. The head now inherits torso
+weight transfer, with only a small delayed neck rotation. Both ears follow the
+same lateral rhythm, with subtle delayed flex instead of opposing rolls. The
+existing ear-root skin weights keep their bases following the skull.
+
+Acceptance: the torso, face and ear roots read as one connected character
+through both support phases, while ear tips retain a soft follow-through.
+
+Validation: inspected both browser support poses including face and ears; no
+browser exceptions. Head local translation stays zero and follows the body
+laterally in both phases. All authored Idle/Walk/Run frames retain approximately
+0.0002 m minimum sole height. Lint/build passed with the existing bundle advisory.
+
+## Softer running rhythm (V53)
+
+Run now uses a mild 0.014 m lateral transfer and 0.022-rad bank aligned toward
+mid-support, smaller than Walk. Root flight amplitude drops from 0.035 to
+0.008 m; torso rebound amplitude drops from 0.018 to 0.004 m. Pitch, twist, bag
+swing and ear bob are reduced. Head and ears inherit the body rhythm instead
+of strongly counter-rotating. The camera code has no gait-driven shake and was
+not changed; this adjustment addresses the large authored character bounce.
+
+Acceptance: a soft running sway without the previous sharp vertical thump.
+All authored animation frames retain approximately 0.0002 m minimum sole
+height. Walk and Idle remain unchanged.
+
+## Satchel placement and follow-through (V54)
+
+Turned the pouch about 17 degrees around the hip, shifted it slightly outward
+and down and added a small resting tilt. Flap, clasp and stitches transform
+together. The Bag bone pivots at the upper strap attachment. Only the lower
+strap sections adapt to the new attachment, with a smooth Body-to-Bag weight
+transition. Walk and Run use a small delayed pendulum swing, stronger in Run,
+so the pouch follows the torso rather than moving in lockstep.
+
+Acceptance: the satchel follows the hip contour, hangs from its upper attachment
+and keeps the lower strap connected throughout motion. Earlier assets remain.
+
+Validation: inspected resting oblique view and opposing Walk/Run support poses;
+strap endpoints remained attached in those views. Browser reported no exceptions.
+Lint/build passed with the existing bundle advisory. This uses authored animation,
+not cloth simulation or runtime collision avoidance.
+
+## Satchel clearance and continuous rear strap (V55)
+
+Moved the satchel 0.12 authoring units toward the center and 0.08 forward from
+V54 to clear the hanging hand while keeping the pouch outside the belly.
+The rear strap had become embedded in the fuller torso after its transform.
+Both straps now have closely spaced cross-sections and project outward to the
+actual torso surface with a small clearance. Rear segments stay with the body;
+only the front attachment region blends into Bag movement.
+
+Acceptance: the rear strap wraps visibly around the torso to the pouch, and
+the pouch sits inward of the hand with less overlap in resting and run poses.
+
+The ribbon width frame now follows the torso surface continuously around the
+side, preventing the old X/Z-only frame from twisting at the rear turn.
+
+Validation: inspected resting front/oblique and opposing Run poses, including
+side and rear views. The strap continues behind the arm to the pouch and no
+longer folds back on itself across the back. Ribbon thickness is applied after
+surface fitting to avoid collapsed overlapping faces. Browser had no exceptions;
+lint/build passed with the existing bundle advisory. No collision simulation.
+
+## Direct front strap attachment (V56)
+
+Rebuilt the front strap directly from the shoulder to the final upper pouch
+attachment. Previously, transforming just the lower portion introduced an
+S-shaped side profile and routed its tip too far down the pouch. The new path
+keeps torso clearance and the existing attachment weight blend. Bag placement
+and the rear wrap remain as in V55. Inspected both side views and opposing Run
+poses: the front run is straight without the previous elbow. Browser reported
+no exceptions; lint/build passed with the existing bundle advisory.
+
+## Rounded strap route and head clearance (V57)
+
+Lowered the shared shoulder crossing and moved it outward from the head.
+Cubic interpolation now rounds the front and rear anchor transitions instead
+of merely subdividing straight segments. Smooth strap shading removes visible
+section boundaries; torso clearance, pouch placement and attachment animation
+weights are retained.
+
+Validation: inspected both side views, rear view and opposing Run support poses
+in the browser. The rear turn is curved and the shoulder crossing sits below
+the head. No browser exceptions; lint/build passed with the existing bundle
+size advisory. This remains authored deformation rather than cloth simulation.
+
+## Closer strap fit (V58)
+
+The torso fit now pulls loose strap spans inward as well as pushing embedded
+vertices outward. A small surface clearance remains, with a gradual release
+near the pouch to preserve its attachment and swing. Bag placement is unchanged.
+
+Validation: inspected both side views, rear view and opposing Run poses in the
+browser; the long front and upper rear gaps are reduced. No browser exceptions.
+Lint/build passed with the existing bundle size advisory.
+
+## Shallow sculpted eyebrows (V59)
+
+Replaced the painted eyebrows with smooth, closed meshes following the same
+arches and warm cocoa color. Rounded inner ends taper toward the outer tails;
+flattened cross-sections project onto the head with buried backs and a maximum
+0.009 authoring-unit relief. Both brows use the Head bone and share the existing
+accessory material. Eyes and mouth remain painted for this focused comparison.
+
+Validation: inspected close front, oblique and side views, including opposing
+Run poses. Brows stay attached to the face with visible rounded depth. Browser
+reported no exceptions; lint/build passed with the existing bundle advisory.
+
+## Raised smile and philtrum (V60)
+
+Replaced the painted mouth and its painted shading with shallow rounded meshes
+projected onto the face. The smile keeps its existing width, curve and cocoa
+color; the philtrum retains its lighter color and slightly shallower relief.
+Rounded caps and buried backs keep these features attached to the muzzle.
+The eyebrow sweep is now a shared helper with its accepted dimensions unchanged.
+
+Validation: inspected enlarged front, oblique and side renders and opposing Run
+poses. No browser exceptions; lint/build passed with the existing bundle advisory.
+
+## Shallow dimensional eyes (V61)
+
+Replaced painted eyes with face-conforming ivory domes, slightly raised espresso
+ovals, and muted highlights following the same curved surface. Original eye
+centers, dimensions and highlight offsets are retained. Sclera edges settle
+into the head; the dark centers rise by approximately 0.024 authoring units.
+Outer eyeliner tails follow the sclera; the dark oval itself forms the upper
+edge, avoiding a separate raised nub. All eye parts follow the Head bone and
+use the existing matte accessory material.
+
+Validation: inspected enlarged front, oblique and side views and opposing Run
+poses. Removed an upper-lid bump identified during visual review. No browser
+exceptions; lint/build passed with the existing bundle advisory.
+
+## Continuous tapered outer eyeliner (V62)
+
+Replaced the separate outer-lid sweep with a tapered extension of the dark eye
+surface itself. The shared silhouette closes the pale slit between the iris
+and liner, swelling gently at the outer upper edge and tapering back to the
+original oval. Eye placement, ivory base and highlights are unchanged.
+
+Validation: inspected enlarged front and oblique renders plus side and Run
+poses; no detached line or pale slit at the connection. Browser reported no
+exceptions; lint/build passed with the existing bundle advisory.
+
+## Restore oval eyes and connect only eyeliner roots (V63)
+
+Reverted the V62 iris silhouette expansion after user feedback. The dark eye
+is again the original oval, with a separate tapered outer eyeliner tail. Its
+upper root starts slightly inside the eye with a thicker cross-section, and
+the outward offset starts later so the connection overlaps the dark surface.
+The fine descending tail remains distinct from the oval.
+
+Validation: enlarged front and oblique views show the restored oval and attached
+upper root; side and opposing Run poses were also checked. No browser exceptions;
+lint/build passed with the existing bundle advisory.
+
+## Softer upper nose corners (V64)
+
+Increased the two upper nose corner rounding fractions from 0.24 to 0.40.
+The lower corner keeps its 0.24 rounding, position and projection depth.
+The result retains the inverted triangle with softer left/right shoulders.
+
+Validation: inspected enlarged front and oblique browser renders. No browser
+exceptions; lint/build passed with the existing bundle advisory.

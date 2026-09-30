@@ -91,7 +91,7 @@ def soft_fur_material(mat, normal_image, uv_name, strength=.45):
     links.new(tex.outputs['Color'],normal.inputs['Color'])
     links.new(normal.outputs['Normal'],shader.inputs['Normal'])
 
-fur_tile=packed_image('Short fur normals',fiber_normal(256,731),'rabbit-fur-normal-v49.png')
+fur_tile=packed_image('Short fur normals',fiber_normal(256,731),'rabbit-fur-normal-v64.png')
 soft_fur_material(fur,fur_tile,'FurUV')
 parts = []
 
@@ -152,20 +152,37 @@ def line(name, points, radius, mat, bone='Head'):
     return finish(bpy.context.object, name, mat, bone, True)
 
 def ribbon(name, points, width, mat, bone='Body'):
+    # Cubic interpolation rounds anchor transitions instead of subdividing elbows.
+    anchors=[Vector(p) for p in points]
+    dense=[]
+    for j,(a,b) in enumerate(zip(anchors,anchors[1:])):
+        before=anchors[j-1] if j else 2*a-b
+        after=anchors[j+2] if j+2<len(anchors) else 2*b-a
+        length=(b-a).length
+        ta=(b-before).normalized()*length
+        tb=(after-a).normalized()*length
+        steps=max(3,math.ceil(length/.012))
+        for i in range(steps):
+            t=i/steps
+            dense.append((2*t**3-3*t*t+1)*a+(t**3-2*t*t+t)*ta
+                         +(-2*t**3+3*t*t)*b+(t**3-t*t)*tb)
+    points=dense+[anchors[-1]]
     verts = []
     for i, p in enumerate(points):
         prev = Vector(points[max(0, i-1)])
         nex = Vector(points[min(len(points)-1, i+1)])
         tangent = nex-prev
-        # Width lies in X/Z; path follows front or back of the torso.
-        across = Vector((tangent.z, 0, -tangent.x)).normalized() * width/2
+        # Carry width along the body surface, including the side wrap.
+        normal=Vector((p[0]/.435**2,(p[1]-.03)/.33**2,(p[2]-.86)/.59**2)).normalized()
+        across=tangent.cross(normal).normalized()*width/2
+        if i and across.dot(previous_across)<0: across.negate()
+        previous_across=across.copy()
         verts += [Vector(p)-across, Vector(p)+across]
     faces = [(2*i, 2*i+1, 2*i+3, 2*i+2) for i in range(len(points)-1)]
     obj = mesh(name, verts, faces, mat, bone)
     mod = obj.modifiers.new('Leather thickness', 'SOLIDIFY')
     mod.thickness = 0.014
     bpy.context.view_layer.objects.active = obj
-    bpy.ops.object.modifier_apply(modifier=mod.name)
     return obj
 
 # Rounded pear body, fuller at the hips. Deliberate facets keep the meadow style.
@@ -191,11 +208,32 @@ for side, s in [('L', 1), ('R', -1)]:
         upper_weight = t*t*(3-2*t)
         thigh.vertex_groups['Leg.'+side].add([vertex.index], upper_weight, 'REPLACE')
         shin_group.add([vertex.index], 1-upper_weight, 'REPLACE')
-    ellipsoid('Foot.'+side, (s*.25, -.125, .12), (.205, .29, .13), fur, 'Foot.'+side, segments=20, rings=10)
-    # Small toe seams follow the top of the forefoot, without separated fingers.
-    for offset in [-.056, .056]:
-        x = s*.25+offset
-        line('Toe seam', [(x,-.366,.139),(x,-.325,.19),(x,-.277,.222)], .005, peach, 'Foot.'+side)
+    # A continuous plush paw: broad flat sole and three rounded toe pads.
+    # The two creases are carved into the forefoot, not painted on its surface.
+    foot=ellipsoid('Plush foot.'+side,(s*.25,-.125,.12),(.205,.29,.13),
+                   fur,'Foot.'+side,True,64,32)
+    for vertex in foot.data.vertices:
+        x,y,z=vertex.co
+        local_x=x-s*.25
+        # Flatten the lower cap over a wide contact patch with a soft sidewall.
+        sole=.005
+        z=sole+max(0,z-.055)*1.22
+        front=max(0,min(1,(-y-.18)/.16))
+        front=front*front*(3-2*front)
+        grooves=sum(math.exp(-((local_x-seam)/.016)**2) for seam in [-.064,.064])
+        top=max(0,min(1,(z-sole)/.075))
+        z-=.040*grooves*front*top
+        # Carry the shallow notches down the rounded toe edge, including its base.
+        edge=max(0,min(1,(-y-.29)/.10))
+        y+=.038*grooves*edge*edge*(3-2*edge)
+        vertex.co=(x,y,z)
+    foot.data.update()
+    bpy.context.view_layer.objects.active=foot
+    decimate=foot.modifiers.new('Soft toe surface budget','DECIMATE');decimate.ratio=.45
+    bpy.ops.object.modifier_apply(modifier=decimate.name)
+    for vertex in foot.data.vertices:
+        if vertex.co.z < .0055: vertex.co.z=.005
+    foot.data.update()
     # One continuous short arm, with only two shallow fingertip creases.
     # No separate palm, wrist, thumb, finger bulbs or knuckle shaping.
     arm=ellipsoid('Continuous paw.'+side,(0,0,0),(1,1,1),fur,
@@ -317,7 +355,7 @@ for side, s, lean, height in [('L',1,.15,.66),('R',-1,.21,.62)]:
             faces.append((k,k+1,k+10,k+9))
     mesh('Inner ear.'+side, verts, faces, peach, 'Ear.'+side, True)
 
-# Paint the features into the head material: zero eye/brow/mouth silhouette.
+# Paint the eyes into the head material; brows and mouth have shallow relief.
 # Planar UVs are restricted to front polygons; the rear samples plain fur.
 SIZE = 768
 xx, zz = np.meshgrid(np.linspace(-.65,.65,SIZE), np.linspace(1.20,2.28,SIZE))
@@ -351,43 +389,10 @@ muzzle_raise = .025
 oval(0,1.56+muzzle_raise,.215,.13,cream.diffuse_color,soft=.65,opacity=.4)
 for sign in [-1,1]:
     oval(sign*.35,1.63,.125,.078,(.84,.43,.26),soft=1,opacity=.35)
-    # A slightly fuller warm sclera crescent, biased outward and below the iris.
-    eye_x = sign*.2162
-    eye_height = .90 / .88  # Restore eye height before V35 head compression.
-    def eye_z(z): return 1.78 + (z-1.78)*eye_height
-    oval(eye_x+sign*.001,eye_z(1.7785),.067,.097*eye_height,(.88,.81,.69),soft=.045)
-    oval(eye_x-sign*.005,eye_z(1.781),.058,.089*eye_height,dark.diffuse_color,soft=.04)
-    # Blend into the top of the dark oval with a fine inner start, no inner nub.
-    lid_top = [(eye_x-sign*.005+sign*.057*math.cos(a), eye_z(1.781+.0875*math.sin(a)))
-               for a in np.linspace(2.15,1.25,24)]
-    stroke(lid_top,.0005,dark.diffuse_color,end_radius=.004)
-    # Only the outer tail moves onto the sclera's outer boundary and drops briefly.
-    lid_tail = []
-    for t in np.linspace(0,1,24):
-        a = 1.25-.91*t
-        offset = .010*t*t*(3-2*t)
-        lid_tail.append((eye_x-sign*.005+sign*(.057*math.cos(a)+offset),
-                         eye_z(1.781+.0875*math.sin(a))))
-    stroke(lid_tail,.004,dark.diffuse_color,end_radius=.0008)
-    oval(eye_x-sign*.005+.019,eye_z(1.818),.010,.014*eye_height,
-         (.70,.61,.48),soft=.38,opacity=.85)
-    # Fuller inner brow, gently arched with a lower, tapered outer tail.
-    stroke(bezier((sign*.177,1.987),(sign*.221,2.009),(sign*.277,1.958)),
-           .015, nose.diffuse_color, end_radius=.0045, taper_power=1.6)
-# A soft philtrum and tapered cocoa smile sit within a faint shaded crease.
-# Keep this flush to the face, avoiding a raised cord around the muzzle.
+# Smile paths are shared by the raised mouth geometry below.
 smile_paths = [bezier((0,1.569+muzzle_raise),
                      (sign*.048,1.527+muzzle_raise),
                      (sign*.11,1.561+muzzle_raise)) for sign in [-1,1]]
-for path in smile_paths:
-    stroke(path,.009,(.43,.27,.16),end_radius=.0025,softness=.016,opacity=.16)
-    stroke([(x,z-.006) for x,z in path],.004,cream.diffuse_color,
-           end_radius=.001,softness=.010,opacity=.30)
-stroke([(0,1.638+muzzle_raise),(0,1.569+muzzle_raise)],.0055,
-       (.43,.265,.16),softness=.0035)
-for path in smile_paths:
-    stroke(path,.0055,(.25,.115,.060),end_radius=.005,taper_power=2,
-           softness=.0035)
 
 # Independent cylindrical fur UVs prevent the facial projection stretching on
 # the sides/back. Leave painted facial features smooth using soft atlas masks.
@@ -405,7 +410,7 @@ for sign in [-1,1]:
     fur_mask*=smooth_feature(sign*.2162,1.78,.030,.118)
     fur_mask*=smooth_feature(sign*.225,1.985,.027,.039)
 fur_mask*=smooth_feature(0,1.60,.052,.084)
-face_fur=packed_image('Face fur normals',fiber_normal(SIZE,732,fur_mask),'rabbit-face-normal-v49.png')
+face_fur=packed_image('Face fur normals',fiber_normal(SIZE,732,fur_mask),'rabbit-face-normal-v64.png')
 
 # Store sRGB pixels; the glTF texture loader decodes them to linear for lighting.
 linear=paint[:,:,:3]
@@ -413,7 +418,7 @@ paint[:,:,:3]=np.where(linear<=.0031308,linear*12.92,1.055*linear**(1/2.4)-.055)
 face_image=bpy.data.images.new('Rabbit painted face',width=SIZE,height=SIZE,alpha=True)
 face_image.colorspace_settings.name='sRGB'
 face_image.pixels.foreach_set(paint.ravel())
-face_image.filepath_raw=str(SOURCE/'rabbit-face-v49.png')
+face_image.filepath_raw=str(SOURCE/'rabbit-face-v64.png')
 face_image.file_format='PNG'
 face_image.save();face_image.pack()
 face_mat=bpy.data.materials.new('Painted face');face_mat.use_nodes=True
@@ -441,20 +446,126 @@ for polygon in head.data.polygons:
     for loop_index,(u,v) in zip(polygon.loop_indices,coords):
         fur_uv.data[loop_index].uv=(u+1 if seam and u<.5 else u,v)
 
-# Only the tiny nose has relief, embedded against the actual faceted head.
+# Project raised features onto the actual head surface.
 def face_y(x,z):
     hit,point,normal,index=head.ray_cast(Vector((x,-2,z)),Vector((0,1,0)))
     if not hit: raise RuntimeError('Face projection missed head')
     return point.y
+def raised_face_stroke(name, points, start_radius, end_radius, relief, mat, surface=face_y):
+    # Closed flattened sweep with rounded caps and a back embedded in the face.
+    path=[Vector(p) for p in points]
+    rings=[]
+    for i,p in enumerate(path):
+        tangent=(path[min(i+1,len(path)-1)]-path[max(0,i-1)]).normalized()
+        radius=start_radius+(end_radius-start_radius)*(i/(len(path)-1))**1.6
+        if i==0:
+            for a in np.linspace(-math.pi/2,0,7)[:-1]:
+                rings.append((p+tangent*radius*math.sin(a),tangent,
+                              radius*max(.001,math.cos(a)),relief*max(.001,math.cos(a))))
+        rings.append((p,tangent,radius,relief*(radius/start_radius)**.5))
+        if i==len(path)-1:
+            for a in np.linspace(0,math.pi/2,7)[1:]:
+                rings.append((p+tangent*radius*math.sin(a),tangent,
+                              radius*max(.001,math.cos(a)),relief*(radius/start_radius)**.5*max(.001,math.cos(a))))
+    verts,faces=[],[]
+    around=12
+    for p,tangent,radius,depth in rings:
+        across=Vector((-tangent.y,tangent.x))
+        for j in range(around):
+            a=math.tau*j/around
+            x,z=p+across*radius*math.cos(a)
+            verts.append((x,surface(x,z)+.001-depth*math.sin(a),z))
+    for i in range(len(rings)-1):
+        for j in range(around):
+            a=i*around+j;b=i*around+(j+1)%around
+            faces.append((a,b,b+around,a+around))
+    faces.extend([tuple(reversed(range(around))),
+                  tuple((len(rings)-1)*around+j for j in range(around))])
+    brow=mesh(name,verts,faces,mat,'Head',True)
+    import bmesh
+    bm=bmesh.new();bm.from_mesh(brow.data)
+    bmesh.ops.recalc_face_normals(bm,faces=list(bm.faces))
+    bm.to_mesh(brow.data);bm.free()
+
+
+# Shallow eye domes follow the face rather than standing off as separate balls.
+def eye_patch(name,cx,cz,rx,rz,surface,mat):
+    verts=[(cx,surface(cx,cz),cz)]
+    faces=[]
+    around=64
+    for r in np.linspace(.1,1,10):
+        for j in range(around):
+            a=math.tau*j/around
+            x,z=cx+rx*r*math.cos(a),cz+rz*r*math.sin(a)
+            verts.append((x,surface(x,z),z))
+    for j in range(around): faces.append((0,1+j,1+(j+1)%around))
+    for k in range(9):
+        for j in range(around):
+            a=1+k*around+j;b=1+k*around+(j+1)%around
+            faces.append((a,a+around,b+around,b))
+    obj=mesh(name,verts,faces,mat,'Head',True)
+    # Consistent outward front normals for the dome and its highlights.
+    for polygon in obj.data.polygons:
+        if polygon.normal.y>0: polygon.flip()
+    obj.data.update()
+
+sclera_mat=material('Warm ivory sclera',(.88,.81,.69))
+eye_glint=material('Muted eye highlight',(.605,.525,.412))
+for sign in [-1,1]:
+    side='L' if sign>0 else 'R'
+    ex=sign*.2162
+    eh=.90/.88
+    def ez(z): return 1.78+(z-1.78)*eh
+    wx,wz=ex+sign*.001,ez(1.7785)
+    ix,iz=ex-sign*.005,ez(1.781)
+    def white_surface(x,z):
+        r2=((x-wx)/.067)**2+((z-wz)/(.097*eh))**2
+        return face_y(x,z)-(.021*max(0,1-r2)-.001)
+    def iris_surface(x,z):
+        r2=((x-ix)/.058)**2+((z-iz)/(.089*eh))**2
+        return white_surface(x,z)-.0006-.004*max(0,1-r2)
+    eye_patch('Eye white.'+side,wx,wz,.067,.097*eh,white_surface,sclera_mat)
+    eye_patch('Eye dark.'+side,ix,iz,.058,.089*eh,iris_surface,dark)
+    eye_patch('Eye highlight.'+side,ix+.019,ez(1.818),.010,.014*eh,
+              lambda x,z: iris_surface(x,z)-.0005,eye_glint)
+    # Restore the separate eyeliner tail; bury its thicker root inside the oval.
+    # Delay the outward offset so the upper connection overlaps the dark eye.
+    lid_tail=[]
+    for t in np.linspace(0,1,36):
+        a=1.40-1.06*t
+        outward=max(0,min(1,(t-.25)/.75))
+        offset=.010*outward*outward*(3-2*outward)
+        inset=.002*(1-t)**2
+        lid_tail.append((ix+sign*((.057-inset)*math.cos(a)+offset),
+                         ez(1.781+(.0875-inset)*math.sin(a))))
+    raised_face_stroke('Outer lid.'+side,lid_tail,.005,.0008,.0022,dark,white_surface)
+
+# Preserve the accepted brow profile.
+for sign in [-1,1]:
+    raised_face_stroke('Raised brow.'+('L' if sign>0 else 'R'),
+                      bezier((sign*.177,1.987),(sign*.221,2.009),(sign*.277,1.958),count=33),
+                      .015,.0045,.010,nose)
+
+# Shallow lip relief keeps the familiar smile without a projecting rope shape.
+smile_mat=material('Cocoa smile',(.25,.115,.060))
+philtrum_mat=material('Soft philtrum',(.43,.265,.16))
+raised_face_stroke('Raised philtrum',
+                  [(0,z) for z in np.linspace(1.638+muzzle_raise,1.569+muzzle_raise,20)],
+                  .0055,.0055,.0048,philtrum_mat)
+for side,path in zip(['R','L'],smile_paths):
+    raised_face_stroke('Raised smile.'+side,path,.0055,.005,.006,smile_mat)
+
 # Rounded triangular pillow: curved corners, domed front and buried back.
 nose_skin = material('Soft apricot nose', (.58,.29,.20))
 corners = [Vector((-.051,1.675)), Vector((.051,1.675)), Vector((0,1.621))]
 outline = []
+# Broader rounding at the two upper corners; retain the accepted lower tip.
+corner_rounding = [.40, .40, .24]
 for i, corner in enumerate(corners):
-    entry = corner.lerp(corners[(i-1)%3], .24)
-    leave = corner.lerp(corners[(i+1)%3], .24)
+    entry = corner.lerp(corners[(i-1)%3], corner_rounding[i])
+    leave = corner.lerp(corners[(i+1)%3], corner_rounding[i])
     outline.extend(Vector(p) for p in bezier(entry, corner, leave, count=9))
-    next_entry = corners[(i+1)%3].lerp(corner, .24)
+    next_entry = corners[(i+1)%3].lerp(corner, corner_rounding[(i+1)%3])
     outline.extend(leave.lerp(next_entry, t) for t in np.linspace(0,1,6)[1:-1])
 center = Vector((0,1.650))
 outline = [center + (point-center)*1.15 + Vector((0,muzzle_raise)) for point in outline]
@@ -502,8 +613,7 @@ mesh('Scarf left end',[(.19,-.28,1.34),(.095,-.36,1.20),(.09,-.365,1.09),(.21,-.
 mesh('Scarf right end',[(.22,-.26,1.33),(.31,-.26,1.30),(.395,-.22,1.16),(.285,-.31,1.20),(.30,-.32,1.26)],[(0,1,4),(1,2,4),(2,3,4),(3,0,4)],sage_light,'Body')
 
 # Crossbody strap wraps over shoulder and around back, not a floating diagonal.
-ribbon('Front strap',[(.28,-.09,1.38),(.28,-.25,1.26),(.20,-.315,1.12),(.10,-.325,.98),(-.05,-.33,.85),(-.20,-.315,.72)],.082,flapmat)
-ribbon('Back strap',[(-.285,-.255,.75),(-.40,-.12,.72),(-.43,.04,.72),(-.36,.24,.74),(-.21,.345,.84),(-.09,.37,1.0),(.09,.335,1.19),(.25,.20,1.35),(.28,.02,1.39),(.28,-.09,1.38)],.082,leather)
+ribbon('Back strap',[(-.285,-.255,.75),(-.40,-.12,.72),(-.43,.04,.72),(-.36,.24,.74),(-.21,.345,.84),(-.09,.37,1.0),(.09,.335,1.16),(.28,.20,1.27),(.33,.02,1.30),(.33,-.09,1.29)],.082,leather)
 
 def rounded_box(name,pos,size,mat,bevel=.06):
     bpy.ops.mesh.primitive_cube_add(size=1,location=pos)
@@ -522,6 +632,60 @@ ellipsoid('Brass clasp',(-.285,-.447,.746),(.020,.009,.019),stitchmat,'Body',Tru
 for i in range(8):
     x=-.423+i*.039
     line('Bag stitch',[(x,-.426,.846),(x+.012,-.426,.846)],.0025,stitchmat,'Body')
+
+# Turn the satchel around the hip rather than presenting it square to camera.
+# Pivot at the upper strap attachment so the lower pouch hangs freely.
+bag_pivot=Vector((-.20,-.315,.85))
+bag_shift=Vector((.085,-.075,-.015))
+bag_rotation=(Matrix.Rotation(-.30,3,'Z') @ Matrix.Rotation(.08,3,'Y')
+              @ Matrix.Rotation(.04,3,'X'))
+bag_prefixes=('Satchel','Bag flap','Clasp tab','Brass clasp','Bag stitch')
+for obj in parts:
+    if obj.name.startswith(bag_prefixes) or obj.name in ['Front strap','Back strap']:
+        for vertex in obj.data.vertices:
+            weight=1.0
+            if obj.name in ['Front strap','Back strap']:
+                t=max(0,min(1,(.99-vertex.co.z)/.14))
+                attachment=max(0,min(1,(-vertex.co.y+.02)/.25))
+                weight=t*t*(3-2*t)*attachment
+            target=bag_pivot+bag_rotation@(vertex.co-bag_pivot)+bag_shift
+            vertex.co=vertex.co.lerp(target,weight)
+        obj.data.update()
+
+# Rebuild the front run directly to its final upper pouch attachment.
+# Transforming only its lower vertices had introduced an S bend in side view.
+front_attachment=bag_pivot+bag_rotation@(Vector((-.14,-.315,.86))-bag_pivot)+bag_shift
+ribbon('Front strap',[(.33,-.09,1.29),(.28,-.25,1.20),
+                     tuple(front_attachment)],.082,flapmat)
+
+# Keep the wrap outside the actual pear torso, including its fuller lower belly.
+# A transformed rear strap can otherwise disappear inside the body like a cut.
+from mathutils.bvhtree import BVHTree
+body_surface=BVHTree.FromPolygons([v.co.copy() for v in body.data.vertices],
+                                [list(p.vertices) for p in body.data.polygons])
+for obj in parts:
+    if obj.name in ['Front strap','Back strap']:
+        for vertex in obj.data.vertices:
+            origin=Vector((0,.03,vertex.co.z))
+            direction=vertex.co-origin
+            distance=direction.length
+            if distance<1e-6: continue
+            direction.normalize()
+            hit,normal,index,hit_distance=body_surface.ray_cast(origin,direction)
+            if hit is not None:
+                # Fit loose spans inward as well as keeping embedded spans outside.
+                # Ease off near the pouch so its attachment can still swing freely.
+                low=max(0,min(1,(1.04-vertex.co.z)/.20))
+                front=max(0,min(1,(-vertex.co.y+.02)/.25))
+                attachment=low*low*(3-2*low)*front
+                close_distance=hit_distance+.024
+                fitted=distance+(close_distance-distance)*.90*(1-attachment)
+                vertex.co=origin+direction*max(hit_distance+.018,fitted)
+        obj.data.update()
+        bpy.context.view_layer.objects.active=obj
+        bpy.ops.object.modifier_apply(modifier='Leather thickness')
+        for polygon in obj.data.polygons:
+            polygon.use_smooth=True
 
 # Compress the finished face together with its painted UVs and projected nose.
 # Translate complete ears to the new crown so their accepted proportions survive.
@@ -563,6 +727,14 @@ for obj in parts:
     if obj.name.startswith(('Satchel', 'Bag flap', 'Clasp tab', 'Brass clasp', 'Bag stitch')):
         obj.vertex_groups.clear()
         obj.vertex_groups.new(name='Bag').add(list(range(len(obj.data.vertices))), 1.0, 'REPLACE')
+    if obj.name in ['Front strap','Back strap']:
+        bag_group=obj.vertex_groups.new(name='Bag')
+        for vertex in obj.data.vertices:
+            t=max(0,min(1,(compact_height(.99)-vertex.co.z)/.13))
+            attachment=max(0,min(1,(-vertex.co.y+.02)/.25))
+            weight=t*t*(3-2*t)*attachment
+            obj.vertex_groups['Body'].add([vertex.index],1-weight,'REPLACE')
+            bag_group.add([vertex.index],weight,'REPLACE')
     # Only the actual fur gets fibers. Preserve smooth leather/cloth/nose surfaces.
     if obj != head:
         is_fur = obj.data.materials[0] == fur or obj.name == 'Cotton tail'
@@ -603,7 +775,7 @@ bones={
  'Shin.R':((-.25,-.39,.38),(-.25,-.125,.12),'Leg.R'),
  'Foot.L':((.25,-.125,.12),(.25,-.35,.12),'Shin.L'),
  'Foot.R':((-.25,-.125,.12),(-.25,-.35,.12),'Shin.R'),
- 'Bag':((-.285,-.307,.85),(-.285,-.307,.60),'Body'),
+ 'Bag':(tuple(bag_pivot+bag_shift),tuple(bag_pivot+bag_shift+Vector((0,0,-.25))),'Body'),
  'Tail':((0,.28,.60),(0,.47,.60),'Body'),
 }
 for name,(a,b,parent) in bones.items():
@@ -708,10 +880,16 @@ for frame in range(25):
     phase = frame / 24
     t = phase * math.tau
     bounce = .006 * (1 - math.cos(2*t))
-    translate_world('Body', (.008 * math.sin(t), 0, bounce))
-    rotate_world('Body', (.025, .015 * math.sin(t), .025 * math.sin(t)))
-    rotate_world('Head', (-.015 + .012 * math.sin(2*t), -.010 * math.sin(t), -.018 * math.sin(t)))
-    rotate_world('Bag', (.025 * math.sin(t-.4), .020 * math.sin(t), 0))
+    # Left (+X) supports the first half-cycle, right supports the second.
+    # Peak weight transfer coincides with mid-stance and fades at foot exchange.
+    support = math.sin(t)
+    translate_world('Body', (.018 * support, 0, bounce))
+    rotate_world('Body', (.025, .035 * support, .025 * support))
+    # Let the head inherit the body's weight transfer. Only a small delayed
+    # neck motion softens the turn; no independent lateral translation.
+    rotate_world('Head', (-.010 + .008 * math.sin(2*t-.18),
+                          .006 * math.sin(t-.22), -.006 * support))
+    rotate_world('Bag', (.050 * math.sin(t-.55), .025 * math.sin(t-.65), .015 * math.sin(t-.55)))
     rotate_world('Tail', (.04 * math.sin(2*t-.3), 0, .035 * math.sin(t)))
     for side, offset in [('L',0),('R',.5)]:
         p = (phase + offset) % 1
@@ -731,7 +909,10 @@ for frame in range(25):
             pitch = .32*(1-u) - .10*u
         pose_leg(side, forward, lift, pitch)
         rotate_world('Arm.'+side, (.32 * math.cos((phase+offset)*math.tau), 0, 0))
-        rotate_world('Ear.'+side, (.035 * math.sin(2*t-.5), .018 * math.sin(t+offset*math.tau), 0))
+        # Both ears follow the same body sway with a slight delayed flex.
+        # Opposite-phase ear rolls made the pair look detached from the skull.
+        rotate_world('Ear.'+side, (.024 * math.sin(2*t-.45),
+                                  .012 * math.sin(t-.40), 0))
     key_pose(frame)
 walk_action = rig.animation_data.action
 walk_action.name = 'Walk'
@@ -745,19 +926,21 @@ for frame in range(25):
     t = phase * math.tau
     # Flight moves the whole skeleton, including feet, instead of hunching the torso.
     half_phase = phase % .5
-    flight = .035 * math.sin(math.pi * (half_phase-.35)/.15)**2 if half_phase > .35 else 0
+    flight = .008 * math.sin(math.pi * (half_phase-.35)/.15)**2 if half_phase > .35 else 0
     translate_world('Root', (0, 0, flight))
     # Two soft torso rebounds per stride, with shoulder twist opposing each leg.
     # Blender Z is vertical: twist is yaw, Y is the small lateral bank.
-    bounce = .018 * (1 - math.cos(2*t))
-    twist = .10 * math.cos(t)
-    bank = .035 * math.sin(t)
-    pitch = .035 + .022 * math.sin(2*t)
-    translate_world('Body', (.012 * math.sin(t), 0, bounce))
+    bounce = .004 * (1 - math.cos(2*t))
+    twist = .045 * math.cos(t)
+    support = math.sin(t+.15*math.pi)
+    bank = .022 * support
+    pitch = .025 + .008 * math.sin(2*t)
+    translate_world('Body', (.014 * support, 0, bounce))
     rotate_world('Body', (pitch, bank, twist))
-    # Counter-rotation keeps the face looking ahead while the shoulders move.
-    rotate_world('Head', (-.02 - .014 * math.sin(2*t), -.022 * math.sin(t), -.065 * math.cos(t)))
-    rotate_world('Bag', (.075 * math.sin(t-.4), .035 * math.sin(t), 0))
+    # Head follows the torso; small delayed motion softens the running rhythm.
+    rotate_world('Head', (-.010 + .005 * math.sin(2*t-.18),
+                          .004 * math.sin(t+.15*math.pi-.22), -.008 * math.cos(t)))
+    rotate_world('Bag', (.080 * math.sin(t-.55), .040 * math.sin(t-.65), .025 * math.sin(t-.55)))
     rotate_world('Tail', (.09 * math.sin(2*t-.3), 0, .05 * math.sin(t)))
     for side, offset in [('L',0),('R',.5)]:
         p = (phase + offset) % 1
@@ -775,7 +958,8 @@ for frame in range(25):
             pitch = .42*(1-u) - .08*u
         pose_leg(side, forward, lift, pitch)
         rotate_world('Arm.'+side, (.65 * math.cos((phase+offset)*math.tau), 0, .06 if side == 'L' else -.06))
-        rotate_world('Ear.'+side, (-.025 + .085 * math.sin(2*t-.6), .03 * math.sin(t+offset*math.tau), 0))
+        rotate_world('Ear.'+side, (-.012 + .028 * math.sin(2*t-.45),
+                                  .009 * math.sin(t+.15*math.pi-.40), 0))
     key_pose(frame)
 run_action = rig.animation_data.action
 run_action.name = 'Run'
@@ -795,7 +979,7 @@ OUT.mkdir(parents=True,exist_ok=True)
 bpy.ops.object.select_all(action='DESELECT')
 character.select_set(True);rig.select_set(True)
 bpy.context.view_layer.objects.active=rig
-bpy.ops.export_scene.gltf(filepath=str(OUT/'sheem-rabbit-v49.glb'),export_format='GLB',use_selection=True,export_animations=True,export_animation_mode='ACTIONS',export_yup=True,export_skins=True)
+bpy.ops.export_scene.gltf(filepath=str(OUT/'sheem-rabbit-v64.glb'),export_format='GLB',use_selection=True,export_animations=True,export_animation_mode='ACTIONS',export_yup=True,export_skins=True)
 
 # Save an editable model plus a small neutral presentation setup in the .blend.
 ground=material('Studio sand',(.64,.67,.52))
@@ -820,13 +1004,13 @@ scene.render.engine='CYCLES';scene.cycles.samples=48;scene.cycles.use_denoising=
 scene.render.resolution_x=900;scene.render.resolution_y=1000;scene.render.resolution_percentage=100
 scene.view_settings.view_transform='AgX'
 bpy.context.preferences.filepaths.save_version=0
-bpy.ops.wm.save_as_mainfile(filepath=str(SOURCE/'sheem-rabbit-v49.blend'))
-scene.render.filepath=str(SOURCE/'rabbit-preview-v49.png')
+bpy.ops.wm.save_as_mainfile(filepath=str(SOURCE/'sheem-rabbit-v64.blend'))
+scene.render.filepath=str(SOURCE/'rabbit-preview-v64.png')
 bpy.ops.render.render(write_still=True)
 character.data.calc_loop_triangles()
 print('RABBIT_TRIANGLES',len(character.data.loop_triangles))
 print('RABBIT_HEIGHT_METERS',round(character.dimensions.z,3))
 
 cam.location=(0,5,1.75);aim(cam,(0,0,.87))
-scene.render.filepath=str(SOURCE/'rabbit-back-v49.png')
+scene.render.filepath=str(SOURCE/'rabbit-back-v64.png')
 bpy.ops.render.render(write_still=True)
