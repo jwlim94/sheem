@@ -54,7 +54,7 @@ function WalkingScene({
   const actor = useRef<Group>(null);
   const orbit = useRef<OrbitControlsImpl>(null);
   const { camera } = useThree();
-  const drive = useRef<RabbitDrive>({ motion: 'Idle', timeScale: 1 });
+  const drive = useRef<RabbitDrive>({ motion: 'Idle', timeScale: 1, reset: 0 });
   const movement = useRef(createRabbitMovement());
   const consumed = useRef({ reset: 0, stopped: 0 });
   const scratch = useMemo(
@@ -92,13 +92,17 @@ function WalkingScene({
       const fresh = createRabbitMovement();
       state.position.copy(fresh.position);
       state.velocity.set(0, 0, 0);
+      state.stopping = false;
       state.yaw = fresh.yaw;
       state.speed = 0;
+      drive.current.reset = (drive.current.reset ?? 0) + 1;
       consumed.current.reset = input.current.reset;
     }
     if (input.current.stopped !== consumed.current.stopped) {
       state.velocity.set(0, 0, 0);
+      state.stopping = false;
       state.speed = 0;
+      drive.current.reset = (drive.current.reset ?? 0) + 1;
       consumed.current.stopped = input.current.stopped;
     }
     const held = (a: string, b: string) =>
@@ -136,7 +140,11 @@ function WalkingScene({
       state.speed >
       RABBIT_SPEED + (drive.current.motion === 'Run' ? 0.03 : 0.12);
     drive.current.motion =
-      state.speed <= 0.008 ? 'Idle' : running ? 'Run' : 'Walk';
+      (!horizontal && !forward) || state.speed <= 0.008
+        ? 'Idle'
+        : running
+          ? 'Run'
+          : 'Walk';
     drive.current.timeScale = Math.max(
       0.05,
       state.speed / (running ? RABBIT_RUN_GAIT_SPEED : RABBIT_WALK_SPEED)

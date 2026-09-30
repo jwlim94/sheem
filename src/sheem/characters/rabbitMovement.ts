@@ -16,6 +16,9 @@ export function createRabbitMovement() {
     velocity: new Vector3(),
     yaw: Math.PI,
     speed: 0,
+    stopping: false,
+    brakeElapsed: 0,
+    brakeVelocity: new Vector3(),
   };
 }
 export type RabbitMovement = ReturnType<typeof createRabbitMovement>;
@@ -37,11 +40,24 @@ export function stepRabbit(
   const speed = sprint ? RABBIT_RUN_SPEED : RABBIT_SPEED;
   const targetX = (x * Math.cos(cameraYaw) - z * Math.sin(cameraYaw)) * speed;
   const targetZ = (-x * Math.sin(cameraYaw) - z * Math.cos(cameraYaw)) * speed;
-  const blend = 1 - Math.exp(-12 * dt);
-  state.velocity.x = MathUtils.lerp(state.velocity.x, targetX, blend);
-  state.velocity.z = MathUtils.lerp(state.velocity.z, targetZ, blend);
-  if (!length && state.velocity.lengthSq() < 0.000004)
-    state.velocity.set(0, 0, 0);
+  if (length) {
+    state.stopping = false;
+    const blend = 1 - Math.exp(-12 * dt);
+    state.velocity.x = MathUtils.lerp(state.velocity.x, targetX, blend);
+    state.velocity.z = MathUtils.lerp(state.velocity.z, targetZ, blend);
+  } else {
+    if (!state.stopping) {
+      state.stopping = true;
+      state.brakeElapsed = 0;
+      state.brakeVelocity.copy(state.velocity);
+    }
+    // Finish braking with the model's 0.28 s landing, with no long sliding tail.
+    state.brakeElapsed = Math.min(0.28, state.brakeElapsed + dt);
+    const remaining = 1 - state.brakeElapsed / 0.28;
+    state.velocity
+      .copy(state.brakeVelocity)
+      .multiplyScalar(remaining * remaining);
+  }
   const oldX = state.position.x,
     oldZ = state.position.z;
   state.position.addScaledVector(state.velocity, dt);

@@ -28,3 +28,7 @@ public/sounds/_original/
 
 # Local MCP config
 .mcp.json
+
+# Blender authoring scripts
+__pycache__/
+*.pyc

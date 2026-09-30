@@ -2,10 +2,20 @@ import { useEffect, useMemo, useRef } from 'react';
 import type { RefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
-import { AnimationAction, AnimationMixer, Mesh } from 'three';
+import {
+  AnimationAction,
+  AnimationMixer,
+  Bone,
+  Group,
+  Mesh,
+  Quaternion,
+  Vector3,
+} from 'three';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { createSoleClearance } from './soleClearance';
+import { createRabbitBlink } from './rabbitBlink';
 
-export const RABBIT_MODEL_URL = '/models/rabbit/sheem-rabbit-v14.glb';
+export const RABBIT_MODEL_URL = '/models/rabbit/sheem-rabbit-v49.glb';
 
 // Match the V14 stance travel while keeping movement speed unchanged.
 export const RABBIT_WALK_SPEED = 1.05;
@@ -13,9 +23,13 @@ export const RABBIT_WALK_SPEED = 1.05;
 export const RABBIT_RUN_GAIT_SPEED = 0.575 / 0.28;
 
 export type RabbitMotion = 'Idle' | 'Walk' | 'Run';
-export type RabbitDrive = { motion: RabbitMotion; timeScale: number };
+export type RabbitDrive = {
+  motion: RabbitMotion;
+  timeScale: number;
+  reset?: number;
+};
 
-/** Y-up, facing +Z, feet at zero; 1.70 m including ears. */
+/** Y-up, facing +Z, feet at zero; about 1.45 m including ears. */
 export function RabbitModel({
   playing = true,
   motion = 'Idle',
@@ -38,19 +52,77 @@ export function RabbitModel({
     return instance;
   }, [scene]);
   const mixer = useRef<AnimationMixer | null>(null);
+  const blink = useRef<ReturnType<typeof createRabbitBlink> | null>(null);
+  useEffect(() => {
+    const ownedBlink = createRabbitBlink(rabbit);
+    blink.current = ownedBlink;
+    return () => {
+      ownedBlink.dispose();
+      blink.current = null;
+    };
+  }, [rabbit]);
+  const support = useRef<Group>(null);
+  const soleClearance = useMemo(
+    () => createSoleClearance(rabbit, ['FootL', 'FootR', 'Foot.L', 'Foot.R']),
+    [rabbit]
+  );
+
+  // Capture the displayed pose on input changes, including interrupted stops.
+  // This lets the final raised foot land instead of slowing a gait almost to zero.
+  const transition = useMemo(() => {
+    const poses: {
+      bone: Bone;
+      position: Vector3;
+      rotation: Quaternion;
+      scale: Vector3;
+      targetPosition: Vector3;
+      targetRotation: Quaternion;
+      targetScale: Vector3;
+    }[] = [];
+    rabbit.traverse((object) => {
+      if (object instanceof Bone)
+        poses.push({
+          bone: object,
+          position: object.position.clone(),
+          rotation: object.quaternion.clone(),
+          scale: object.scale.clone(),
+          targetPosition: object.position.clone(),
+          targetRotation: object.quaternion.clone(),
+          targetScale: object.scale.clone(),
+        });
+    });
+    return {
+      poses,
+      body: poses.find(({ bone }) => bone.name === 'Body')?.bone,
+      tilt: new Quaternion(),
+      axis: new Vector3(1, 0, 0),
+    };
+  }, [rabbit]);
+
+  const timing = useRef({
+    elapsed: 1,
+    duration: 0,
+    kind: 'none' as 'none' | 'start' | 'stop',
+    reset: 0,
+    applied: false,
+  });
 
   const currentAction = useRef<AnimationAction | null>(null);
 
   useEffect(() => {
     const ownedMixer = new AnimationMixer(rabbit);
+    const ownedTiming = timing.current;
     mixer.current = ownedMixer;
     return () => {
       ownedMixer.stopAllAction();
       ownedMixer.uncacheRoot(rabbit);
       currentAction.current = null;
+      ownedTiming.applied = false;
+      ownedTiming.kind = 'none';
+      ownedTiming.duration = 0;
       mixer.current = null;
     };
-  }, [rabbit, animations]);
+  }, [rabbit, animations, transition]);
 
   useEffect(() => {
     const ownedMixer = mixer.current;
@@ -77,18 +149,49 @@ export function RabbitModel({
   useFrame((_, delta) => {
     const ownedMixer = mixer.current;
     if (!ownedMixer || !playing) return;
+    const dt = Math.min(delta, 0.05);
+    blink.current?.update(dt);
     if (drive) {
+      const hardReset = (drive.current.reset ?? 0) !== timing.current.reset;
+      timing.current.reset = drive.current.reset ?? 0;
       const clip = animations.find(
         (animation) => animation.name === drive.current.motion
       );
       if (clip) {
         const next = ownedMixer.clipAction(clip);
-        if (next !== currentAction.current) {
+        if (next !== currentAction.current || hardReset) {
           const previous = currentAction.current;
-          next.reset().setEffectiveWeight(1).play();
-          previous?.stopFading();
-          previous?.fadeOut(0.18);
-          next.fadeIn(0.18);
+          const stopping = drive.current.motion === 'Idle';
+          const starting = previous?.getClip().name === 'Idle';
+          if (hardReset || stopping || starting) {
+            for (const pose of transition.poses) {
+              pose.position.copy(pose.bone.position);
+              pose.rotation.copy(pose.bone.quaternion);
+              pose.scale.copy(pose.bone.scale);
+            }
+            if (timing.current.applied) {
+              for (const pose of transition.poses) {
+                pose.bone.position.copy(pose.targetPosition);
+                pose.bone.quaternion.copy(pose.targetRotation);
+                pose.bone.scale.copy(pose.targetScale);
+              }
+              timing.current.applied = false;
+            }
+            ownedMixer.stopAllAction();
+            next.reset().stopFading().setEffectiveWeight(1).play();
+            timing.current.kind = hardReset
+              ? 'none'
+              : stopping
+                ? 'stop'
+                : 'start';
+            timing.current.elapsed = 0;
+            timing.current.duration = hardReset ? 0 : stopping ? 0.28 : 0.2;
+          } else {
+            next.reset().setEffectiveWeight(1).play();
+            previous?.stopFading();
+            previous?.fadeOut(0.18);
+            next.fadeIn(0.18);
+          }
           currentAction.current = next;
         }
         next.setEffectiveTimeScale(
@@ -96,7 +199,52 @@ export function RabbitModel({
         );
       }
     }
-    ownedMixer.update(Math.min(delta, 0.05));
+    // AnimationMixer skips writes for unchanged tracks. Restore its last target
+    // before updating so procedural blending never feeds back into the next pose.
+    if (timing.current.applied) {
+      for (const pose of transition.poses) {
+        pose.bone.position.copy(pose.targetPosition);
+        pose.bone.quaternion.copy(pose.targetRotation);
+        pose.bone.scale.copy(pose.targetScale);
+      }
+      timing.current.applied = false;
+    }
+    ownedMixer.update(dt);
+    if (drive && timing.current.duration > 0) {
+      timing.current.elapsed = Math.min(
+        timing.current.elapsed + dt,
+        timing.current.duration
+      );
+      const progress = timing.current.elapsed / timing.current.duration;
+      const blend = progress * progress * (3 - 2 * progress);
+      for (const pose of transition.poses) {
+        const { bone, position, rotation, scale } = pose;
+        pose.targetPosition.copy(bone.position);
+        pose.targetRotation.copy(bone.quaternion);
+        pose.targetScale.copy(bone.scale);
+        bone.position.lerp(position, 1 - blend);
+        bone.quaternion.slerp(rotation, 1 - blend);
+        bone.scale.lerp(scale, 1 - blend);
+      }
+      if (transition.body) {
+        const pulse = Math.sin(Math.PI * progress);
+        // Small chest weight shift, not a whole-avatar lean that lifts the soles.
+        transition.tilt.setFromAxisAngle(
+          transition.axis,
+          (timing.current.kind === 'start' ? 0.055 : -0.025) * pulse
+        );
+        transition.body.quaternion.multiply(transition.tilt);
+      }
+      timing.current.applied = true;
+      if (progress === 1) timing.current.duration = 0;
+    }
+    // Joint interpolation can briefly dip a rounded sole through its support
+    // plane; lift the displayed pose by only that deficit, without stretching.
+    if (support.current) support.current.position.y = soleClearance();
   });
-  return <primitive object={rabbit} dispose={null} />;
+  return (
+    <group ref={support}>
+      <primitive object={rabbit} dispose={null} />
+    </group>
+  );
 }
