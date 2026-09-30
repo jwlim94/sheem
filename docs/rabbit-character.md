@@ -30,7 +30,7 @@ npm run dev
 ```
 
 Open `/playground/rabbit`. Drag to orbit, scroll to zoom, choose front/side/back,
-switch between Studio and Meadow, select Idle/Walk/Run, or pause playback. Reduced-motion preference
+select Idle/Walk/Run, or pause playback in the studio. Reduced-motion preference
 starts the preview paused. The product's `/` route retains its existing title and
 entry behavior; the rabbit study is loaded only on its own route.
 
@@ -858,6 +858,49 @@ front silhouette, resting oblique attachment and both extreme run arm poses;
 the resting slit remains closed and no inner flap is present. Focused browser
 check reported no exceptions. Lint/build passed (existing bundle-size advisory).
 Keyboard locomotion and device performance were not re-tested.
+
+## Imported duck comparison and walking
+
+Duck is an imported third-party reference for visual and locomotion comparison,
+not an original Sheem character. The original model, archive, texture and
+[attribution record](../art/characters/duck/ATTRIBUTION.txt) are preserved separately
+from the locally rigged animation variants.
+
+The studio preview includes Rabbit / Duck selection, preserved in the
+`character=duck` query parameter when entering the meadow or returning.
+`DuckModel.tsx` uses `public/models/duck/little-duck-animated-v2.glb`. The untouched
+source remains `public/models/duck/little-duck.glb` and its archive and attribution
+record remain under `art/characters/duck/`.
+
+`art/characters/duck/animate_duck.py` rebuilds the adapted model in Blender:
+front aligned to +Z in glTF, centered on the floor, 1.45 m tall, with a four-bone
+root/body/left-foot/right-foot rig. Lower leg weights blend into the body.
+Idle breathes gently; Walk and Run alternate raised feet with a mild body
+waddle. The model preserves the original mesh and embedded texture, adding
+skinning and three clips. This is a simple stylized gait, without individual
+toe articulation or per-foot terrain IK.
+
+Both characters offer Idle / Walk / Run, Play / Pause, view presets and
+orbit/zoom in the fixed studio. The duck's download contains its animations.
+Walk in the meadow uses the existing WASD/arrows/touch movement controller,
+Shift sprint, reset and speed-driven clip playback. The preview footer credits
+Little duck by dannzjs and identifies this as an animated adaptation.
+
+[Duck walking preview](../art/characters/duck/duck-walk.png).
+
+Validation: inspected the walking studio render; checked changing bone poses
+while playing and unchanged poses while paused. Browser keyboard input moved
+the duck through the meadow and its position stabilized after release. Returning
+to the preview retained Duck selection; no browser exceptions. Lint/build passed
+with the existing bundle-size advisory. Touch controls and device performance
+were not separately re-tested.
+
+Duck animation v2 corrects the reversed foot cycle: the lifted foot advances
+toward the beak (-Y in Blender / +Z in glTF), and the grounded foot travels
+rearward relative to the body. Both feet in Walk and Run were checked from
+animated bone positions for forward swing, rearward stance and swing height.
+The earlier animated asset remains preserved; v2 uses a new URL to avoid stale
+loader caches. Lint and build passed.
 
 ## Flat soles and sculpted toes (V50)
 

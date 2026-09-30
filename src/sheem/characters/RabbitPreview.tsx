@@ -11,18 +11,13 @@ import { Canvas, useThree } from '@react-three/fiber';
 import { Html, OrbitControls } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { Object3D } from 'three';
-import { Link } from 'react-router-dom';
-import { MeadowEnvironment } from '../title/MeadowScene';
-import { surfaceHeight } from '../title/landscape';
+import { Link, useSearchParams } from 'react-router-dom';
 import { RabbitModel, RABBIT_MODEL_URL } from './RabbitModel';
+import { DuckModel, DUCK_MODEL_URL } from './DuckModel';
 import type { RabbitMotion } from './RabbitModel';
 import './rabbit-preview.css';
 import './rabbit-walk.css';
 
-const SPAWN_X = 10;
-const SPAWN_Z = -6;
-const CLEARING = [SPAWN_X, SPAWN_Z, 8] as const;
-const GROUND = surfaceHeight(SPAWN_X, SPAWN_Z);
 const VIEWS = {
   Portrait: [2.2, 1.7, 4.4],
   Front: [0, 1.3, 4.8],
@@ -30,9 +25,10 @@ const VIEWS = {
   Back: [0, 1.3, -4.8],
 } as const;
 type View = keyof typeof VIEWS;
+type Character = 'Rabbit' | 'Duck';
 
 export class PreviewError extends Component<
-  { children: ReactNode },
+  { children: ReactNode; modelUrl?: string },
   { failed: boolean }
 > {
   state = { failed: false };
@@ -45,7 +41,7 @@ export class PreviewError extends Component<
         <div className="rabbit-error" role="alert">
           <p>The preview couldn’t load.</p>
           <button onClick={() => window.location.reload()}>Try again</button>
-          <a href={RABBIT_MODEL_URL} download>
+          <a href={this.props.modelUrl ?? RABBIT_MODEL_URL} download>
             Download the model
           </a>
         </div>
@@ -55,25 +51,22 @@ export class PreviewError extends Component<
   }
 }
 
-function Camera({ view, meadow }: { view: View; meadow: boolean }) {
+function Camera({ view }: { view: View }) {
   const controls = useRef<OrbitControlsImpl>(null);
   const narrow = useThree((state) => state.size.width < 640);
-  const x = meadow ? SPAWN_X : 0;
-  const y = meadow ? GROUND : 0;
-  const z = meadow ? SPAWN_Z : 0;
   useEffect(() => {
     const orbit = controls.current;
     if (!orbit) return;
     const offset = VIEWS[view];
     const distance = narrow ? 1.16 : 1;
-    orbit.target.set(x, y + 0.87, z);
+    orbit.target.set(0, 0.87, 0);
     orbit.object.position.set(
-      x + offset[0] * distance,
-      y + 0.87 + (offset[1] - 0.87) * distance,
-      z + offset[2] * distance
+      offset[0] * distance,
+      0.87 + (offset[1] - 0.87) * distance,
+      offset[2] * distance
     );
     orbit.update();
-  }, [view, x, y, z, narrow]);
+  }, [view, narrow]);
   return (
     <OrbitControls
       ref={controls}
@@ -90,52 +83,47 @@ function Camera({ view, meadow }: { view: View; meadow: boolean }) {
 }
 
 function Scene({
-  meadow,
+  character,
   playing,
   motion,
   view,
 }: {
-  meadow: boolean;
   playing: boolean;
   motion: RabbitMotion;
   view: View;
+  character: Character;
 }) {
-  const x = meadow ? SPAWN_X : 0;
-  const y = meadow ? GROUND : 0;
-  const z = meadow ? SPAWN_Z : 0;
   const lightTarget = useMemo(() => {
     const object = new Object3D();
-    object.position.set(x, y + 0.7, z);
+    object.position.set(0, 0.7, 0);
     return object;
-  }, [x, y, z]);
+  }, []);
   return (
     <>
-      {meadow ? (
-        <MeadowEnvironment reducedMotion={!playing} clearing={CLEARING} />
-      ) : (
-        <>
-          <color attach="background" args={['#e5e6d8']} />
-          <fog attach="fog" args={['#e5e6d8', 12, 35]} />
-          <hemisphereLight args={['#f6f2df', '#9ca387', 1.8]} />
-          <mesh
-            rotation={[-Math.PI / 2, 0, 0]}
-            position={[0, -0.003, 0]}
-            receiveShadow
-          >
-            <planeGeometry args={[100, 100]} />
-            <meshStandardMaterial color="#c7ccb6" roughness={1} />
-          </mesh>
-        </>
-      )}
-      <group position={[x, y, z]}>
-        <RabbitModel playing={playing} motion={motion} />
+      <color attach="background" args={['#e5e6d8']} />
+      <fog attach="fog" args={['#e5e6d8', 12, 35]} />
+      <hemisphereLight args={['#f6f2df', '#9ca387', 1.8]} />
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, -0.003, 0]}
+        receiveShadow
+      >
+        <planeGeometry args={[100, 100]} />
+        <meshStandardMaterial color="#c7ccb6" roughness={1} />
+      </mesh>
+      <group>
+        {character === 'Rabbit' ? (
+          <RabbitModel playing={playing} motion={motion} />
+        ) : (
+          <DuckModel playing={playing} motion={motion} />
+        )}
       </group>
       {/* A small shadow camera resolves the rabbit's contact at human scale. */}
       <primitive object={lightTarget} />
       <directionalLight
         target={lightTarget}
-        position={[x - 3, y + 6, z + 4]}
-        intensity={meadow ? 0.8 : 2.5}
+        position={[-3, 6, 4]}
+        intensity={2.5}
         color="#fff0d6"
         castShadow
         shadow-mapSize={[1024, 1024]}
@@ -148,13 +136,18 @@ function Scene({
         shadow-normalBias={0.015}
         shadow-bias={-0.0002}
       />
-      <Camera view={view} meadow={meadow} />
+      <Camera view={view} />
     </>
   );
 }
 
 export function RabbitPreview() {
-  const [meadow, setMeadow] = useState(false);
+  const [params, setParams] = useSearchParams();
+  const character: Character =
+    params.get('character') === 'duck' ? 'Duck' : 'Rabbit';
+  const setCharacter = (name: Character) =>
+    setParams(name === 'Duck' ? { character: 'duck' } : {}, { replace: true });
+  const modelUrl = character === 'Rabbit' ? RABBIT_MODEL_URL : DUCK_MODEL_URL;
   const [motion, setMotion] = useState<RabbitMotion>('Idle');
   const [view, setView] = useState<View>('Portrait');
   const [playing, setPlaying] = useState(
@@ -168,7 +161,7 @@ export function RabbitPreview() {
   }, []);
   return (
     <main className="rabbit-preview">
-      <PreviewError>
+      <PreviewError modelUrl={modelUrl}>
         <Canvas
           shadows
           dpr={[1, 1.5]}
@@ -184,7 +177,7 @@ export function RabbitPreview() {
             }
           >
             <Scene
-              meadow={meadow}
+              character={character}
               playing={playing}
               motion={motion}
               view={view}
@@ -197,12 +190,23 @@ export function RabbitPreview() {
           sheem.
         </Link>
         <p>A little companion</p>
-        <h1>The meadow rabbit</h1>
+        <h1>{character === 'Rabbit' ? 'The meadow rabbit' : 'Little duck'}</h1>
       </header>
       <aside className="rabbit-materials" aria-label="Character palette">
-        <span style={{ background: '#e2caaa' }} title="Oatmeal" />
-        <span style={{ background: '#8c9b72' }} title="Sage" />
-        <span style={{ background: '#cb926c' }} title="Apricot" />
+        {(character === 'Rabbit'
+          ? [
+              ['#e2caaa', 'Oatmeal'],
+              ['#8c9b72', 'Sage'],
+              ['#cb926c', 'Apricot'],
+            ]
+          : [
+              ['#f0eee1', 'Cream'],
+              ['#47b7c5', 'Turquoise'],
+              ['#dfb849', 'Gold'],
+            ]
+        ).map(([color, name]) => (
+          <span key={name} style={{ background: color }} title={name} />
+        ))}
       </aside>
       <footer className="rabbit-toolbar">
         <p>
@@ -211,7 +215,21 @@ export function RabbitPreview() {
             : 'Drag to look around · Scroll to zoom'}
         </p>
         <div className="rabbit-controls">
-          <Link className="rabbit-walk-link" to="/playground/rabbit/walk">
+          <div role="group" aria-label="Character">
+            {(['Rabbit', 'Duck'] as const).map((name) => (
+              <button
+                key={name}
+                aria-pressed={character === name}
+                onClick={() => setCharacter(name)}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+          <Link
+            className="rabbit-walk-link"
+            to={`/playground/rabbit/walk${character === 'Duck' ? '?character=duck' : ''}`}
+          >
             Walk in the meadow
           </Link>
           <div role="group" aria-label="View direction">
@@ -225,32 +243,39 @@ export function RabbitPreview() {
               </button>
             ))}
           </div>
-          <div role="group" aria-label="Background">
-            <button aria-pressed={meadow} onClick={() => setMeadow(true)}>
-              Meadow
+          <>
+            <div role="group" aria-label="Animation">
+              {(['Idle', 'Walk', 'Run'] as const).map((name) => (
+                <button
+                  key={name}
+                  aria-pressed={motion === name}
+                  onClick={() => setMotion(name)}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+            <button aria-pressed={playing} onClick={() => setPlaying(!playing)}>
+              {playing ? 'Pause' : 'Play'}
             </button>
-            <button aria-pressed={!meadow} onClick={() => setMeadow(false)}>
-              Studio
-            </button>
-          </div>
-          <div role="group" aria-label="Animation">
-            {(['Idle', 'Walk', 'Run'] as const).map((name) => (
-              <button
-                key={name}
-                aria-pressed={motion === name}
-                onClick={() => setMotion(name)}
-              >
-                {name}
-              </button>
-            ))}
-          </div>
-          <button aria-pressed={playing} onClick={() => setPlaying(!playing)}>
-            {playing ? 'Pause' : 'Play'}
-          </button>
+          </>
         </div>
-        <a className="rabbit-download" href={RABBIT_MODEL_URL} download>
+        <a className="rabbit-download" href={modelUrl} download>
           Download 3D model
         </a>
+        {character === 'Duck' && (
+          <p className="duck-credit">
+            Animated adaptation ·{' '}
+            <a
+              href="https://sketchfab.com/3d-models/little-duck-cf819cf6c3e5481c95d05cbc48c0437f"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Little duck by dannzjs
+            </a>{' '}
+            · CC Attribution
+          </p>
+        )}
       </footer>
     </main>
   );

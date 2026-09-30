@@ -4,7 +4,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, OrbitControls } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { Group, Object3D, Quaternion, Vector3 } from 'three';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { MeadowEnvironment } from '../title/MeadowScene';
 import { surfaceHeight } from '../title/landscape';
 import {
@@ -20,6 +20,12 @@ import {
   RABBIT_SPEED,
   stepRabbit,
 } from './rabbitMovement';
+import {
+  DuckModel,
+  DUCK_MODEL_URL,
+  DUCK_WALK_SPEED,
+  DUCK_RUN_SPEED,
+} from './DuckModel';
 import { PreviewError } from './RabbitPreview';
 import './rabbit-preview.css';
 import './rabbit-walk.css';
@@ -47,9 +53,11 @@ const START_Y = surfaceHeight(...RABBIT_SPAWN);
 function WalkingScene({
   input,
   reducedMotion,
+  duck,
 }: {
   input: RefObject<Input>;
   reducedMotion: boolean;
+  duck: boolean;
 }) {
   const actor = useRef<Group>(null);
   const orbit = useRef<OrbitControlsImpl>(null);
@@ -147,7 +155,14 @@ function WalkingScene({
           : 'Walk';
     drive.current.timeScale = Math.max(
       0.05,
-      state.speed / (running ? RABBIT_RUN_GAIT_SPEED : RABBIT_WALK_SPEED)
+      state.speed /
+        (duck
+          ? running
+            ? DUCK_RUN_SPEED
+            : DUCK_WALK_SPEED
+          : running
+            ? RABBIT_RUN_GAIT_SPEED
+            : RABBIT_WALK_SPEED)
     );
     scratch.target.copy(state.position);
     scratch.target.addScaledVector(scratch.up, 0.85);
@@ -177,10 +192,10 @@ function WalkingScene({
       />
       <group
         ref={actor}
-        name="RabbitPlayer"
+        name={duck ? 'DuckPlayer' : 'RabbitPlayer'}
         position={[RABBIT_SPAWN[0], START_Y + 0.008, RABBIT_SPAWN[1]]}
       >
-        <RabbitModel drive={drive} />
+        {duck ? <DuckModel drive={drive} /> : <RabbitModel drive={drive} />}
       </group>
       <primitive object={scratch.lightTarget} />
       <directionalLight
@@ -215,6 +230,8 @@ function WalkingScene({
 }
 
 export function RabbitWalk() {
+  const [params] = useSearchParams();
+  const duck = params.get('character') === 'duck';
   const [reducedMotion, setReducedMotion] = useState(
     () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
   );
@@ -271,7 +288,7 @@ export function RabbitWalk() {
   }, []);
   return (
     <main className="rabbit-preview rabbit-walk">
-      <PreviewError>
+      <PreviewError modelUrl={duck ? DUCK_MODEL_URL : undefined}>
         <Canvas
           shadows
           dpr={[1, 1.5]}
@@ -286,7 +303,11 @@ export function RabbitWalk() {
               </Html>
             }
           >
-            <WalkingScene input={input} reducedMotion={reducedMotion} />
+            <WalkingScene
+              input={input}
+              reducedMotion={reducedMotion}
+              duck={duck}
+            />
           </Suspense>
         </Canvas>
       </PreviewError>
@@ -300,7 +321,10 @@ export function RabbitWalk() {
       <footer className="rabbit-toolbar">
         <p>WASD / Arrows · Hold Shift to run · Drag to look around</p>
         <div className="rabbit-controls">
-          <Link className="rabbit-walk-link" to="/playground/rabbit">
+          <Link
+            className="rabbit-walk-link"
+            to={`/playground/rabbit${duck ? '?character=duck' : ''}`}
+          >
             Character preview
           </Link>
           <button

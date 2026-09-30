@@ -138,3 +138,9 @@
     bottom: max(16px, env(safe-area-inset-bottom));
   }
 }
+
+.duck-credit, .duck-credit a {
+  color: inherit;
+  font-size: 12px;
+  text-underline-offset: 3px;
+}
