@@ -15,7 +15,7 @@ import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { createSoleClearance } from './soleClearance';
 import { createRabbitBlink } from './rabbitBlink';
 
-export const RABBIT_MODEL_URL = '/models/rabbit/sheem-rabbit-v64.glb';
+export const RABBIT_MODEL_URL = '/models/rabbit/sheem-rabbit-v65.glb';
 
 // Match the V14 stance travel while keeping movement speed unchanged.
 export const RABBIT_WALK_SPEED = 1.05;

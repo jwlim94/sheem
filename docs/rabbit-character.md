@@ -12,12 +12,12 @@ Warm oatmeal body, subtle cheek fullness, upright peach-lined ears, sage kerchie
 crossbody satchel and a round tail. Proportions and accessories follow the concept;
 the geometry is a first interpretation for review, not an exact reconstruction.
 
-- [Browser GLB](../public/models/rabbit/sheem-rabbit-v64.glb): 2,912,236 bytes, 30,635
+- [Browser GLB](../public/models/rabbit/sheem-rabbit-v65.glb): 2,912,164 bytes, 30,635
   triangles, three material primitives, fifteen bones, a four-second `Idle` and
   0.8-second `Walk` and `Run` clips. One embedded 768×768 face color texture and two fur normal textures (256×256 body, 768×768 head); no external texture or decoder requests.
-- [Editable Blender source](../art/characters/rabbit/sheem-rabbit-v64.blend).
+- [Editable Blender source](../art/characters/rabbit/sheem-rabbit-v65.blend).
 - [Rebuild script](../art/characters/rabbit/build_rabbit.py), tested in Blender 4.4.1.
-- [Studio render](../art/characters/rabbit/rabbit-preview-v64.png).
+- [Studio render](../art/characters/rabbit/rabbit-preview-v65.png).
 
 The model was authored locally from the in-session generated concept, using
 procedural mesh construction in Blender. No third-party character mesh or texture
@@ -38,8 +38,8 @@ entry behavior; the rabbit study is loaded only on its own route.
 
 V1–V8 GLBs and editable Blender files are retained in `public/models/rabbit/`
 and `art/characters/rabbit/`, alongside the available renders and face textures.
-V64 is the accepted appearance and current animated runtime model. The current rebuild script
-recreates V64; historical `.blend` files preserve earlier geometry for comparison.
+V64 is the accepted appearance; V65 is the current animated runtime model. The current rebuild script
+recreates V65; historical `.blend` files preserve earlier geometry for comparison.
 
 ## Face revision
 
@@ -1101,3 +1101,15 @@ The result retains the inverted triangle with softer left/right shoulders.
 
 Validation: inspected enlarged front and oblique browser renders. No browser
 exceptions; lint/build passed with the existing bundle advisory.
+
+## Stronger lateral running response (V65)
+
+Run body lateral translation increased 40% (0.014 to 0.0196 m), with lateral
+bank increased 30% (0.022 to 0.0286 radians). Small delayed head and ear lateral
+rotations also increased 30%; vertical flight, torso bounce, stride and camera
+behavior are unchanged. V64 appearance and Walk animation are retained.
+
+Validation: inspected opposing Run support poses and side/rear browser views,
+with no browser exceptions. Evaluated soles across all authored Idle/Walk/Run
+frames: minimum height remains approximately 0.0002 m above the flat floor.
+Lint/build passed with the existing bundle advisory.

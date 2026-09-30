@@ -91,7 +91,7 @@ def soft_fur_material(mat, normal_image, uv_name, strength=.45):
     links.new(tex.outputs['Color'],normal.inputs['Color'])
     links.new(normal.outputs['Normal'],shader.inputs['Normal'])
 
-fur_tile=packed_image('Short fur normals',fiber_normal(256,731),'rabbit-fur-normal-v64.png')
+fur_tile=packed_image('Short fur normals',fiber_normal(256,731),'rabbit-fur-normal-v65.png')
 soft_fur_material(fur,fur_tile,'FurUV')
 parts = []
 
@@ -410,7 +410,7 @@ for sign in [-1,1]:
     fur_mask*=smooth_feature(sign*.2162,1.78,.030,.118)
     fur_mask*=smooth_feature(sign*.225,1.985,.027,.039)
 fur_mask*=smooth_feature(0,1.60,.052,.084)
-face_fur=packed_image('Face fur normals',fiber_normal(SIZE,732,fur_mask),'rabbit-face-normal-v64.png')
+face_fur=packed_image('Face fur normals',fiber_normal(SIZE,732,fur_mask),'rabbit-face-normal-v65.png')
 
 # Store sRGB pixels; the glTF texture loader decodes them to linear for lighting.
 linear=paint[:,:,:3]
@@ -418,7 +418,7 @@ paint[:,:,:3]=np.where(linear<=.0031308,linear*12.92,1.055*linear**(1/2.4)-.055)
 face_image=bpy.data.images.new('Rabbit painted face',width=SIZE,height=SIZE,alpha=True)
 face_image.colorspace_settings.name='sRGB'
 face_image.pixels.foreach_set(paint.ravel())
-face_image.filepath_raw=str(SOURCE/'rabbit-face-v64.png')
+face_image.filepath_raw=str(SOURCE/'rabbit-face-v65.png')
 face_image.file_format='PNG'
 face_image.save();face_image.pack()
 face_mat=bpy.data.materials.new('Painted face');face_mat.use_nodes=True
@@ -933,13 +933,13 @@ for frame in range(25):
     bounce = .004 * (1 - math.cos(2*t))
     twist = .045 * math.cos(t)
     support = math.sin(t+.15*math.pi)
-    bank = .022 * support
+    bank = .0286 * support
     pitch = .025 + .008 * math.sin(2*t)
-    translate_world('Body', (.014 * support, 0, bounce))
+    translate_world('Body', (.0196 * support, 0, bounce))
     rotate_world('Body', (pitch, bank, twist))
     # Head follows the torso; small delayed motion softens the running rhythm.
     rotate_world('Head', (-.010 + .005 * math.sin(2*t-.18),
-                          .004 * math.sin(t+.15*math.pi-.22), -.008 * math.cos(t)))
+                          .0052 * math.sin(t+.15*math.pi-.22), -.008 * math.cos(t)))
     rotate_world('Bag', (.080 * math.sin(t-.55), .040 * math.sin(t-.65), .025 * math.sin(t-.55)))
     rotate_world('Tail', (.09 * math.sin(2*t-.3), 0, .05 * math.sin(t)))
     for side, offset in [('L',0),('R',.5)]:
@@ -959,7 +959,7 @@ for frame in range(25):
         pose_leg(side, forward, lift, pitch)
         rotate_world('Arm.'+side, (.65 * math.cos((phase+offset)*math.tau), 0, .06 if side == 'L' else -.06))
         rotate_world('Ear.'+side, (-.012 + .028 * math.sin(2*t-.45),
-                                  .009 * math.sin(t+.15*math.pi-.40), 0))
+                                  .0117 * math.sin(t+.15*math.pi-.40), 0))
     key_pose(frame)
 run_action = rig.animation_data.action
 run_action.name = 'Run'
@@ -979,7 +979,7 @@ OUT.mkdir(parents=True,exist_ok=True)
 bpy.ops.object.select_all(action='DESELECT')
 character.select_set(True);rig.select_set(True)
 bpy.context.view_layer.objects.active=rig
-bpy.ops.export_scene.gltf(filepath=str(OUT/'sheem-rabbit-v64.glb'),export_format='GLB',use_selection=True,export_animations=True,export_animation_mode='ACTIONS',export_yup=True,export_skins=True)
+bpy.ops.export_scene.gltf(filepath=str(OUT/'sheem-rabbit-v65.glb'),export_format='GLB',use_selection=True,export_animations=True,export_animation_mode='ACTIONS',export_yup=True,export_skins=True)
 
 # Save an editable model plus a small neutral presentation setup in the .blend.
 ground=material('Studio sand',(.64,.67,.52))
@@ -1004,13 +1004,13 @@ scene.render.engine='CYCLES';scene.cycles.samples=48;scene.cycles.use_denoising=
 scene.render.resolution_x=900;scene.render.resolution_y=1000;scene.render.resolution_percentage=100
 scene.view_settings.view_transform='AgX'
 bpy.context.preferences.filepaths.save_version=0
-bpy.ops.wm.save_as_mainfile(filepath=str(SOURCE/'sheem-rabbit-v64.blend'))
-scene.render.filepath=str(SOURCE/'rabbit-preview-v64.png')
+bpy.ops.wm.save_as_mainfile(filepath=str(SOURCE/'sheem-rabbit-v65.blend'))
+scene.render.filepath=str(SOURCE/'rabbit-preview-v65.png')
 bpy.ops.render.render(write_still=True)
 character.data.calc_loop_triangles()
 print('RABBIT_TRIANGLES',len(character.data.loop_triangles))
 print('RABBIT_HEIGHT_METERS',round(character.dimensions.z,3))
 
 cam.location=(0,5,1.75);aim(cam,(0,0,.87))
-scene.render.filepath=str(SOURCE/'rabbit-back-v64.png')
+scene.render.filepath=str(SOURCE/'rabbit-back-v65.png')
 bpy.ops.render.render(write_still=True)
