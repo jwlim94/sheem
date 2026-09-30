@@ -15,7 +15,9 @@ import { Link } from 'react-router-dom';
 import { MeadowEnvironment } from '../title/MeadowScene';
 import { surfaceHeight } from '../title/landscape';
 import { RabbitModel, RABBIT_MODEL_URL } from './RabbitModel';
+import type { RabbitMotion } from './RabbitModel';
 import './rabbit-preview.css';
+import './rabbit-walk.css';
 
 const SPAWN_X = 10;
 const SPAWN_Z = -6;
@@ -29,7 +31,7 @@ const VIEWS = {
 } as const;
 type View = keyof typeof VIEWS;
 
-class PreviewError extends Component<
+export class PreviewError extends Component<
   { children: ReactNode },
   { failed: boolean }
 > {
@@ -89,11 +91,13 @@ function Camera({ view, meadow }: { view: View; meadow: boolean }) {
 
 function Scene({
   meadow,
-  idle,
+  playing,
+  motion,
   view,
 }: {
   meadow: boolean;
-  idle: boolean;
+  playing: boolean;
+  motion: RabbitMotion;
   view: View;
 }) {
   const x = meadow ? SPAWN_X : 0;
@@ -107,7 +111,7 @@ function Scene({
   return (
     <>
       {meadow ? (
-        <MeadowEnvironment reducedMotion={!idle} clearing={CLEARING} />
+        <MeadowEnvironment reducedMotion={!playing} clearing={CLEARING} />
       ) : (
         <>
           <color attach="background" args={['#e5e6d8']} />
@@ -124,7 +128,7 @@ function Scene({
         </>
       )}
       <group position={[x, y, z]}>
-        <RabbitModel idle={idle} />
+        <RabbitModel playing={playing} motion={motion} />
       </group>
       {/* A small shadow camera resolves the rabbit's contact at human scale. */}
       <primitive object={lightTarget} />
@@ -151,13 +155,14 @@ function Scene({
 
 export function RabbitPreview() {
   const [meadow, setMeadow] = useState(false);
+  const [motion, setMotion] = useState<RabbitMotion>('Idle');
   const [view, setView] = useState<View>('Portrait');
-  const [idle, setIdle] = useState(
+  const [playing, setPlaying] = useState(
     () => !window.matchMedia('(prefers-reduced-motion: reduce)').matches
   );
   useEffect(() => {
     const query = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const change = () => setIdle(!query.matches);
+    const change = () => setPlaying(!query.matches);
     query.addEventListener('change', change);
     return () => query.removeEventListener('change', change);
   }, []);
@@ -178,7 +183,12 @@ export function RabbitPreview() {
               </Html>
             }
           >
-            <Scene meadow={meadow} idle={idle} view={view} />
+            <Scene
+              meadow={meadow}
+              playing={playing}
+              motion={motion}
+              view={view}
+            />
           </Suspense>
         </Canvas>
       </PreviewError>
@@ -195,8 +205,15 @@ export function RabbitPreview() {
         <span style={{ background: '#cb926c' }} title="Apricot" />
       </aside>
       <footer className="rabbit-toolbar">
-        <p>Drag to look around · Scroll to zoom</p>
+        <p>
+          {motion !== 'Idle'
+            ? `${motion === 'Run' ? 'Running' : 'Walking'} in place · Drag to look around`
+            : 'Drag to look around · Scroll to zoom'}
+        </p>
         <div className="rabbit-controls">
+          <Link className="rabbit-walk-link" to="/playground/rabbit/walk">
+            Walk in the meadow
+          </Link>
           <div role="group" aria-label="View direction">
             {(Object.keys(VIEWS) as View[]).map((name) => (
               <button
@@ -216,8 +233,19 @@ export function RabbitPreview() {
               Studio
             </button>
           </div>
-          <button aria-pressed={idle} onClick={() => setIdle(!idle)}>
-            {idle ? 'Pause' : 'Play idle'}
+          <div role="group" aria-label="Animation">
+            {(['Idle', 'Walk', 'Run'] as const).map((name) => (
+              <button
+                key={name}
+                aria-pressed={motion === name}
+                onClick={() => setMotion(name)}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+          <button aria-pressed={playing} onClick={() => setPlaying(!playing)}>
+            {playing ? 'Pause' : 'Play'}
           </button>
         </div>
         <a className="rabbit-download" href={RABBIT_MODEL_URL} download>

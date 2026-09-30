@@ -6,8 +6,11 @@ Each meaningful milestone asks: **“Can this become a compelling YouTube Short?
 
 Current character increment (2026-09-29): the user chose a rabbit for the next
 development video. The [first model and local preview](rabbit-character.md) are a
-visual step toward M1. Show its actual appearance/idle now; record “first steps”
-only after walking and grounding are implemented and tested.
+visual step toward M1. V9 adds a verified in-place walk with Idle/Walk controls.
+A Short can show the first walk animation now, labeled as an animation study;
+the local `/playground/rabbit/walk` study now connects keyboard movement and
+terrain following in a bounded clearing. Record a short walking/orbiting demo
+after reviewing its feel; this is not the full listening or multiplayer MVP.
 
 | Milestone | Hook and 15–30 second sequence | Viewer question / useful feedback |
 | --- | --- | --- |

@@ -5,7 +5,7 @@ Planning baseline: **2026-09-28**. Proposed architecture and acceptance targets 
 | Document | Purpose |
 | --- | --- |
 | [First start screen](start-screen.md) | Current local meadow preview, interaction, validation and first Short |
-| [Rabbit character](rabbit-character.md) | Selected rabbit concept, Blender/GLB source, local model preview and next movement step |
+| [Rabbit character](rabbit-character.md) | Selected rabbit concept, versioned Blender/GLB models, animation preview and playable meadow |
 | [Product vision and principles](product-vision.md) | Experience, priorities, guest entry, quiet presence |
 | [Repository audit](repository-audit.md) | Evidence from current files, routes, assets, tooling, and history |
 | [Technical architecture](technical-architecture.md) | Recommended stack, boundaries, decision register |

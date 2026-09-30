@@ -1,0 +1,62 @@
+.rabbit-walk-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 17px;
+  border-radius: 24px;
+  background: #f8f6ebed;
+  color: #344736;
+  font-size: 13px;
+  text-decoration: none;
+}
+.rabbit-dpad {
+  position: absolute;
+  bottom: 106px;
+  left: 24px;
+  display: grid;
+  grid-template-columns: repeat(3, 44px);
+  gap: 4px;
+}
+.rabbit-dpad button {
+  border: 1px solid #34473622;
+  border-radius: 16px;
+  width: 44px;
+  height: 44px;
+  background: #f8f6ebdf;
+  color: #344736;
+  font-size: 22px;
+  touch-action: none;
+  user-select: none;
+}
+.rabbit-dpad button:active { background: #455c43; color: #fffced; }
+.rabbit-dpad .KeyW { grid-column: 2; }
+.rabbit-dpad .KeyA { grid-column: 1; grid-row: 2; }
+.rabbit-dpad .KeyS { grid-column: 2; grid-row: 2; }
+.rabbit-dpad .KeyD { grid-column: 3; grid-row: 2; }
+@media (max-width: 640px) {
+  .rabbit-dpad { left: 14px; bottom: 116px; }
+  .rabbit-walk .rabbit-heading h1 { font-size: 22px; }
+}
+.rabbit-walk .rabbit-heading {
+  padding: 16px 20px;
+  border-radius: 20px;
+  background: #f8f6ebde;
+  backdrop-filter: blur(8px);
+}
+.rabbit-walk .rabbit-heading p { margin-top: 10px; }
+.rabbit-walk .rabbit-toolbar > p {
+  display: inline-block;
+  padding: 7px 12px;
+  border-radius: 20px;
+  background: #f8f6ebde;
+}
+@media (max-width: 640px) {
+  .rabbit-walk .rabbit-heading { padding: 10px 14px; }
+  .rabbit-walk .rabbit-brand { font-size: 26px; }
+}
+.rabbit-dpad .ShiftLeft {
+  grid-column: 1 / 4;
+  grid-row: 3;
+  width: auto;
+  height: 34px;
+  font-size: 14px;
+}
