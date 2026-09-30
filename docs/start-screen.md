@@ -70,3 +70,9 @@ Validation: build and lint pass; desktop and mobile-sized Chrome show no shader 
 ### Leaf contrast balance
 
 Retain native shadows and grounded roots, but restore selected yellow-green tips through diffuse color (never emission). A deterministic per-blade accent varies the amount; middle-distance blades retain their palette, with ground-color blending deferred to 80–240 world units and a small color difference retained beyond that. No instances, geometry, assets or lights were added. Before/after Chrome screenshots use reduced motion and matching title/orbit views to compare highlights and shaded foliage. Build/lint and the two-view shader/entry smoke check pass.
+
+## English presentation cleanup — 2026-09-29
+
+The product entry and meadow viewer now use English throughout, including loading/error messages, accessible labels, the HTML language, browser title and description. The shared route-loading fallback is English too. Keep one tagline, “A little world to slow down and listen.”, Enter, guest-entry reassurance, headphones guidance and the sound control. Remove the early-preview badge, duplicate tagline/invitation, world number/name/detail and ornamental viewer message. The viewer retains Back and a single drag/zoom instruction. Removed unused decorative CSS; adjusted tagline spacing and footer layout for English on narrow screens.
+
+Validation: lint and production build pass (existing large-bundle warning remains). Local headless Chrome rendered desktop 1440×900 and mobile-sized 390×844 views; Enter and Back worked and the sound button switched to enabled. This is UI/state verification, not audio listening or physical mobile testing. No production deployment was performed.

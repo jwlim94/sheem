@@ -30,7 +30,7 @@ function App() {
       <Suspense
         fallback={
           <div role="status" style={{ padding: 32, color: '#fff' }}>
-            불러오는 중…
+            Loading…
           </div>
         }
       >

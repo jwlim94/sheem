@@ -12,11 +12,11 @@ import { MeadowScene } from './title/MeadowScene';
 import { useAmbience } from './title/useAmbience';
 import './title/title.css';
 
-function FlowerMark({ small = false }: { small?: boolean }) {
+function FlowerMark() {
   return (
     <svg
-      width={small ? 18 : 28}
-      height={small ? 18 : 28}
+      width="28"
+      height="28"
       viewBox="0 0 32 32"
       fill="none"
       aria-hidden="true"
@@ -133,7 +133,7 @@ export function SheemApp() {
                 alpha: false,
                 powerPreference: 'high-performance',
               }}
-              fallback={<span>WebGL을 지원하는 브라우저가 필요합니다.</span>}
+              fallback={<span>A WebGL-enabled browser is required.</span>}
               onCreated={({ gl }) => {
                 gl.setClearColor('#bed3ca');
               }}
@@ -151,26 +151,22 @@ export function SheemApp() {
       </div>
       <div className="cinematic-wash" aria-hidden="true" />
       <header className="title-header">
-        <a className="brand" href="/" aria-label="Sheem 시작 화면">
+        <a className="brand" href="/" aria-label="Sheem home">
           <FlowerMark />
           <span>sheem</span>
         </a>
-        <span className="preview-label">
-          <span /> EARLY PREVIEW
-        </span>
       </header>
       {!entered ? (
         <>
-          <section className="title-copy" aria-label="Sheem 소개">
-            <p className="eyebrow">A LITTLE WORLD. A SLOWER MOMENT.</p>
+          <section className="title-copy" aria-label="About Sheem">
             <h1>
               sheem<span className="wordmark-period">.</span>
             </h1>
-            <p className="title-description">마음이 쉬어가는 작은 세상</p>
-            <span className="title-rule" />
+            <p className="title-description">
+              A little world to slow down and listen.
+            </p>
           </section>
-          <section className="entry-controls" aria-label="초원 시작">
-            <p className="invitation">어디로도 서두르지 않아도 괜찮아요.</p>
+          <section className="entry-controls" aria-label="Enter the meadow">
             <button
               ref={enterButton}
               className="enter-button"
@@ -178,11 +174,7 @@ export function SheemApp() {
               onClick={() => setEntered(true)}
             >
               <span>
-                {failed
-                  ? '풍경을 불러오지 못했어요'
-                  : ready
-                    ? '시작하기'
-                    : '초원을 준비하고 있어요'}
+                {failed ? 'Unable to load' : ready ? 'Enter' : 'Loading…'}
               </span>
               {ready && !failed ? (
                 <svg
@@ -204,43 +196,34 @@ export function SheemApp() {
             </button>
             <p className="entry-note">
               {failed
-                ? 'WebGL을 지원하는 브라우저에서 다시 열어주세요.'
-                : '가입 없이, 가벼운 마음으로.'}
+                ? 'Please try a browser with WebGL enabled.'
+                : 'No sign-up needed.'}
             </p>
             {failed && (
               <button
                 className="retry-button"
                 onClick={() => window.location.reload()}
               >
-                다시 시도
+                Try again
               </button>
             )}
           </section>
         </>
       ) : (
-        <section className="explore-ui" aria-label="초원 둘러보기">
+        <section className="explore-ui" aria-label="Explore the meadow">
           <button
             ref={backButton}
             className="back-button"
             onClick={() => setEntered(false)}
           >
-            ← 시작 화면
+            ← Back
           </button>
           <div className="explore-hint">
-            <FlowerMark small />
-            <span>잠시, 이 풍경 속에 머물러요.</span>
-            <small>드래그로 둘러보기 · 스크롤 또는 두 손가락으로 확대</small>
+            <small>Drag to look around · Scroll or pinch to zoom</small>
           </div>
         </section>
       )}
       <footer className="title-footer">
-        <div className="world-caption">
-          <span className="world-number">01</span>
-          <div>
-            <span className="world-name">THE MEADOW</span>
-            <span className="world-detail">햇살이 머무는 초원</span>
-          </div>
-        </div>
         <div className="headphone-note">
           <svg
             width="15"
@@ -253,32 +236,32 @@ export function SheemApp() {
           >
             <path d="M3 11V9a7 7 0 0 1 14 0v2M3 10H2v7h4v-7H3Zm14 0h1v7h-4v-7h3Z" />
           </svg>
-          <span>헤드폰과 함께하면 더 좋아요</span>
+          <span>Best with headphones</span>
         </div>
         <div className="sound-control">
           <button
             className="sound-button"
             onClick={() => void toggle()}
             aria-pressed={enabled}
-            aria-label={enabled ? '배경 바람 소리 끄기' : '배경 바람 소리 켜기'}
+            aria-label={enabled ? 'Mute ambient sound' : 'Enable ambient sound'}
           >
             <SoundIcon enabled={enabled} />
-            <span>{enabled ? '소리 켜짐' : '소리 켜기'}</span>
+            <span>{enabled ? 'Sound on' : 'Enable sound'}</span>
             <span className={`sound-indicator ${enabled ? 'active' : ''}`} />
           </button>
           {error && (
             <span className="audio-error" role="status">
-              소리를 켜려면 다시 눌러주세요.
+              Sound unavailable. Please try again.
             </span>
           )}
         </div>
       </footer>
       <span className="sr-only" role="status">
         {failed
-          ? '3D 화면을 사용할 수 없습니다.'
+          ? 'The 3D scene is unavailable.'
           : ready
-            ? '초원 준비 완료'
-            : '초원 로딩 중'}
+            ? 'The meadow is ready.'
+            : 'Loading the meadow.'}
       </span>
     </main>
   );
