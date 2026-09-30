@@ -24,6 +24,11 @@ const MovementPrototype = lazy(() =>
     default: m.MovementPrototype,
   }))
 );
+const RabbitPreview = lazy(() =>
+  import('./sheem/characters/RabbitPreview').then((m) => ({
+    default: m.RabbitPreview,
+  }))
+);
 function App() {
   return (
     <BrowserRouter>
@@ -41,6 +46,7 @@ function App() {
           <Route path="/playground" element={<Playground />} />
           <Route path="/playground/lab" element={<Lab />} />
           <Route path="/playground/character" element={<CharacterTest />} />
+          <Route path="/playground/rabbit" element={<RabbitPreview />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

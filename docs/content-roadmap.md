@@ -4,6 +4,11 @@ Each meaningful milestone asks: **“Can this become a compelling YouTube Short?
 
 ## Milestone-aligned clips
 
+Current character increment (2026-09-29): the user chose a rabbit for the next
+development video. The [first model and local preview](rabbit-character.md) are a
+visual step toward M1. Show its actual appearance/idle now; record “first steps”
+only after walking and grounding are implemented and tested.
+
 | Milestone | Hook and 15–30 second sequence | Viewer question / useful feedback |
 | --- | --- | --- |
 | M1: playable clearing | “A world you explore by listening.” 0–3s Enter; 3–18s approach source/turn view; 18–25s pause | “Could you tell where the sound was coming from?” Capture headphones/speakers and entry confusion |

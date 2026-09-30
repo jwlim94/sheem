@@ -1,0 +1,140 @@
+.rabbit-preview {
+  width: 100%;
+  height: 100dvh;
+  background: #e5e6d8;
+  color: #344736;
+  color-scheme: light;
+  position: relative;
+}
+.rabbit-heading {
+  position: absolute;
+  top: 30px;
+  left: 36px;
+  pointer-events: none;
+}
+.rabbit-brand {
+  font:
+    34px Georgia,
+    serif;
+  color: inherit;
+  text-decoration: none;
+  pointer-events: auto;
+}
+.rabbit-heading p {
+  margin: 28px 0 6px;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+}
+.rabbit-heading h1 {
+  font:
+    30px Georgia,
+    serif;
+  margin: 0;
+}
+.rabbit-materials {
+  position: absolute;
+  right: 36px;
+  top: 38px;
+  display: flex;
+  gap: 8px;
+}
+.rabbit-materials span {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid #34473622;
+}
+.rabbit-toolbar {
+  position: absolute;
+  bottom: 24px;
+  left: 16px;
+  right: 16px;
+  text-align: center;
+}
+.rabbit-toolbar p {
+  font-size: 12px;
+  margin: 0 0 12px;
+}
+.rabbit-controls {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.rabbit-controls [role='group'] {
+  display: flex;
+  padding: 4px;
+  background: #f8f6ebed;
+  border-radius: 30px;
+  box-shadow: 0 3px 18px #24342312;
+}
+.rabbit-controls button,
+.rabbit-error button {
+  border: 0;
+  border-radius: 24px;
+  padding: 10px 17px;
+  color: #344736;
+  background: #f8f6ebed;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+}
+.rabbit-controls button[aria-pressed='true'] {
+  background: #455c43;
+  color: #fffced;
+}
+.rabbit-controls button:hover {
+  box-shadow: inset 0 0 0 1px #455c4366;
+}
+.rabbit-preview :focus-visible {
+  outline: 2px solid #455c43;
+  outline-offset: 4px;
+}
+.rabbit-download {
+  display: inline-block;
+  margin-top: 14px;
+  font-size: 12px;
+  color: inherit;
+  text-underline-offset: 4px;
+}
+.rabbit-loading {
+  display: block;
+  white-space: nowrap;
+  padding: 16px 24px;
+  background: #f8f6eb;
+  border-radius: 24px;
+}
+.rabbit-error {
+  padding: 35vh 24px 0;
+  text-align: center;
+}
+.rabbit-error a {
+  margin-left: 16px;
+  color: inherit;
+}
+@media (max-width: 640px) {
+  .rabbit-heading {
+    top: 20px;
+    left: 22px;
+  }
+  .rabbit-heading p {
+    margin-top: 14px;
+  }
+  .rabbit-heading h1 {
+    font-size: 23px;
+  }
+  .rabbit-materials {
+    right: 22px;
+    top: 30px;
+  }
+  .rabbit-controls {
+    gap: 6px;
+  }
+  .rabbit-controls button {
+    padding: 9px 12px;
+    font-size: 12px;
+  }
+  .rabbit-toolbar {
+    bottom: max(16px, env(safe-area-inset-bottom));
+  }
+}

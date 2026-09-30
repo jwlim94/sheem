@@ -111,7 +111,13 @@ const GRASS_PATCH_CANDIDATES = 64000;
 const MAX_GRASS_BLADES = GRASS_PATCH_CANDIDATES * 5;
 const GRASS_COLORS = ['#4d6c29', '#688b37', '#7b9645', '#8a9f50', '#a3ae66'];
 
-function Meadow({ reducedMotion }: { reducedMotion: boolean }) {
+function Meadow({
+  reducedMotion,
+  clearing,
+}: {
+  reducedMotion: boolean;
+  clearing?: readonly [number, number, number];
+}) {
   const grass = useRef<THREE.InstancedMesh>(null);
   const flowers = useRef<THREE.InstancedMesh>(null);
   const material = useMemo(() => grassMaterial({ value: 0 }), []);
@@ -166,6 +172,8 @@ function Meadow({ reducedMotion }: { reducedMotion: boolean }) {
       const z = 45 - random() * (near ? 95 : 205);
       const density = grassDensity(x, z);
       if (
+        (clearing &&
+          Math.hypot(x - clearing[0], z - clearing[1]) < clearing[2]) ||
         Math.abs(x - riverX(z)) < 6.5 + random() * 1.5 ||
         (!shortCover && random() > 0.45 + density * 0.55)
       )
@@ -245,7 +253,7 @@ function Meadow({ reducedMotion }: { reducedMotion: boolean }) {
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
       mesh.computeBoundingSphere();
     }
-  }, [blade, material]);
+  }, [blade, material, clearing]);
   useEffect(() => () => blade.dispose(), [blade]);
   useFrame((_, delta) => {
     if (!reducedMotion && grass.current) {
@@ -435,14 +443,12 @@ function Camera({
   ) : null;
 }
 
-export function MeadowScene({
-  entered,
+export function MeadowEnvironment({
   reducedMotion,
-  onReady,
+  clearing,
 }: {
-  entered: boolean;
   reducedMotion: boolean;
-  onReady: () => void;
+  clearing?: readonly [number, number, number];
 }) {
   return (
     <>
@@ -463,9 +469,25 @@ export function MeadowScene({
         shadow-bias={-0.0002}
       />
       <Landscape reducedMotion={reducedMotion} />
-      <Meadow reducedMotion={reducedMotion} />
+      <Meadow reducedMotion={reducedMotion} clearing={clearing} />
       <Trees reducedMotion={reducedMotion} />
       <DriftingSeeds reducedMotion={reducedMotion} />
+    </>
+  );
+}
+
+export function MeadowScene({
+  entered,
+  reducedMotion,
+  onReady,
+}: {
+  entered: boolean;
+  reducedMotion: boolean;
+  onReady: () => void;
+}) {
+  return (
+    <>
+      <MeadowEnvironment reducedMotion={reducedMotion} />
       <Camera
         entered={entered}
         reducedMotion={reducedMotion}
