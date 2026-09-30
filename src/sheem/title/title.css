@@ -424,3 +424,8 @@
     height: 44px;
   }
 }
+
+.entry-loading { position: absolute; inset: 45% 0 auto; text-align: center; color: #344736; }
+
+.is-entered .title-footer { color: #344736; }
+.is-entered .sound-button { background: #f8f6ebed; color: #344736; border-color: #34473633; }

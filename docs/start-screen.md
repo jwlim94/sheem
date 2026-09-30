@@ -6,7 +6,7 @@ Implementation on `feat/first-playable-world`, 2026-09-28. This is a title-scree
 
 The root route opens on an animated, code-authored 3D meadow: rolling hills, a winding river, layered mountains, trees, wildflowers, swaying grass, drifting seeds, cloud movement and a slowly drifting camera. A restrained Sheem wordmark and lower-center **시작하기** button sit over the scene. The interface adapts to narrow touch screens.
 
-Start dismisses the title into a landscape viewer. Drag to orbit; scroll or pinch to zoom. **시작 화면** or Escape returns to the title. There is no signup. This increment does not implement walking, avatars, collision, multiplayer, or positional/environmental audio.
+Enter now opens the existing rabbit meadow walk directly on `/`, without signup or character selection. WASD/arrows move, Shift runs, and drag or scroll controls the camera. Back to title or Escape returns to the title. This connects the existing movement study; multiplayer and positional/environmental audio remain future work.
 
 Audio starts silent. The sound toggle enables a conservatively mixed synthesized stereo wind bed directly from a user gesture. It fades out on mute/hidden tab and closes its AudioContext when leaving the route. No external recordings or new runtime asset downloads are used. This is a title ambience experiment, not the production spatial-audio layer. Headphone listening and Safari/iOS audio acceptance remain manual follow-up work.
 
@@ -76,3 +76,24 @@ Retain native shadows and grounded roots, but restore selected yellow-green tips
 The product entry and meadow viewer now use English throughout, including loading/error messages, accessible labels, the HTML language, browser title and description. The shared route-loading fallback is English too. Keep one tagline, “A little world to slow down and listen.”, Enter, guest-entry reassurance, headphones guidance and the sound control. Remove the early-preview badge, duplicate tagline/invitation, world number/name/detail and ornamental viewer message. The viewer retains Back and a single drag/zoom instruction. Removed unused decorative CSS; adjusted tagline spacing and footer layout for English on narrow screens.
 
 Validation: lint and production build pass (existing large-bundle warning remains). Local headless Chrome rendered desktop 1440×900 and mobile-sized 390×844 views; Enter and Back worked and the sound button switched to enabled. This is UI/state verification, not audio listening or physical mobile testing. No production deployment was performed.
+
+## Direct rabbit entry (2026-09-30)
+
+The product title lazy-loads the existing RabbitWalk on Enter, retaining the
+parent-owned ambience and mute control across entry/return. Product entry always
+uses Rabbit, even if a comparison query parameter is present. The playground
+routes retain their Rabbit/Duck comparison and character-preview link. Product
+controls offer Back to title and Back to start; Escape returns to the title and
+focus returns to Enter. Controls are cleaned up when the walk unmounts.
+
+Acceptance: fresh `/` → Enter → controllable Rabbit → Back/Escape → Enter again,
+with one active canvas and no signup or character picker. This is a short,
+recordable entry-to-walk sequence; camera/gait polish and spatial ASMR remain
+separate follow-ups.
+
+Validation: local desktop Chrome with reduced motion and software rendering
+passed entry, keyboard movement, return focus, reentry and Escape, with no
+browser exceptions. Inspected the rendered walk and controls. Lint/build passed
+(existing bundle warning). Cold loading was slow in the software renderer; this
+is not hardware performance evidence. Audio continuity retains the existing
+hook instance, but listening and physical mobile testing were not performed.

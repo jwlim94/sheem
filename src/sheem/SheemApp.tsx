@@ -1,5 +1,6 @@
 import {
   Component,
+  lazy,
   Suspense,
   useCallback,
   useEffect,
@@ -11,6 +12,10 @@ import { Canvas } from '@react-three/fiber';
 import { MeadowScene } from './title/MeadowScene';
 import { useAmbience } from './title/useAmbience';
 import './title/title.css';
+
+const RabbitWalk = lazy(() =>
+  import('./characters/RabbitWalk').then((m) => ({ default: m.RabbitWalk }))
+);
 
 function FlowerMark() {
   return (
@@ -85,11 +90,9 @@ function supportsWebGL() {
 export function SheemApp() {
   const [entered, setEntered] = useState(false);
   const enterButton = useRef<HTMLButtonElement>(null);
-  const backButton = useRef<HTMLButtonElement>(null);
   const wasEntered = useRef(false);
   useEffect(() => {
-    if (entered) backButton.current?.focus();
-    else if (wasEntered.current) enterButton.current?.focus();
+    if (!entered && wasEntered.current) enterButton.current?.focus();
     wasEntered.current = entered;
   }, [entered]);
   const [ready, setReady] = useState(false);
@@ -120,42 +123,62 @@ export function SheemApp() {
     <main
       className={`sheem-title ${entered ? 'is-entered' : ''} ${ready ? 'is-ready' : ''}`}
     >
-      <div className="landscape" aria-hidden="true">
-        {!failed && (
-          <SceneBoundary onFailure={onFailure}>
-            <Canvas
-              shadows
-              frameloop={reducedMotion ? 'demand' : 'always'}
-              dpr={[1, 1.5]}
-              camera={{ position: [-4, 19, 35], fov: 48, near: 0.1, far: 1300 }}
-              gl={{
-                antialias: true,
-                alpha: false,
-                powerPreference: 'high-performance',
-              }}
-              fallback={<span>A WebGL-enabled browser is required.</span>}
-              onCreated={({ gl }) => {
-                gl.setClearColor('#bed3ca');
-              }}
-            >
-              <Suspense fallback={null}>
-                <MeadowScene
-                  entered={entered}
-                  reducedMotion={reducedMotion}
-                  onReady={onReady}
-                />
-              </Suspense>
-            </Canvas>
-          </SceneBoundary>
-        )}
-      </div>
-      <div className="cinematic-wash" aria-hidden="true" />
-      <header className="title-header">
-        <a className="brand" href="/" aria-label="Sheem home">
-          <FlowerMark />
-          <span>sheem</span>
-        </a>
-      </header>
+      {entered && (
+        <Suspense
+          fallback={
+            <p className="entry-loading" role="status">
+              Getting the meadow ready…
+            </p>
+          }
+        >
+          <RabbitWalk onLeave={() => setEntered(false)} />
+        </Suspense>
+      )}
+      {!entered && (
+        <div className="landscape" aria-hidden="true">
+          {!failed && (
+            <SceneBoundary onFailure={onFailure}>
+              <Canvas
+                shadows
+                frameloop={reducedMotion ? 'demand' : 'always'}
+                dpr={[1, 1.5]}
+                camera={{
+                  position: [-4, 19, 35],
+                  fov: 48,
+                  near: 0.1,
+                  far: 1300,
+                }}
+                gl={{
+                  antialias: true,
+                  alpha: false,
+                  powerPreference: 'high-performance',
+                }}
+                fallback={<span>A WebGL-enabled browser is required.</span>}
+                onCreated={({ gl }) => {
+                  gl.setClearColor('#bed3ca');
+                }}
+              >
+                <Suspense fallback={null}>
+                  <MeadowScene
+                    entered={entered}
+                    reducedMotion={reducedMotion}
+                    onReady={onReady}
+                  />
+                </Suspense>
+              </Canvas>
+            </SceneBoundary>
+          )}
+        </div>
+      )}
+      {!entered && <div className="cinematic-wash" aria-hidden="true" />}
+      {!entered && (
+        <header className="title-header">
+          <a className="brand" href="/" aria-label="Sheem home">
+            <FlowerMark />
+            <span>sheem</span>
+          </a>
+        </header>
+      )}
       {!entered ? (
         <>
           <section className="title-copy" aria-label="About Sheem">
@@ -209,20 +232,7 @@ export function SheemApp() {
             )}
           </section>
         </>
-      ) : (
-        <section className="explore-ui" aria-label="Explore the meadow">
-          <button
-            ref={backButton}
-            className="back-button"
-            onClick={() => setEntered(false)}
-          >
-            ← Back
-          </button>
-          <div className="explore-hint">
-            <small>Drag to look around · Scroll or pinch to zoom</small>
-          </div>
-        </section>
-      )}
+      ) : null}
       <footer className="title-footer">
         <div className="headphone-note">
           <svg
@@ -259,9 +269,11 @@ export function SheemApp() {
       <span className="sr-only" role="status">
         {failed
           ? 'The 3D scene is unavailable.'
-          : ready
-            ? 'The meadow is ready.'
-            : 'Loading the meadow.'}
+          : entered
+            ? 'Use WASD or arrow keys to walk. Press Escape to return to the title.'
+            : ready
+              ? 'The meadow is ready.'
+              : 'Loading the meadow.'}
       </span>
     </main>
   );

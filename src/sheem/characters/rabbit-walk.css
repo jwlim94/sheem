@@ -60,3 +60,11 @@
   height: 34px;
   font-size: 14px;
 }
+
+/* Leave room for the persistent sound control on the product entry flow. */
+.rabbit-walk-entry .rabbit-toolbar { bottom: 88px; }
+.rabbit-walk-entry .rabbit-dpad { bottom: 198px; }
+@media (max-width: 640px) {
+  .rabbit-walk-entry .rabbit-toolbar { bottom: 94px; }
+  .rabbit-walk-entry .rabbit-dpad { bottom: 210px; }
+}

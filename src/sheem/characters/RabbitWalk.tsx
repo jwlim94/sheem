@@ -229,9 +229,9 @@ function WalkingScene({
   );
 }
 
-export function RabbitWalk() {
+export function RabbitWalk({ onLeave }: { onLeave?: () => void } = {}) {
   const [params] = useSearchParams();
-  const duck = params.get('character') === 'duck';
+  const duck = !onLeave && params.get('character') === 'duck';
   const [reducedMotion, setReducedMotion] = useState(
     () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
   );
@@ -287,7 +287,10 @@ export function RabbitWalk() {
     };
   }, []);
   return (
-    <main className="rabbit-preview rabbit-walk">
+    <section
+      className={`rabbit-preview rabbit-walk${onLeave ? ' rabbit-walk-entry' : ''}`}
+      aria-label="Explore the meadow"
+    >
       <PreviewError modelUrl={duck ? DUCK_MODEL_URL : undefined}>
         <Canvas
           shadows
@@ -321,12 +324,18 @@ export function RabbitWalk() {
       <footer className="rabbit-toolbar">
         <p>WASD / Arrows · Hold Shift to run · Drag to look around</p>
         <div className="rabbit-controls">
-          <Link
-            className="rabbit-walk-link"
-            to={`/playground/rabbit${duck ? '?character=duck' : ''}`}
-          >
-            Character preview
-          </Link>
+          {onLeave ? (
+            <button autoFocus onClick={onLeave}>
+              ← Back to title
+            </button>
+          ) : (
+            <Link
+              className="rabbit-walk-link"
+              to={`/playground/rabbit${duck ? '?character=duck' : ''}`}
+            >
+              Character preview
+            </Link>
+          )}
           <button
             onClick={() => {
               input.current.keys.clear();
@@ -365,6 +374,6 @@ export function RabbitWalk() {
           </button>
         ))}
       </div>
-    </main>
+    </section>
   );
 }

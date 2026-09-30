@@ -31,8 +31,8 @@ npm run dev
 
 Open `/playground/rabbit`. Drag to orbit, scroll to zoom, choose front/side/back,
 select Idle/Walk/Run, or pause playback in the studio. Reduced-motion preference
-starts the preview paused. The product's `/` route retains its existing title and
-entry behavior; the rabbit study is loaded only on its own route.
+starts the preview paused. The product's `/` route now enters this rabbit walk directly from Enter.
+The standalone routes remain available for character comparison.
 
 ## Preserved iterations
 
