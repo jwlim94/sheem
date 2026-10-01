@@ -6,12 +6,24 @@ export const RABBIT_RADIUS = 5.5;
 export const RABBIT_SPEED = 1.8;
 export const RABBIT_RUN_SPEED = 3.0;
 export const RABBIT_CLEARING = [RABBIT_SPAWN[0], RABBIT_SPAWN[1], 7] as const;
-export function createRabbitMovement() {
+export type RabbitGround = {
+  spawn: readonly [number, number];
+  center: readonly [number, number];
+  radius: number;
+  height: (x: number, z: number) => number;
+};
+export const MEADOW_GROUND: RabbitGround = {
+  spawn: RABBIT_SPAWN,
+  center: RABBIT_SPAWN,
+  radius: RABBIT_RADIUS,
+  height: surfaceHeight,
+};
+export function createRabbitMovement(ground = MEADOW_GROUND) {
   return {
     position: new Vector3(
-      RABBIT_SPAWN[0],
-      surfaceHeight(...RABBIT_SPAWN),
-      RABBIT_SPAWN[1]
+      ground.spawn[0],
+      ground.height(...ground.spawn),
+      ground.spawn[1]
     ),
     velocity: new Vector3(),
     yaw: Math.PI,
@@ -30,7 +42,8 @@ export function stepRabbit(
   forward: number,
   cameraYaw: number,
   delta: number,
-  sprint = false
+  sprint = false,
+  ground = MEADOW_GROUND
 ) {
   const dt = Math.min(Math.max(delta, 0), 0.05);
   if (dt === 0) return;
@@ -80,14 +93,14 @@ export function stepRabbit(
   const oldX = state.position.x,
     oldZ = state.position.z;
   state.position.addScaledVector(state.velocity, dt);
-  const dx = state.position.x - RABBIT_SPAWN[0],
-    dz = state.position.z - RABBIT_SPAWN[1];
+  const dx = state.position.x - ground.center[0],
+    dz = state.position.z - ground.center[1];
   const distance = Math.hypot(dx, dz);
-  if (distance > RABBIT_RADIUS) {
-    state.position.x = RABBIT_SPAWN[0] + (dx / distance) * RABBIT_RADIUS;
-    state.position.z = RABBIT_SPAWN[1] + (dz / distance) * RABBIT_RADIUS;
+  if (distance > ground.radius) {
+    state.position.x = ground.center[0] + (dx / distance) * ground.radius;
+    state.position.z = ground.center[1] + (dz / distance) * ground.radius;
   }
   state.speed =
     Math.hypot(state.position.x - oldX, state.position.z - oldZ) / dt;
-  state.position.y = surfaceHeight(state.position.x, state.position.z);
+  state.position.y = ground.height(state.position.x, state.position.z);
 }

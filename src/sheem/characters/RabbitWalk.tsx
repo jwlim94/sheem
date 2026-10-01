@@ -6,7 +6,8 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { Group, Object3D, Quaternion, Vector3 } from 'three';
 import { Link, useSearchParams } from 'react-router-dom';
 import { MeadowEnvironment } from '../title/MeadowScene';
-import { surfaceHeight } from '../title/landscape';
+import { SlopeTestEnvironment } from './SlopeTestEnvironment';
+import { SLOPE_TEST_GROUND, SLOPE_TEST_SPOTS } from './slopeTestGround';
 import {
   RabbitModel,
   RABBIT_WALK_SPEED,
@@ -16,7 +17,7 @@ import type { RabbitDrive } from './RabbitModel';
 import {
   createRabbitMovement,
   RABBIT_CLEARING,
-  RABBIT_SPAWN,
+  MEADOW_GROUND,
   RABBIT_SPEED,
   stepRabbit,
 } from './rabbitMovement';
@@ -35,6 +36,7 @@ type Input = {
   touch: Set<string>;
   reset: number;
   stopped: number;
+  spot: number;
 };
 const CODES = new Set([
   'KeyW',
@@ -48,22 +50,25 @@ const CODES = new Set([
   'ShiftLeft',
   'ShiftRight',
 ]);
-const START_Y = surfaceHeight(...RABBIT_SPAWN);
 
 function WalkingScene({
   input,
   reducedMotion,
   duck,
+  slopes,
 }: {
   input: RefObject<Input>;
   reducedMotion: boolean;
   duck: boolean;
+  slopes: boolean;
 }) {
+  const ground = slopes ? SLOPE_TEST_GROUND : MEADOW_GROUND;
+  const startY = ground.height(...ground.spawn);
   const actor = useRef<Group>(null);
   const orbit = useRef<OrbitControlsImpl>(null);
   const { camera } = useThree();
   const drive = useRef<RabbitDrive>({ motion: 'Idle', timeScale: 1, reset: 0 });
-  const movement = useRef(createRabbitMovement());
+  const movement = useRef(createRabbitMovement(ground));
   const consumed = useRef({ reset: 0, stopped: 0 });
   const scratch = useMemo(
     () => ({
@@ -82,13 +87,13 @@ function WalkingScene({
 
   useEffect(() => {
     camera.position.set(
-      RABBIT_SPAWN[0] + 2.2,
-      START_Y + 2.5,
-      RABBIT_SPAWN[1] + 4.5
+      ground.spawn[0] + (slopes ? 0 : 2.2),
+      startY + 2.5,
+      ground.spawn[1] + 4.5
     );
-    orbit.current?.target.set(RABBIT_SPAWN[0], START_Y + 0.85, RABBIT_SPAWN[1]);
+    orbit.current?.target.set(ground.spawn[0], startY + 0.85, ground.spawn[1]);
     orbit.current?.update();
-  }, [camera]);
+  }, [camera, ground, slopes, startY]);
 
   useFrame((_, delta) => {
     const body = actor.current,
@@ -97,7 +102,20 @@ function WalkingScene({
     const dt = Math.min(delta, 0.05);
     const state = movement.current;
     if (input.current.reset !== consumed.current.reset) {
-      const fresh = createRabbitMovement();
+      const fresh = createRabbitMovement(ground);
+      if (slopes) {
+        const spot = SLOPE_TEST_SPOTS[input.current.spot];
+        fresh.position.set(spot.x, ground.height(spot.x, spot.z), spot.z);
+        fresh.yaw = spot.yaw;
+        controls.target.copy(fresh.position).addScaledVector(scratch.up, 0.85);
+        camera.position.set(
+          spot.x - Math.sin(spot.yaw) * 4.5,
+          fresh.position.y + 2.5,
+          spot.z - Math.cos(spot.yaw) * 4.5
+        );
+        controls.update();
+        scratch.smoothedSlope.identity();
+      }
       state.position.copy(fresh.position);
       state.velocity.set(0, 0, 0);
       state.stopping = false;
@@ -126,7 +144,7 @@ function WalkingScene({
       camera.position.z - controls.target.z
     );
     const sprint = held('ShiftLeft', 'ShiftRight');
-    stepRabbit(state, horizontal, forward, azimuth, dt, sprint);
+    stepRabbit(state, horizontal, forward, azimuth, dt, sprint, ground);
     body.position.copy(state.position);
     body.position.y += 0.008;
     // Align the whole avatar with the local ground plane; individual-foot IK is later work.
@@ -135,9 +153,9 @@ function WalkingScene({
       e = 0.25;
     scratch.normal
       .set(
-        surfaceHeight(x - e, z) - surfaceHeight(x + e, z),
+        ground.height(x - e, z) - ground.height(x + e, z),
         2 * e,
-        surfaceHeight(x, z - e) - surfaceHeight(x, z + e)
+        ground.height(x, z - e) - ground.height(x, z + e)
       )
       .normalize();
     scratch.slope.setFromUnitVectors(scratch.up, scratch.normal);
@@ -176,7 +194,7 @@ function WalkingScene({
     camera.position.setY(
       Math.max(
         camera.position.y,
-        surfaceHeight(camera.position.x, camera.position.z) + 0.4
+        ground.height(camera.position.x, camera.position.z) + 0.4
       )
     );
     controls.update();
@@ -187,16 +205,24 @@ function WalkingScene({
 
   return (
     <>
-      <MeadowEnvironment
-        reducedMotion={reducedMotion}
-        clearing={RABBIT_CLEARING}
-      />
+      {slopes ? (
+        <SlopeTestEnvironment />
+      ) : (
+        <MeadowEnvironment
+          reducedMotion={reducedMotion}
+          clearing={RABBIT_CLEARING}
+        />
+      )}
       <group
         ref={actor}
         name={duck ? 'DuckPlayer' : 'RabbitPlayer'}
-        position={[RABBIT_SPAWN[0], START_Y + 0.008, RABBIT_SPAWN[1]]}
+        position={[ground.spawn[0], startY + 0.008, ground.spawn[1]]}
       >
-        {duck ? <DuckModel drive={drive} /> : <RabbitModel drive={drive} />}
+        {duck ? (
+          <DuckModel drive={drive} />
+        ) : (
+          <RabbitModel drive={drive} />
+        )}
       </group>
       <primitive object={scratch.lightTarget} />
       <directionalLight
@@ -220,7 +246,7 @@ function WalkingScene({
         makeDefault
         enablePan={false}
         minDistance={3}
-        maxDistance={7}
+        maxDistance={slopes ? 24 : 7}
         minPolarAngle={0.4}
         maxPolarAngle={Math.PI / 2 - 0.12}
         enableDamping
@@ -232,6 +258,9 @@ function WalkingScene({
 
 export function RabbitWalk({ onLeave }: { onLeave?: () => void } = {}) {
   const [params] = useSearchParams();
+  const [slopes, setSlopes] = useState(
+    () => params.get('terrain') === 'slopes'
+  );
   const duck = !onLeave && params.get('character') === 'duck';
   const [reducedMotion, setReducedMotion] = useState(
     () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -247,6 +276,7 @@ export function RabbitWalk({ onLeave }: { onLeave?: () => void } = {}) {
     touch: new Set(),
     reset: 0,
     stopped: 0,
+    spot: 0,
   });
   useEffect(() => {
     const controls = input.current;
@@ -290,7 +320,7 @@ export function RabbitWalk({ onLeave }: { onLeave?: () => void } = {}) {
   return (
     <section
       className={`rabbit-preview rabbit-walk${onLeave ? ' rabbit-walk-entry' : ''}`}
-      aria-label="Explore the meadow"
+      aria-label={slopes ? 'Explore the slope course' : 'Explore the meadow'}
     >
       <PreviewError modelUrl={duck ? DUCK_MODEL_URL : undefined}>
         <Canvas
@@ -308,6 +338,8 @@ export function RabbitWalk({ onLeave }: { onLeave?: () => void } = {}) {
             }
           >
             <WalkingScene
+              key={slopes ? 'slopes' : 'meadow'}
+              slopes={slopes}
               input={input}
               reducedMotion={reducedMotion}
               duck={duck}
@@ -320,11 +352,43 @@ export function RabbitWalk({ onLeave }: { onLeave?: () => void } = {}) {
           sheem.
         </Link>
         <p>A little walk</p>
-        <h1>Explore the clearing</h1>
+        <h1>{slopes ? 'Explore the slopes' : 'Explore the clearing'}</h1>
       </header>
+      {slopes && (
+        <nav className="slope-spots" aria-label="Slope course locations">
+          <p>Choose a starting point</p>
+          {SLOPE_TEST_SPOTS.map((spot, i) => (
+            <button
+              key={spot.name}
+              onClick={() => {
+                input.current.keys.clear();
+                input.current.touch.clear();
+                input.current.spot = i;
+                input.current.reset += 1;
+              }}
+            >
+              {spot.name}
+            </button>
+          ))}
+          <small>
+            Walk over the hill to descend. Drag to inspect the feet.
+          </small>
+        </nav>
+      )}
       <footer className="rabbit-toolbar">
         <p>WASD / Arrows · Hold Shift to run · Drag to look around</p>
         <div className="rabbit-controls">
+          <button
+            onClick={() => {
+              input.current.keys.clear();
+              input.current.touch.clear();
+              input.current.spot = 0;
+              input.current.stopped += 1;
+              setSlopes((value) => !value);
+            }}
+          >
+            {slopes ? 'Back to meadow' : 'Try the slopes'}
+          </button>
           {onLeave ? (
             <button autoFocus onClick={onLeave}>
               ← Back to title
@@ -341,6 +405,7 @@ export function RabbitWalk({ onLeave }: { onLeave?: () => void } = {}) {
             onClick={() => {
               input.current.keys.clear();
               input.current.touch.clear();
+              input.current.spot = 0;
               input.current.reset += 1;
             }}
           >

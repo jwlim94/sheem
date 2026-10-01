@@ -68,3 +68,43 @@
   .rabbit-walk-entry .rabbit-toolbar { bottom: 94px; }
   .rabbit-walk-entry .rabbit-dpad { bottom: 210px; }
 }
+
+.slope-spots {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  max-width: 230px;
+  padding: 14px;
+  border-radius: 18px;
+  background: #f8f6ebed;
+  color: #344736;
+}
+.slope-spots p { margin: 0 0 8px; font-size: 13px; }
+.slope-spots button {
+  display: block;
+  width: 100%;
+  margin: 5px 0;
+  padding: 8px 12px;
+  border: 1px solid #34473625;
+  border-radius: 12px;
+  background: #fffdf5;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.slope-spots button:hover { background: #e4ead9; }
+.slope-spots small { display: block; margin-top: 9px; line-height: 1.4; }
+.slope-marker {
+  display: block;
+  white-space: nowrap;
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: #f8f6ebeb;
+  color: #344736;
+  font-size: 12px;
+}
+@media (max-width: 640px) {
+  .slope-spots { top: 160px; right: 12px; max-width: 154px; padding: 9px; }
+  .slope-spots small { display: none; }
+  .rabbit-walk .rabbit-controls { gap: 5px; }
+}

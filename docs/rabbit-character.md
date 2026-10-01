@@ -1161,3 +1161,32 @@ Acceptance: hold W, add Shift, release Shift while still holding W, then release
 W. Repeat with short Shift taps and a brief stop/restart. Foot rhythm should carry
 through the gait change, with prompt return to walking and the existing gentle
 landing on release. This sequence can demonstrate the next movement-polish Short.
+
+## Walkable slope course (2026-10-01)
+
+The meadow toolbar now has “Try the slopes”, including the main Enter flow.
+Direct access: `/playground/rabbit/walk?terrain=slopes`. “Back to meadow” returns
+to the existing clearing; the original 5.5 m meadow limit is unchanged.
+
+The separate 36 × 40 m test surface has a 17 m circular walking boundary and five
+starting-point buttons: Flat, Gentle slope (~11°), Steep slope (~22°), Side slope
+(~14°), and Crest / downhill. The gentle/steep lanes rise over 6 m, have a short
+plateau and descend on the far side. A two-meter visual grid makes slipping and
+slope changes easier to inspect. Camera zoom can extend to 24 m for an overview.
+Markers are visual aids, not collidable props.
+
+Movement, gait and following camera are shared with the meadow. The configurable
+ground supplies spawn, bounds and height; the test height sampler interpolates
+the exact 0.5 m mesh triangles. The course exposes foot penetration and
+whole-body slope alignment for the next terrain-contact pass.
+
+Validation: lint/build pass with the existing bundle-size advisory. Browser checks
+covered all five teleport points, uphill/cross-slope/downhill walking and meadow
+round trips. Raycasts at 100 positions agreed with the height sampler within
+0.000001 m; the movement boundary held at 17 m. Existing 30/60/120 fps movement
+checks still passed after extracting ground configuration.
+
+Acceptance: choose each starting point, walk forward, hold/release Shift, stop on
+the slope, then drag the camera to inspect both soles. At Side slope walk forward
+along the shelf; at Crest / downhill continue over the far edge. Compare the same
+motion on Flat. A side-on ascent/descent is a useful future movement-polish Short.
