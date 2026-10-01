@@ -1,0 +1,21 @@
+Source provenance — captured 2026-09-30
+
+02-concept-original.png
+  docs/content/assets/characters/human-rabbit-concepts-v1.png
+  Original concept sheet; video crops the rabbit on the right.
+03-early-v8.png
+  art/characters/rabbit/rabbit-preview-v8.png
+04-middle-v35.png
+  art/characters/rabbit/rabbit-preview-v35.png
+04-final-v65.png
+  art/characters/rabbit/rabbit-preview-v65.png
+
+01-run-hook / 05-face-orbit / 06-walk-detail
+  Actual /playground/rabbit app renderer, Rabbit V65.
+07-meadow
+  Actual /playground/rabbit/walk app renderer and keyboard movement.
+
+Capture: 1080x1920, 30 frames per second, deterministic app frame advancement.
+Encoding: H.264 MP4 via macOS AVFoundation. No audio track.
+Original PNGs copied unchanged. Still-image crops and zooms are in the MP4 clips.
+Full sequence: 90 + 75 + 75 + 105 + 105 + 120 + 120 = 690 frames = 23 seconds.

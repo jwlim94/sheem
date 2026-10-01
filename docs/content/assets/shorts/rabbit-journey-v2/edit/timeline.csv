@@ -1,0 +1,8 @@
+﻿start,end,clip,visual,transition
+0,4.0,01-run-hook.mp4,완성된 토끼 달리기,0.30s overlap dissolve
+3.7,7.7,02-concept.mp4,"원본 콘셉트의 토끼 부분, 느린 확대",0.30s overlap dissolve
+7.4,11.4,03-early-v8.mp4,"초기 V8, 천천히 살펴보기",0.30s overlap dissolve
+11.1,16.1,04-evolution.mp4,"V8 → V35 → V65, 짧은 내부 디졸브",0.30s overlap dissolve
+15.8,20.3,05-face-orbit.mp4,"얼굴 입체 디테일, 느린 카메라 회전",0.30s overlap dissolve
+20.0,25.3,06-walk-detail.mp4,걷는 전신과 귀·가방 움직임,0.30s overlap dissolve
+25.0,31.0,07-meadow-turn.mp4,산책 → 멈춤 → 카메라 쪽 돌아오기 → 정면 여운,0.30s overlap dissolve

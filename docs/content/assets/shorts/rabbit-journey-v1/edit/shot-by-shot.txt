@@ -1,0 +1,43 @@
+EXACT SHOT PLAN
+
+00:00–00:03 | 01-run-hook.mp4
+Show: finished rabbit running in place, three-quarter front view, full body.
+Purpose: show the finished character immediately before revealing the starting image.
+Voice: This little rabbit started as an image.
+Optional top text: From image to 3D
+
+00:03–00:05.5 | 02-concept.mp4
+Show: rabbit cropped from the right side of human-rabbit-concepts-v1.png.
+The human and extra reference views are excluded. Gentle 2.5% zoom already applied.
+Voice: I wanted to bring it to life.
+
+00:05.5–00:08 | 03-early-v8.mp4
+Show: saved early V8 render with gentle 3.5% zoom.
+This is an actual earlier model, not an invented failure image.
+Voice: The first version felt a little off.
+
+00:08–00:11.5 | 04-evolution.mp4
+Show: V8 for 1 second, V35 for 1 second, V65 for 1.5 seconds.
+Straight cuts, similar subject size, no morph transition.
+Voice: So I kept tweaking the face and proportions.
+
+00:11.5–00:15 | 05-face-orbit.mp4
+Show: close view slowly rotating from near front to three-quarter view.
+Eyes, brows, nose and mouth geometry become visible as the angle changes.
+Voice: Then gave the eyes and nose some depth.
+
+00:15–00:19 | 06-walk-detail.mp4
+Show: full rabbit walking in place, with ears and bag visible together.
+No extra crop: the whole-body rhythm is part of this shot.
+Voice: And a little bounce to the ears and bag.
+
+00:19–00:23 | 07-meadow.mp4
+Show: current app meadow from behind the rabbit, moving forward then settling.
+Small 'sheem.' title near the top. Keep the scenery visible.
+Voice: Now I'm building a peaceful world for it to explore.
+
+EDITING CHOICE
+Use the supplied clean assembly, or the seven separate clips in order.
+Keep hard cuts; no stickers, glitch effects, fake interface, or stock footage.
+Use English spoken narration and matching captions. There is no sound baked into the videos.
+SRT timing is an editing starting point; adjust it to the actual recording.

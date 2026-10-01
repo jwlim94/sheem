@@ -32,3 +32,6 @@ public/sounds/_original/
 # Blender authoring scripts
 __pycache__/
 *.pyc
+
+# Local delivery archives duplicate the tracked Shorts source folders
+/docs/content/assets/shorts/*.zip
