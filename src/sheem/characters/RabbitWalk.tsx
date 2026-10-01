@@ -147,7 +147,7 @@ function WalkingScene({
     stepRabbit(state, horizontal, forward, azimuth, dt, sprint, ground);
     body.position.copy(state.position);
     body.position.y += 0.008;
-    // Align the whole avatar with the local ground plane; individual-foot IK is later work.
+    // Rabbit balance stays upright; its legs adapt independently to terrain.
     const x = state.position.x,
       z = state.position.z,
       e = 0.25;
@@ -162,7 +162,8 @@ function WalkingScene({
     scratch.smoothedSlope.slerp(scratch.slope, 1 - Math.exp(-12 * dt));
     scratch.yaw.setFromAxisAngle(scratch.up, state.yaw);
     // Yaw is already smoothed by movement; smooth only the terrain tilt here.
-    body.quaternion.copy(scratch.smoothedSlope).multiply(scratch.yaw);
+    if (duck) body.quaternion.copy(scratch.smoothedSlope).multiply(scratch.yaw);
+    else body.quaternion.copy(scratch.yaw);
     const running =
       state.speed >
       RABBIT_SPEED + (drive.current.motion === 'Run' ? 0.45 : 0.6);
@@ -221,7 +222,7 @@ function WalkingScene({
         {duck ? (
           <DuckModel drive={drive} />
         ) : (
-          <RabbitModel drive={drive} />
+          <RabbitModel drive={drive} groundHeight={ground.height} />
         )}
       </group>
       <primitive object={scratch.lightTarget} />

@@ -12,7 +12,7 @@ import {
   Vector3,
 } from 'three';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { createSoleClearance } from './soleClearance';
+import { createRabbitGrounding } from './rabbitGrounding';
 import { createRabbitBlink } from './rabbitBlink';
 
 export const RABBIT_MODEL_URL = '/models/rabbit/sheem-rabbit-v65.glb';
@@ -36,10 +36,12 @@ export function RabbitModel({
   playing = true,
   motion = 'Idle',
   drive,
+  groundHeight,
 }: {
   playing?: boolean;
   motion?: RabbitMotion;
   drive?: RefObject<RabbitDrive>;
+  groundHeight?: (x: number, z: number) => number;
 }) {
   const { scene, animations } = useGLTF(RABBIT_MODEL_URL);
   // Each instance owns its skeleton; immutable geometry/materials stay in the cache.
@@ -53,6 +55,7 @@ export function RabbitModel({
     });
     return instance;
   }, [scene]);
+  const grounding = useMemo(() => createRabbitGrounding(rabbit), [rabbit]);
   const mixer = useRef<AnimationMixer | null>(null);
   const blink = useRef<ReturnType<typeof createRabbitBlink> | null>(null);
   useEffect(() => {
@@ -64,10 +67,6 @@ export function RabbitModel({
     };
   }, [rabbit]);
   const support = useRef<Group>(null);
-  const soleClearance = useMemo(
-    () => createSoleClearance(rabbit, ['FootL', 'FootR', 'Foot.L', 'Foot.R']),
-    [rabbit]
-  );
 
   // Capture the displayed pose on input changes, including interrupted stops.
   // This lets the final raised foot land instead of slowing a gait almost to zero.
@@ -152,10 +151,13 @@ export function RabbitModel({
   useFrame((_, delta) => {
     const ownedMixer = mixer.current;
     if (!ownedMixer || !playing) return;
+    grounding.restore();
+    if (support.current) support.current.position.y = 0;
     const dt = Math.min(delta, 0.05);
     blink.current?.update(dt);
     if (drive) {
       const hardReset = (drive.current.reset ?? 0) !== timing.current.reset;
+      if (hardReset) grounding.reset();
       timing.current.reset = drive.current.reset ?? 0;
       const clip = animations.find(
         (animation) => animation.name === drive.current.motion
@@ -230,7 +232,12 @@ export function RabbitModel({
               gaitClip.duration *
               (name === 'Run' ? RABBIT_RUN_GAIT_SPEED : RABBIT_WALK_SPEED);
           }
-          const cadence = stride > 0 ? speed / stride : 0;
+          // Keep stance travel matched to movement when cross slopes shorten steps.
+          const terrainStride = grounding.strideScale(
+            groundHeight,
+            cycle.runWeight
+          );
+          const cadence = stride > 0 ? speed / (stride * terrainStride) : 0;
           for (const name of GAIT_NAMES) {
             const gaitClip = animations.find(
               (animation) => animation.name === name
@@ -261,6 +268,13 @@ export function RabbitModel({
       }
       timing.current.applied = false;
     }
+    if (!drive && currentAction.current) {
+      currentAction.current.setEffectiveTimeScale(
+        motion === 'Idle'
+          ? 1
+          : 1 / grounding.strideScale(undefined, motion === 'Run' ? 1 : 0)
+      );
+    }
     ownedMixer.update(dt);
     if (drive && timing.current.duration > 0) {
       timing.current.elapsed = Math.min(
@@ -290,9 +304,12 @@ export function RabbitModel({
       timing.current.applied = true;
       if (progress === 1) timing.current.duration = 0;
     }
-    // Joint interpolation can briefly dip a rounded sole through its support
-    // plane; lift the displayed pose by only that deficit, without stretching.
-    if (support.current) support.current.position.y = soleClearance();
+    // Use the same compact stride in the meadow and studio preview.
+    grounding.update(
+      groundHeight,
+      dt,
+      drive ? gait.current.runWeight : motion === 'Run' ? 1 : 0
+    );
   });
   return (
     <group ref={support}>

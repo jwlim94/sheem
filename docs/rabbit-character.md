@@ -1177,8 +1177,8 @@ Markers are visual aids, not collidable props.
 
 Movement, gait and following camera are shared with the meadow. The configurable
 ground supplies spawn, bounds and height; the test height sampler interpolates
-the exact 0.5 m mesh triangles. The course exposes foot penetration and
-whole-body slope alignment for the next terrain-contact pass.
+the exact 0.5 m mesh triangles. The course initially exposed foot penetration
+and whole-body slope alignment; the terrain-contact pass below addresses those.
 
 Validation: lint/build pass with the existing bundle-size advisory. Browser checks
 covered all five teleport points, uphill/cross-slope/downhill walking and meadow
@@ -1190,3 +1190,70 @@ Acceptance: choose each starting point, walk forward, hold/release Shift, stop o
 the slope, then drag the camera to inspect both soles. At Side slope walk forward
 along the shelf; at Crest / downhill continue over the far edge. Compare the same
 motion on Flat. A side-on ascent/descent is a useful future movement-polish Short.
+
+
+## Rabbit terrain contact (2026-10-01)
+
+The walking rabbit now keeps its actor upright (yaw only), retaining the authored
+body sway and head/ear animation. `rabbitGrounding.ts` applies two-bone IK after
+animation blending: each foot samples its own terrain normal and sole footprint,
+then the hips adjust vertically so both legs can reach without stretching. The
+camera continues following the movement root, not this visual hip adjustment.
+The animated foot lift is retained, including running flight and start/stop blends.
+The next frame restores the animation pose before mixing, avoiding accumulated IK
+or feedback from constant animation tracks. Studio preview uses its existing flat
+sole correction; the imported duck is unchanged.
+
+Validation: deterministic real-browser sampling at 60 fps covered all five course
+starts, walking and running (3,400 frames), plus stopping partway along each route
+(1,600 frames). The former maximum sole penetration of 11.53 cm was eliminated in
+these cases: minimum sampled foot clearance was 8 mm, matching the existing small
+visual ground offset. Walking swing reached about 7.2 cm and running about 14.8 cm;
+feet were not pinned during flight. Four turning/stopping cases at simulated
+120 fps also maintained positive sole clearance. Inspected rendered cross-slope idle and steep
+uphill running poses. Lint and production build passed (existing bundle warning).
+
+Acceptance: on Side slope, stop and orbit around the rabbit: its head stays upright,
+the uphill leg bends and both soles rest near the slope. Repeat at Steep slope and
+walk/run over the crest. Foot orientation changes at a sharp crest; a rigid sole
+cannot be flush against both planes at once. This is terrain-height adaptation,
+not world-space stance locking, stair/cliff collision, or a steep-slope movement limit.
+
+## Cross-slope gait refinement (2026-10-01)
+
+Terrain contact alone did not make the asymmetric gait convincing. Cross-slope
+steps now shorten by up to 22%, with gait cadence adjusted by the same stride
+factor so movement speed is unchanged. Uphill swing clearance reduces by up to
+25% (downhill by 10%), avoiding excessive knee folding. These adjustments fade
+with the height difference across the hips and do not shorten level-ground steps.
+
+Terrain-only pelvis height and foot tilt use delta-time exponential smoothing;
+the supporting foot gets a small, smoothed lateral weight shift capped at 1.5 cm.
+Running reserves more leg reach than walking. Reach constraints still override
+smoothing when needed to keep contact at sharp terrain boundaries. Procedural
+history resets on teleport; animated body sway and head motion remain intact.
+
+Validation: lint/build pass with the existing bundle-size advisory. Repeated the
+Side slope walk/run traversal and all five course starts with mid-route stops in
+the browser at simulated 60 fps. Sampled sole clearance stayed at least 8 mm;
+rendered cross-slope stride and rest poses were inspected. Turning/stopping checks
+at simulated 30 and 120 fps also retained positive sole clearance. This refines the gait,
+but does not establish world-space stance locking or eliminate the necessary
+left/right leg asymmetry on a slope. Acceptance is a continuous sideways traverse
+on Side slope, then the reverse direction: compare rhythm and knee folding with
+Flat, and check the downhill sole while transitioning to Run and back to Idle.
+
+## More compact walk/run stride (2026-10-01)
+
+The runtime ankle trajectory is now shortened about the hip by 15% for Walk and
+20% for Run, blended continuously with the gait weights. Existing cross-slope
+shortening multiplies this base factor. The animation clock uses the same factor
+to match shorter stance travel to unchanged movement speed. Foot size, leg lengths,
+and the authored airborne lift remain unchanged by this pass.
+
+The studio also uses the post-animation leg solver with a flat support plane, so
+its preview shows the same compact stride. The downloadable v65 GLB itself has
+not been regenerated; these are runtime adjustments. Browser checks covered all
+five slope starts with walk/run and stops, five meadow transition cases, and
+studio Walk/Run/Idle rendering. Slope sole clearance remained at least 8 mm in
+the sampled cases. Lint/build passed (existing bundle-size advisory).
