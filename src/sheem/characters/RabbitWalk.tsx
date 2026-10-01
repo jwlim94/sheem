@@ -72,8 +72,8 @@ function WalkingScene({
       normal: new Vector3(),
       up: new Vector3(0, 1, 0),
       slope: new Quaternion(),
+      smoothedSlope: new Quaternion(),
       yaw: new Quaternion(),
-      rotation: new Quaternion(),
       lightTarget: new Object3D(),
     }),
     []
@@ -141,9 +141,10 @@ function WalkingScene({
       )
       .normalize();
     scratch.slope.setFromUnitVectors(scratch.up, scratch.normal);
+    scratch.smoothedSlope.slerp(scratch.slope, 1 - Math.exp(-12 * dt));
     scratch.yaw.setFromAxisAngle(scratch.up, state.yaw);
-    scratch.rotation.copy(scratch.slope).multiply(scratch.yaw);
-    body.quaternion.slerp(scratch.rotation, 1 - Math.exp(-12 * dt));
+    // Yaw is already smoothed by movement; smooth only the terrain tilt here.
+    body.quaternion.copy(scratch.smoothedSlope).multiply(scratch.yaw);
     const running =
       state.speed >
       RABBIT_SPEED + (drive.current.motion === 'Run' ? 0.03 : 0.12);

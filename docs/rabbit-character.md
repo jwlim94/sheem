@@ -1113,3 +1113,25 @@ Validation: inspected opposing Run support poses and side/rear browser views,
 with no browser exceptions. Evaluated soles across all authored Idle/Walk/Run
 frames: minimum height remains approximately 0.0002 m above the flat floor.
 Lint/build passed with the existing bundle advisory.
+
+## Input-led direction changes (2026-09-30)
+
+Sharp turns now steer the movement heading toward camera-relative input before
+translation. Velocity follows that heading instead of reversing first and leaving
+the model to catch up. Above 30° of remaining turn, target speed eases down; at
+90° or more it targets zero, then recovers as the body aligns. Normal straight
+acceleration and the existing 0.28-second release brake remain unchanged.
+`RabbitWalk` smooths terrain tilt separately and uses the controller yaw directly,
+removing the second yaw interpolation. Rabbit and Duck share this controller.
+
+Validation: lint and production build passed (existing bundle-size advisory).
+Deterministic movement checks at 30/60/120 fps covered straight acceleration,
+release braking, 45°/90°/180° walk/run turns, speed recovery and leaving the clearing
+boundary. Browser frame capture exercised a stopped turn and a running reversal.
+This does not add planted-foot turning animation or individual-foot terrain IK.
+
+Acceptance: hold W, switch directly to S, repeat with Shift, then make A/D and
+W+D corrections. A sharp reversal should briefly slow and turn before regaining
+speed; small corrections should remain responsive. Release should still settle
+within the familiar landing, without a long sliding tail. A before/after reversal
+can be captured as a short movement-polish demo.

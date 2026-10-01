@@ -42,9 +42,28 @@ export function stepRabbit(
   const targetZ = (-x * Math.sin(cameraYaw) - z * Math.cos(cameraYaw)) * speed;
   if (length) {
     state.stopping = false;
-    const blend = 1 - Math.exp(-12 * dt);
-    state.velocity.x = MathUtils.lerp(state.velocity.x, targetX, blend);
-    state.velocity.z = MathUtils.lerp(state.velocity.z, targetZ, blend);
+    // Steer from input even at rest, instead of chasing an already reversed velocity.
+    const targetYaw = Math.atan2(targetX, targetZ);
+    const angle = Math.atan2(
+      Math.sin(targetYaw - state.yaw),
+      Math.cos(targetYaw - state.yaw)
+    );
+    state.yaw += angle * (1 - Math.exp(-10 * dt));
+    const remainingAngle = Math.abs(angle) * Math.exp(-10 * dt);
+    // Small corrections keep their pace; sharp turns brake until aligned.
+    const alignment =
+      1 - MathUtils.smoothstep(remainingAngle, Math.PI / 6, Math.PI / 2);
+    const currentSpeed = Math.hypot(state.velocity.x, state.velocity.z);
+    const targetSpeed = speed * alignment;
+    const blend =
+      1 -
+      Math.exp(-(alignment < 1 && targetSpeed < currentSpeed ? 18 : 12) * dt);
+    const turningSpeed = MathUtils.lerp(currentSpeed, targetSpeed, blend);
+    state.velocity.set(
+      Math.sin(state.yaw) * turningSpeed,
+      0,
+      Math.cos(state.yaw) * turningSpeed
+    );
   } else {
     if (!state.stopping) {
       state.stopping = true;
@@ -70,16 +89,5 @@ export function stepRabbit(
   }
   state.speed =
     Math.hypot(state.position.x - oldX, state.position.z - oldZ) / dt;
-  if (state.speed > 0.002) {
-    const targetYaw = Math.atan2(
-      state.position.x - oldX,
-      state.position.z - oldZ
-    );
-    const angle = Math.atan2(
-      Math.sin(targetYaw - state.yaw),
-      Math.cos(targetYaw - state.yaw)
-    );
-    state.yaw += angle * (1 - Math.exp(-10 * dt));
-  }
   state.position.y = surfaceHeight(state.position.x, state.position.z);
 }
