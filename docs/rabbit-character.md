@@ -1257,3 +1257,31 @@ not been regenerated; these are runtime adjustments. Browser checks covered all
 five slope starts with walk/run and stops, five meadow transition cases, and
 studio Walk/Run/Idle rendering. Slope sole clearance remained at least 8 mm in
 the sampled cases. Lint/build passed (existing bundle-size advisory).
+
+## Walking camera terrain clearance (2026-10-01)
+
+Camera checks found that endpoint height alone allowed the viewing line to pass
+through a hill: one low-angle, 24 m view at Steep slope crossed terrain by about
+76 cm even though the camera itself was above ground. `rabbitCamera.ts` now checks
+the target-to-camera segment at roughly 15 cm spacing and raises the orbit angle
+when needed. Orbit radius and azimuth are preserved. Temporary angle correction
+is restored before controls update and reapplied afterwards, with a gentle return
+to the requested angle once the obstruction clears. Movement runs at frame
+priority -2, Drei controls at -1, and clearance at 0; controls are no longer updated
+twice each frame. Preset teleports reset the correction.
+
+Validation: 48 browser combinations (four starts, three radii, four directions)
+retained zoom distance and had no sampled terrain penetration after correction;
+the lowest independently sampled line clearance was about 19 cm. Browser input
+checks covered running/reversing, stopping, wheel zoom and dragging in the meadow,
+cross-slope and crest/downhill scenes. The existing 3 m minimum orbit distance
+kept the camera outside the rabbit in these cases. A repeatable helper check at
+30/60/120 fps covers obstruction, radius preservation, return and reset:
+`node --experimental-strip-types scripts/check-rabbit-camera.mjs` (Node 22.6+).
+Lint/build pass with the existing bundle-size advisory.
+
+Acceptance: choose Steep slope, zoom out and drag to a low view across the hill;
+the rabbit should remain visible, and returning to open ground should restore the
+requested pitch without changing zoom. Repeat while running and reversing. This
+is sampled terrain clearance, not mesh collision against trees, buildings or a
+full-screen occlusion solution. Those need checking as the ASMR path is populated.

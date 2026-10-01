@@ -27,6 +27,10 @@ import {
   DUCK_WALK_SPEED,
   DUCK_RUN_SPEED,
 } from './DuckModel';
+import {
+  createRabbitCameraClearance,
+  WALK_CAMERA_MAX_POLAR,
+} from './rabbitCamera';
 import { PreviewError } from './RabbitPreview';
 import './rabbit-preview.css';
 import './rabbit-walk.css';
@@ -64,6 +68,7 @@ function WalkingScene({
 }) {
   const ground = slopes ? SLOPE_TEST_GROUND : MEADOW_GROUND;
   const startY = ground.height(...ground.spawn);
+  const cameraClearance = useMemo(() => createRabbitCameraClearance(), []);
   const actor = useRef<Group>(null);
   const orbit = useRef<OrbitControlsImpl>(null);
   const { camera } = useThree();
@@ -86,6 +91,7 @@ function WalkingScene({
   const light = useRef<Object3D>(null);
 
   useEffect(() => {
+    cameraClearance.reset();
     camera.position.set(
       ground.spawn[0] + (slopes ? 0 : 2.2),
       startY + 2.5,
@@ -93,17 +99,19 @@ function WalkingScene({
     );
     orbit.current?.target.set(ground.spawn[0], startY + 0.85, ground.spawn[1]);
     orbit.current?.update();
-  }, [camera, ground, slopes, startY]);
+  }, [camera, ground, slopes, startY, cameraClearance]);
 
   useFrame((_, delta) => {
     const body = actor.current,
       controls = orbit.current;
     if (!body || !controls) return;
+    cameraClearance.restore(camera, controls.target);
     const dt = Math.min(delta, 0.05);
     const state = movement.current;
     if (input.current.reset !== consumed.current.reset) {
       const fresh = createRabbitMovement(ground);
       if (slopes) {
+        cameraClearance.reset();
         const spot = SLOPE_TEST_SPOTS[input.current.spot];
         fresh.position.set(spot.x, ground.height(spot.x, spot.z), spot.z);
         fresh.yaw = spot.yaw;
@@ -192,17 +200,22 @@ function WalkingScene({
       .multiplyScalar(1 - Math.exp(-8 * dt));
     controls.target.add(scratch.delta);
     camera.position.add(scratch.delta);
-    camera.position.setY(
-      Math.max(
-        camera.position.y,
-        ground.height(camera.position.x, camera.position.z) + 0.4
-      )
-    );
-    controls.update();
     scratch.lightTarget.position.copy(state.position);
     scratch.lightTarget.position.addScaledVector(scratch.up, 0.7);
     light.current?.position.set(x - 3, state.position.y + 6, z + 4);
-  }, -1);
+  }, -2);
+
+  // Drei updates OrbitControls at -1. Resolve clearance afterwards, once per
+  // rendered frame, so damping cannot undo the terrain correction.
+  useFrame((_, delta) => {
+    if (orbit.current)
+      cameraClearance.update(
+        camera,
+        orbit.current.target,
+        ground.height,
+        delta
+      );
+  });
 
   return (
     <>
@@ -249,7 +262,7 @@ function WalkingScene({
         minDistance={3}
         maxDistance={slopes ? 24 : 7}
         minPolarAngle={0.4}
-        maxPolarAngle={Math.PI / 2 - 0.12}
+        maxPolarAngle={WALK_CAMERA_MAX_POLAR}
         enableDamping
         rotateSpeed={0.6}
       />
