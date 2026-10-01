@@ -1135,3 +1135,29 @@ W+D corrections. A sharp reversal should briefly slow and turn before regaining
 speed; small corrections should remain responsive. Release should still settle
 within the familiar landing, without a long sliding tail. A before/after reversal
 can be captured as a short movement-polish demo.
+
+## Walk/run transition continuity (2026-10-01)
+
+Locomotion now enters Run above 2.4 m/s and returns to Walk below 2.25 m/s,
+keeping hysteresis while avoiding the old wait until almost exactly walking
+speed. These selection thresholds are shared by the meadow's Rabbit/Duck views.
+Rabbit Walk and Run share a normalized cycle phase (both authored with left-foot
+support first) and a cadence derived from current speed and blended stride
+length. A 0.18-second smooth blend retains its current weights when interrupted;
+changing gait no longer resets the incoming clip to its first frame. The studio
+preview's independent clip controls and the 0.2-second start / 0.28-second stop
+pose blending remain in place.
+
+Validation: lint/build passed with the existing bundle-size advisory. Actual app
+frame sampling at 60 fps exercised walk-stop, sprint-start-stop, walk/run/walk,
+rapid Shift changes and restarting during a stop. In the sampled walk/run/walk
+sequence, release-to-Walk onset fell from about 0.30 s to 0.07 s and completion
+from about 0.47 s to 0.23 s. Both gait clocks stayed aligned and their weights
+summed to one during interrupted blends. Braking distance remained approximately
+15 cm walking and 25 cm running in the same scenarios. Rendered transition frames
+were inspected; individual-foot terrain contact remains a separate next step.
+
+Acceptance: hold W, add Shift, release Shift while still holding W, then release
+W. Repeat with short Shift taps and a brief stop/restart. Foot rhythm should carry
+through the gait change, with prompt return to walking and the existing gentle
+landing on release. This sequence can demonstrate the next movement-polish Short.

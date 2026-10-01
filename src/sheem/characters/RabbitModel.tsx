@@ -22,6 +22,8 @@ export const RABBIT_WALK_SPEED = 1.05;
 
 export const RABBIT_RUN_GAIT_SPEED = 0.575 / 0.28;
 
+const GAIT_NAMES = ['Walk', 'Run'] as const;
+
 export type RabbitMotion = 'Idle' | 'Walk' | 'Run';
 export type RabbitDrive = {
   motion: RabbitMotion;
@@ -108,6 +110,7 @@ export function RabbitModel({
   });
 
   const currentAction = useRef<AnimationAction | null>(null);
+  const gait = useRef({ phase: 0, runWeight: 0, fromWeight: 0, elapsed: 0.18 });
 
   useEffect(() => {
     const ownedMixer = new AnimationMixer(rabbit);
@@ -186,17 +189,66 @@ export function RabbitModel({
                 : 'start';
             timing.current.elapsed = 0;
             timing.current.duration = hardReset ? 0 : stopping ? 0.28 : 0.2;
+            gait.current.phase = 0;
+            gait.current.runWeight = drive.current.motion === 'Run' ? 1 : 0;
+            gait.current.fromWeight = gait.current.runWeight;
+            gait.current.elapsed = 0.18;
           } else {
-            next.reset().setEffectiveWeight(1).play();
-            previous?.stopFading();
-            previous?.fadeOut(0.18);
-            next.fadeIn(0.18);
+            // Keep the displayed blend when a transition is interrupted.
+            gait.current.fromWeight = gait.current.runWeight;
+            gait.current.elapsed = 0;
+            next.stopFading().play();
           }
           currentAction.current = next;
         }
         next.setEffectiveTimeScale(
           drive.current.motion !== 'Idle' ? drive.current.timeScale : 1
         );
+        if (drive.current.motion !== 'Idle') {
+          const cycle = gait.current;
+          cycle.elapsed = Math.min(0.18, cycle.elapsed + dt);
+          const t = cycle.elapsed / 0.18;
+          const target = drive.current.motion === 'Run' ? 1 : 0;
+          cycle.runWeight =
+            cycle.fromWeight +
+            (target - cycle.fromWeight) * t * t * (3 - 2 * t);
+          const speed =
+            drive.current.timeScale *
+            (target ? RABBIT_RUN_GAIT_SPEED : RABBIT_WALK_SPEED);
+          // Both clips start with the same supporting foot. Use one phase and
+          // the blended stride distance, rather than two competing clocks.
+          let stride = 0;
+          for (const name of GAIT_NAMES) {
+            const gaitClip = animations.find(
+              (animation) => animation.name === name
+            );
+            if (!gaitClip) continue;
+            const weight =
+              name === 'Run' ? cycle.runWeight : 1 - cycle.runWeight;
+            stride +=
+              weight *
+              gaitClip.duration *
+              (name === 'Run' ? RABBIT_RUN_GAIT_SPEED : RABBIT_WALK_SPEED);
+          }
+          const cadence = stride > 0 ? speed / stride : 0;
+          for (const name of GAIT_NAMES) {
+            const gaitClip = animations.find(
+              (animation) => animation.name === name
+            );
+            if (!gaitClip) continue;
+            const action = ownedMixer.clipAction(gaitClip);
+            action.enabled = true;
+            action
+              .stopFading()
+              .setEffectiveWeight(
+                name === 'Run' ? cycle.runWeight : 1 - cycle.runWeight
+              )
+              .setEffectiveTimeScale(cadence * gaitClip.duration)
+              .play();
+            action.time = cycle.phase * gaitClip.duration;
+          }
+          cycle.phase = (cycle.phase + cadence * dt) % 1;
+        }
       }
     }
     // AnimationMixer skips writes for unchanged tracks. Restore its last target

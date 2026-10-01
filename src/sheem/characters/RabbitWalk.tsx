@@ -147,7 +147,7 @@ function WalkingScene({
     body.quaternion.copy(scratch.smoothedSlope).multiply(scratch.yaw);
     const running =
       state.speed >
-      RABBIT_SPEED + (drive.current.motion === 'Run' ? 0.03 : 0.12);
+      RABBIT_SPEED + (drive.current.motion === 'Run' ? 0.45 : 0.6);
     drive.current.motion =
       (!horizontal && !forward) || state.speed <= 0.008
         ? 'Idle'
