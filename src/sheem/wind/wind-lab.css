@@ -1,0 +1,51 @@
+.wind-panel {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 260px;
+  max-height: calc(100% - 220px);
+  overflow: auto;
+  padding: 18px;
+  border-radius: 20px;
+  color: #344736;
+  background: #f8f6ebf0;
+  font-size: 14px;
+}
+.wind-panel p {
+  line-height: 1.5;
+  margin: 10px 0;
+}
+.wind-panel label,
+.wind-panel output,
+.wind-panel small {
+  display: block;
+  margin: 10px 0;
+}
+.wind-panel input {
+  display: block;
+  width: 100%;
+  accent-color: #455c43;
+}
+.wind-panel button {
+  border: 1px solid #34473633;
+  border-radius: 18px;
+  padding: 9px 12px;
+  margin: 3px;
+  background: #fffced;
+  color: inherit;
+  cursor: pointer;
+}
+.wind-panel output {
+  min-height: 20px;
+  font-weight: 600;
+}
+@media (max-width: 640px) {
+  .wind-panel {
+    top: 140px;
+    right: 12px;
+    width: 205px;
+    padding: 12px;
+    max-height: calc(100% - 340px);
+    font-size: 12px;
+  }
+}

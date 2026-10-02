@@ -1,10 +1,10 @@
 # Spatial audio architecture
 
-Status: proposed evolution of `src/playground/SpatialAudio.tsx`; not implemented. Audio is the core product system. Preserve the existing Three.js/Web Audio work, then make ownership, mixing and environmental behavior explicit.
+Status: wind stages 1–2 are implemented in a dedicated flat test scene (2026-10-02). The remaining environmental architecture is planned. Existing title ambience and playground experiments remain separate.
 
 ## Listener and coordinate contract
 
-Use one AudioContext and one listener per active experience. Place the listener at the local avatar's head in world coordinates; copy the camera's world orientation independently. Never inherit camera translation through a parent transform. Update after movement/camera resolution. Camera orbit should move an emitter left/right in the headphones without changing distance or shelter membership; turning only the avatar should not reverse the stereo image.
+Use one AudioContext and one listener per active experience. For the wind experience, place the listener between the avatar's ear roots and follow the head's orientation in world coordinates. Camera orbit must not change listening direction or proximity. This supersedes the earlier split head-position/camera-orientation plan at the user's request on 2026-10-02. Other legacy audio experiments have not been migrated.
 
 Three.js exposes its underlying listener context and positional panner, so a thin project layer can retain its transforms while adding Web Audio processing. [AudioListener](https://threejs.org/docs/pages/AudioListener.html), [PositionalAudio](https://threejs.org/docs/pages/PositionalAudio.html)
 
@@ -49,3 +49,117 @@ Derive ducking from active audible sources in the same registry as rendering, no
 Create an asset ledger during implementation: source URL, creator, exact license/attribution, original and runtime paths, duration/channels/sample rate, processing steps, loop points, loudness/peak measurements, intended source class. Preserve originals outside the eventual deployable asset tree. Existing recordings are candidates, not certified release assets; river/fire assets are absent.
 
 Test on headphones in current Chrome, Firefox and Safari: explicit start on a fresh load; left/right and 180° camera turn; approach/retreat; orbit without proximity change; doorway crossings in both directions; listener inside/camera outside; solid-wall versus doorway obstruction; mute while loading; failed download; leave/re-enter repeatedly; two clients hearing their own positions. Check loops for clicks, mix for clipping, and transitions for pumping. Record browser/device and actual results. Use a 15–30 second stereo recording to demonstrate each audible change; do not claim binaural fidelity based only on the presence of HRTF.
+
+
+## Reusable wind stages 1–2 (2026-10-02)
+
+Open `/playground/rabbit/walk?terrain=wind`, or choose **Try the wind** from the
+walking screen. This is a bounded flat test pad; it does not expand the meadow or
+restore the removed river route. Enable wind explicitly, vary direction/speed,
+turn the rabbit in place, orbit the camera, and compare calm with stronger wind.
+
+### Shared contract and future editor
+
+`wind/windField.ts` has no React, Three.js, browser or rabbit dependency. A
+version-1 JSON-compatible `WindConfig` describes direction of travel **toward**
+in degrees clockwise from +Z and speed in m/s (0–12 for this prototype). +Y is up,
++X east, -Z north. Validate settings at the boundary; the uniform field captures
+an immutable normalized copy. `sample(position, seconds, out)` fills a caller-owned
+velocity and speed without allocating. Position and time are intentionally unused
+by the current uniform implementation; later map zones, gusts and shelter can
+implement the same query. No speculative empty zone/terrain systems are created.
+
+A future map editor should edit and persist versioned map settings, using the same
+validation and field query. The current sliders edit the actual configuration;
+they are a test UI, not a map authoring/persistence tool. Reload resets defaults.
+The field arrow and audio consume the same configuration/sample contract. Existing
+meadow grass is not coupled yet; the flat pad avoids suggesting that it is.
+
+### Head adapter and audio
+
+`RabbitWindProbe` adapts the animated rabbit rig: average Ear.L/Ear.R origins,
+use Head world orientation corrected by its rest basis, and update after the
+model animation. Individual ear flapping does not rotate listening direction.
+The audio engine receives only a wind sample, world position and orientation;
+future characters supply their own head adapter. Animated head motion is smoothed
+in Web Audio over 100 ms. Camera transforms are never passed to this engine.
+
+`createWindAudio.ts` owns one context, a diffuse stereo layer, an independent mono
+local-air layer, filters, gains and an HRTF panner. A virtual point 3 m upstream
+provides directional cues without distance attenuation; it approximates local air,
+not a physical distant wind source. Front/back exposure also changes gain and
+low-pass cutoff gently. This is an artistic model, not a rabbit-ear acoustic
+simulation. Trees/grass will later have separate sound emitters at their locations.
+
+Both layers use deterministic generated noise (seeds 112 and 4817), twelve-second
+buffers with a one-second equal-power seam and loopStart=1. No third-party sound
+recording is introduced. The diffuse bed stays present at nonzero wind speeds;
+calm with a stationary listener fades both layers to zero. The level and timbre are provisional and require
+headphone listening; this is not a finished natural-wind sound library.
+
+`useWindAudio` starts only from a gesture, retains mute during resume, displays
+resume errors for retry, fades to exact zero on mute/hidden tab, and stops and
+closes owned resources on leaving the test mode, including same-route query
+changes. Title ambience is not started alongside this standalone test.
+
+### Acceptance and next steps
+
+Pure checks: `node --experimental-strip-types scripts/check-wind-field.mjs` covers
+JSON round trips, cardinal travel/arrival conventions, uniformity across positions
+and times, immutable settings, calm and rejected invalid values. Browser validation
+is recorded with this implementation; do not infer perceptual realism from HRTF
+or analyser values. Actual headphone listening, Safari/Firefox and mobile remain
+separate acceptance checks.
+
+For a Short: show the arrow, turn the rabbit through four directions while the
+camera stays fixed, then orbit only the camera and show that listening stays with
+the rabbit. Next implement spatial variation and gusts, then wind-relative shelter
+behind terrain, followed by vegetation movement and rustling from the same field.
+
+Chrome (local Metal headless rendering) validation: four left turns produced
+left → ahead → right → behind → left arrivals with the expected gain/stereo
+changes. A 180° camera orbit preserved the arrival side; the listener retained
+only the rabbit's small idle head motion. Wind speed 0 produced zero analyser
+output; 12 m/s increased output. Mute and simulated hidden-tab events produced
+zero output, and visibility restored the prior enabled state. Same-route exit
+closed the context; re-entry stayed silent until enabled and created one new
+context. An injected resume rejection showed the retry message and recovered
+without adding another context. Rendered desktop controls and the arrow were
+visually inspected. Lint/build and the pure wind checks passed (existing bundle
+size warning remains). These are graph/UI checks, not headphone listening.
+
+
+### Listener movement and apparent wind (2026-10-02)
+
+The character-independent `relativeWind(ambient, listenerVelocity, out)` computes
+world-space air velocity minus resolved listener travel velocity (m/s). It does
+not modify the shared map sample. The local air layer uses this apparent velocity
+for upstream direction, exposure, level and timbre; the diffuse bed and map arrow
+continue to use ambient wind. Future vegetation emitters should likewise use the
+map field, not the listener-relative sample.
+
+The rabbit adapter measures root displacement immediately around the constrained
+movement step using its same clamped delta. Actual braking and boundary sliding
+therefore count; blocked movement does not sound like running. Reset/teleport
+happens before measurement, and animated head bob/ear motion is excluded from
+travel velocity. Other movement controllers can pass their own resolved world
+velocity through the same audio API. Vertical travel is supported by the common
+vector calculation, though this lab currently has flat ground.
+
+Existing 100 ms audio smoothing eases changes; the strength mapping remains capped
+at 1 even when headwind plus running exceeds 12 m/s. With 4 m/s wind, moving 3 m/s
+against it gives 7 m/s apparent wind; moving with it gives 1 m/s. At 0 m/s ambient,
+walking/running creates forward-arriving local air while the diffuse bed remains
+silent. Turning in place changes exposure but adds no translational airflow.
+The readout distinguishes **Felt** and **Moving** speeds from the ambient slider.
+
+Pure tests cover headwind/tailwind, matching wind speed, outrunning and reversing
+arrival, crosswind, calm walking/running, vertical travel and the level cap.
+
+Chrome input validation with ambient wind set to zero: standing had zero output,
+W walking reported 1.8 m/s apparent wind and Shift-running 3.0 m/s, both from
+ahead. The local-air gain increased from about 0.30 to 0.50 while diffuse gain
+stayed zero. Holding movement into the test boundary reduced apparent speed to
+near zero; stopping and Back to start returned the gain/output to zero without a
+teleport spike. Lint/build and pure wind tests passed. No new headphone listening
+assessment was performed.

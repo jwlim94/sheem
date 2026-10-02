@@ -25,7 +25,7 @@ The UI owns Enter, loading/errors, mute/volume, help, and connection status. Pla
 
 Use one coordinate convention: +Y up, one scene unit = one meter. Define avatar height before laying out doors and shelter volumes; 1.7 m is a provisional scale, not a required realistic proportion. Use stable source/zone IDs and a `worldVersion` shared by client and server. A source definition should include asset ID, position, gain, distance curve, loop policy and zone membership; avoid separate hardcoded position lists for rendering and ducking.
 
-Render sequence: apply input/local movement → resolve collision and camera → update player-head listener position and camera-derived orientation → render/interpolate. Sample network updates and occlusion on bounded lower-frequency schedules. Keep server state and per-client audio preferences independent.
+Render sequence: apply input/local movement → resolve collision and camera → update player-head listener position and head-derived orientation → render/interpolate. Sample network updates and occlusion on bounded lower-frequency schedules. Keep server state and per-client audio preferences independent.
 
 When multiplayer starts, add a real `server/` package and a small shared protocol/world-data module if needed. Define their build/test scripts then; none exist now. Avoid importing Three.js or browser objects into the server contract.
 
@@ -36,7 +36,7 @@ When multiplayer starts, add a real `server/` package and a small shared protoco
 | D01 | Retain | Browser SPA, TypeScript, React, R3F/Three.js, npm; no stack reset |
 | D02 | Current product requirement | Roblox-like simplicity plus atmosphere replaces the prior Zelda-level target |
 | D03 | Retain as implementation direction | Third-person humanoid avatar supports visible shared presence; the first-person root is a prototype, not a contrary product decision |
-| D04 | Retain | Listener position follows avatar head; orientation follows camera view. Orbit changes panning, not proximity or indoor state |
+| D04 | Updated 2026-10-02 | Wind listener follows avatar ears and head orientation; camera orbit does not change listening. Supersedes the earlier camera-orientation plan at user request; legacy experiments await migration |
 | D05 | Recommend | Colyseus rather than custom raw WebSockets/Socket.IO synchronization; prove with two clients before committing to hosted operation |
 | D06 | Current product requirement | No mandatory signup; quiet presence; no voice/chat, economy, progression, or wardrobe in MVP |
 | D07 | Recommend | Compact authored clearing with simple ground/colliders; final Blender-versus-procedural terrain remains open after M1/M2 |

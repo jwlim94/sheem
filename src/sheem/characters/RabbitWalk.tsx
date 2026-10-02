@@ -1,4 +1,20 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { WIND_TEST_GROUND } from '../wind/windTestGround';
+import { useWindAudio } from '../wind/useWindAudio';
+import { DEFAULT_WIND } from '../wind/windField';
+import type { WindConfig } from '../wind/windField';
+import {
+  WindTestEnvironment,
+  RabbitWindProbe,
+  WindPanel,
+} from '../wind/WindLab';
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import type { RefObject } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, OrbitControls } from '@react-three/drei';
@@ -41,6 +57,7 @@ type Input = {
   reset: number;
   stopped: number;
   spot: number;
+  turn: number;
 };
 const CODES = new Set([
   'KeyW',
@@ -60,23 +77,38 @@ function WalkingScene({
   reducedMotion,
   duck,
   slopes,
+  wind,
+  windConfig,
+  windSound,
+  onWindReadout,
 }: {
   input: RefObject<Input>;
   reducedMotion: boolean;
   duck: boolean;
   slopes: boolean;
+  wind: boolean;
+  windConfig: WindConfig;
+  windSound: ReturnType<typeof useWindAudio>;
+  onWindReadout: (text: string) => void;
 }) {
-  const ground = slopes ? SLOPE_TEST_GROUND : MEADOW_GROUND;
+  const ground = wind
+    ? WIND_TEST_GROUND
+    : slopes
+      ? SLOPE_TEST_GROUND
+      : MEADOW_GROUND;
   const startY = ground.height(...ground.spawn);
   const cameraClearance = useMemo(() => createRabbitCameraClearance(), []);
   const actor = useRef<Group>(null);
+  const travelVelocity = useRef(new Vector3());
   const orbit = useRef<OrbitControlsImpl>(null);
   const { camera } = useThree();
   const drive = useRef<RabbitDrive>({ motion: 'Idle', timeScale: 1, reset: 0 });
   const movement = useRef(createRabbitMovement(ground));
-  const consumed = useRef({ reset: 0, stopped: 0 });
+  const consumed = useRef({ reset: 0, stopped: 0, turn: 0 });
+  const turnTarget = useRef<number | null>(null);
   const scratch = useMemo(
     () => ({
+      beforeMove: new Vector3(),
       target: new Vector3(),
       delta: new Vector3(),
       normal: new Vector3(),
@@ -124,6 +156,7 @@ function WalkingScene({
         controls.update();
         scratch.smoothedSlope.identity();
       }
+      turnTarget.current = null;
       state.position.copy(fresh.position);
       state.velocity.set(0, 0, 0);
       state.stopping = false;
@@ -152,7 +185,32 @@ function WalkingScene({
       camera.position.z - controls.target.z
     );
     const sprint = held('ShiftLeft', 'ShiftRight');
+    if (wind && input.current.turn !== consumed.current.turn) {
+      turnTarget.current =
+        (turnTarget.current ?? state.yaw) +
+        input.current.turn -
+        consumed.current.turn;
+      consumed.current.turn = input.current.turn;
+    }
+    if (horizontal || forward) turnTarget.current = null;
+    if (turnTarget.current !== null) {
+      const angle = Math.atan2(
+        Math.sin(turnTarget.current - state.yaw),
+        Math.cos(turnTarget.current - state.yaw)
+      );
+      state.yaw += angle * (1 - Math.exp(-8 * dt));
+      if (Math.abs(angle) < 0.001) turnTarget.current = null;
+    }
+    // Measure resolved movement, not requested speed: boundaries, braking and
+    // future ground constraints must affect felt wind. Reset/teleport above is excluded.
+    scratch.beforeMove.copy(state.position);
     stepRabbit(state, horizontal, forward, azimuth, dt, sprint, ground);
+    if (dt > 0)
+      travelVelocity.current
+        .copy(state.position)
+        .sub(scratch.beforeMove)
+        .divideScalar(dt);
+    else travelVelocity.current.set(0, 0, 0);
     body.position.copy(state.position);
     body.position.y += 0.008;
     // Rabbit balance stays upright; its legs adapt independently to terrain.
@@ -219,7 +277,9 @@ function WalkingScene({
 
   return (
     <>
-      {slopes ? (
+      {wind ? (
+        <WindTestEnvironment />
+      ) : slopes ? (
         <SlopeTestEnvironment />
       ) : (
         <MeadowEnvironment
@@ -238,6 +298,15 @@ function WalkingScene({
           <RabbitModel drive={drive} groundHeight={ground.height} />
         )}
       </group>
+      {wind && (
+        <RabbitWindProbe
+          actor={actor}
+          velocity={travelVelocity}
+          config={windConfig}
+          sound={windSound}
+          onReadout={onWindReadout}
+        />
+      )}
       <primitive object={scratch.lightTarget} />
       <directionalLight
         ref={light}
@@ -275,7 +344,14 @@ export function RabbitWalk({ onLeave }: { onLeave?: () => void } = {}) {
   const [slopes, setSlopes] = useState(
     () => params.get('terrain') === 'slopes'
   );
-  const duck = !onLeave && params.get('character') === 'duck';
+  const wind = params.get('terrain') === 'wind';
+  const [windConfig, setWindConfig] = useState<WindConfig>(DEFAULT_WIND);
+  const windSound = useWindAudio(wind);
+  const windReadout = useRef<HTMLOutputElement>(null);
+  const onWindReadout = useCallback((text: string) => {
+    if (windReadout.current) windReadout.current.textContent = text;
+  }, []);
+  const duck = !wind && !onLeave && params.get('character') === 'duck';
   const [reducedMotion, setReducedMotion] = useState(
     () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
   );
@@ -291,6 +367,7 @@ export function RabbitWalk({ onLeave }: { onLeave?: () => void } = {}) {
     reset: 0,
     stopped: 0,
     spot: 0,
+    turn: 0,
   });
   useEffect(() => {
     const controls = input.current;
@@ -352,7 +429,11 @@ export function RabbitWalk({ onLeave }: { onLeave?: () => void } = {}) {
             }
           >
             <WalkingScene
-              key={slopes ? 'slopes' : 'meadow'}
+              key={wind ? 'wind' : slopes ? 'slopes' : 'meadow'}
+              wind={wind}
+              windConfig={windConfig}
+              windSound={windSound}
+              onWindReadout={onWindReadout}
               slopes={slopes}
               input={input}
               reducedMotion={reducedMotion}
@@ -366,9 +447,29 @@ export function RabbitWalk({ onLeave }: { onLeave?: () => void } = {}) {
           sheem.
         </Link>
         <p>A little walk</p>
-        <h1>{slopes ? 'Explore the slopes' : 'Explore the clearing'}</h1>
+        <h1>
+          {wind
+            ? 'Feel the breeze'
+            : slopes
+              ? 'Explore the slopes'
+              : 'Explore the clearing'}
+        </h1>
       </header>
-      {slopes && (
+      {wind && (
+        <WindPanel
+          config={windConfig}
+          onChange={setWindConfig}
+          sound={windSound}
+          readout={windReadout}
+          onTurn={(angle) => {
+            input.current.keys.clear();
+            input.current.touch.clear();
+            input.current.stopped += 1;
+            input.current.turn += angle;
+          }}
+        />
+      )}
+      {!wind && slopes && (
         <nav className="slope-spots" aria-label="Slope course locations">
           <p>Choose a starting point</p>
           {SLOPE_TEST_SPOTS.map((spot, i) => (
@@ -392,17 +493,31 @@ export function RabbitWalk({ onLeave }: { onLeave?: () => void } = {}) {
       <footer className="rabbit-toolbar">
         <p>WASD / Arrows · Hold Shift to run · Drag to look around</p>
         <div className="rabbit-controls">
-          <button
-            onClick={() => {
-              input.current.keys.clear();
-              input.current.touch.clear();
-              input.current.spot = 0;
-              input.current.stopped += 1;
-              setSlopes((value) => !value);
-            }}
-          >
-            {slopes ? 'Back to meadow' : 'Try the slopes'}
-          </button>
+          {!wind && (
+            <Link
+              className="rabbit-walk-link"
+              to="/playground/rabbit/walk?terrain=wind"
+            >
+              Try the wind
+            </Link>
+          )}
+          {wind ? (
+            <Link className="rabbit-walk-link" to="/playground/rabbit/walk">
+              Back to meadow
+            </Link>
+          ) : (
+            <button
+              onClick={() => {
+                input.current.keys.clear();
+                input.current.touch.clear();
+                input.current.spot = 0;
+                input.current.stopped += 1;
+                setSlopes((value) => !value);
+              }}
+            >
+              {slopes ? 'Back to meadow' : 'Try the slopes'}
+            </button>
+          )}
           {onLeave ? (
             <button autoFocus onClick={onLeave}>
               ← Back to title

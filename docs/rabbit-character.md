@@ -1285,3 +1285,13 @@ the rabbit should remain visible, and returning to open ground should restore th
 requested pitch without changing zoom. Repeat while running and reversing. This
 is sampled terrain clearance, not mesh collision against trees, buildings or a
 full-screen occlusion solution. Those need checking as the ASMR path is populated.
+
+
+## Flat wind test (2026-10-02)
+
+The walking screen links to `/playground/rabbit/walk?terrain=wind`. The test reuses
+the rabbit and movement/camera behavior on a flat pad. Wind speed/direction and
+turn-in-place controls let the user compare head-relative listening independently
+of camera orbit. See [spatial audio](spatial-audio.md) for the reusable wind
+contract, current synthetic timbre, and staged map-editor direction. Existing
+meadow bounds and the slope course remain unchanged.
