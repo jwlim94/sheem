@@ -5,40 +5,32 @@ import { useGLTF } from '@react-three/drei';
 import { Group, Quaternion, Vector3 } from 'three';
 import type { Object3D } from 'three';
 import { RABBIT_MODEL_URL } from '../characters/RabbitModel';
-import { createUniformWind, relativeWind, windExposure } from './windField';
-import type { WindConfig, WindSample } from './windField';
+import { relativeWind, windExposure } from './windField';
+import type { WindSample } from './windField';
+import type {
+  TerrainWindConfig,
+  TerrainWindField,
+  TerrainWindSample,
+} from './terrainWind';
+import { WIND_TEST_SPOTS, windTestHeight } from './windTestGround';
 import type { useWindAudio } from './useWindAudio';
 import './wind-lab.css';
 
-export function WindTestEnvironment() {
-  return (
-    <>
-      <color attach="background" args={['#e3e7db']} />
-      <hemisphereLight args={['#fff8e5', '#657653', 2]} />
-      <mesh rotation-x={-Math.PI / 2} receiveShadow>
-        <circleGeometry args={[10, 64]} />
-        <meshStandardMaterial color="#a7b391" roughness={1} />
-      </mesh>
-      <gridHelper args={[20, 20, '#809172', '#9eac8a']} position-y={0.005} />
-    </>
-  );
-}
 /** Character-specific adapter. The field/audio engine knows nothing about rigs. */
 export function RabbitWindProbe({
   actor,
   velocity,
-  config,
+  field,
   sound,
   onReadout,
 }: {
   actor: RefObject<Group | null>;
   velocity: RefObject<Vector3>;
-  config: WindConfig;
+  field: TerrainWindField;
   sound: ReturnType<typeof useWindAudio>;
   onReadout: (text: string) => void;
 }) {
   const { scene } = useGLTF(RABBIT_MODEL_URL);
-  const field = useMemo(() => createUniformWind(config), [config]);
   const restInverse = useMemo(() => {
     scene.updateWorldMatrix(true, true);
     return (scene.getObjectByName('Head') ?? scene)
@@ -54,7 +46,13 @@ export function RabbitWindProbe({
       forward: new Vector3(),
       side: new Vector3(),
       apparent: { velocity: { x: 0, y: 0, z: 0 }, speed: 0 } as WindSample,
-      sample: { velocity: { x: 0, y: 0, z: 0 }, speed: 0 } as WindSample,
+      sample: {
+        velocity: { x: 0, y: 0, z: 0 },
+        speed: 0,
+        exposure: 1,
+        gust: 1,
+        zone: 1,
+      } as TerrainWindSample,
     }),
     []
   );
@@ -91,11 +89,14 @@ export function RabbitWindProbe({
       scratch.orientation
     );
     if (arrow.current) {
-      arrow.current.position.set(body.position.x, 0.025, body.position.z);
-      arrow.current.rotation.y = Math.atan2(
+      const angle = Math.atan2(
         scratch.sample.velocity.x,
         scratch.sample.velocity.z
       );
+      const x = body.position.x + Math.cos(angle) * 1.6;
+      const z = body.position.z - Math.sin(angle) * 1.6;
+      arrow.current.position.set(x, windTestHeight(x, z) + 0.4, z);
+      arrow.current.rotation.y = angle;
       arrow.current.visible = scratch.sample.speed > 0;
     }
     elapsed.current += dt;
@@ -116,17 +117,17 @@ export function RabbitWindProbe({
               ? 'From ahead'
               : 'From behind';
       onReadout(
-        `${direction} · Felt ${scratch.apparent.speed.toFixed(1)} m/s · Moving ${velocity.current.length().toFixed(1)} m/s`
+        `${direction} · Felt ${scratch.apparent.speed.toFixed(1)} m/s · Moving ${velocity.current.length().toFixed(1)} m/s\nLocal wind ${scratch.sample.speed.toFixed(1)} m/s · Shelter ${Math.round((1 - scratch.sample.exposure) * 100)}% · Gust ×${scratch.sample.gust.toFixed(2)}`
       );
     }
   });
   return (
-    <group ref={arrow} name="WindTravelArrow">
-      <mesh position={[1.5, 0.03, 0]} rotation-x={Math.PI / 2}>
+    <group ref={arrow} name="WindTravelArrow" scale={0.65}>
+      <mesh position={[0, 0.03, 0]} rotation-x={Math.PI / 2}>
         <cylinderGeometry args={[0.045, 0.045, 1.2, 8]} />
         <meshBasicMaterial color="#526b55" />
       </mesh>
-      <mesh position={[1.5, 0.03, 0.8]} rotation-x={Math.PI / 2}>
+      <mesh position={[0, 0.03, 0.8]} rotation-x={Math.PI / 2}>
         <coneGeometry args={[0.18, 0.4, 12]} />
         <meshBasicMaterial color="#526b55" />
       </mesh>
@@ -137,12 +138,14 @@ export function WindPanel({
   config,
   onChange,
   onTurn,
+  onSpot,
   sound,
   readout,
 }: {
-  config: WindConfig;
-  onChange: (config: WindConfig) => void;
+  config: TerrainWindConfig;
+  onChange: (config: TerrainWindConfig) => void;
   onTurn: (angle: number) => void;
+  onSpot: (index: number) => void;
   sound: ReturnType<typeof useWindAudio>;
   readout: RefObject<HTMLOutputElement | null>;
 }) {
@@ -153,6 +156,13 @@ export function WindPanel({
         Walk or hold Shift to run and feel the difference. Orbiting the camera
         keeps your listening direction.
       </p>
+      <output ref={readout} />
+      <button aria-pressed={sound.enabled} onClick={() => void sound.toggle()}>
+        {sound.enabled ? 'Mute wind' : 'Enable wind'}
+      </button>
+      {sound.error && (
+        <p role="status">Sound unavailable. Try enabling it again.</p>
+      )}
       <label>
         Wind travels toward: {config.directionDegrees}°
         <input
@@ -182,18 +192,96 @@ export function WindPanel({
           }
         />
       </label>
+      <button
+        onClick={() =>
+          onChange({
+            ...config,
+            directionDegrees: (config.directionDegrees + 180) % 360,
+          })
+        }
+      >
+        Reverse wind
+      </button>
+      <details className="wind-options">
+        <summary>Wind layers</summary>
+        <label>
+          <input
+            type="checkbox"
+            checked={config.zones.some((z) => z.enabled)}
+            onChange={(e) =>
+              onChange({
+                ...config,
+                zones: config.zones.map((z) => ({
+                  ...z,
+                  enabled: e.target.checked,
+                })),
+              })
+            }
+          />{' '}
+          Position variation
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={config.gust.enabled}
+            onChange={(e) =>
+              onChange({
+                ...config,
+                gust: { ...config.gust, enabled: e.target.checked },
+              })
+            }
+          />{' '}
+          Traveling gusts
+        </label>
+        <label>
+          Gust strength: {Math.round(config.gust.strength * 100)}%
+          <input
+            aria-label="Gust strength"
+            type="range"
+            min="0"
+            max="1"
+            step=".1"
+            value={config.gust.strength}
+            onChange={(e) =>
+              onChange({
+                ...config,
+                gust: { ...config.gust, strength: Number(e.target.value) },
+              })
+            }
+          />
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={config.shelter.enabled}
+            onChange={(e) =>
+              onChange({
+                ...config,
+                shelter: { ...config.shelter, enabled: e.target.checked },
+              })
+            }
+          />{' '}
+          Hill shelter
+        </label>
+      </details>
+      <details>
+        <summary>Compare locations</summary>
+        <div className="wind-spots">
+          {WIND_TEST_SPOTS.map((p, i) => (
+            <button key={p.name} onClick={() => onSpot(i)}>
+              {p.name}
+            </button>
+          ))}
+        </div>
+      </details>
       <div>
         <button onClick={() => onTurn(Math.PI / 2)}>Turn left</button>
         <button onClick={() => onTurn(-Math.PI / 2)}>Turn right</button>
       </div>
-      <output ref={readout} />
-      <button aria-pressed={sound.enabled} onClick={() => void sound.toggle()}>
-        {sound.enabled ? 'Mute wind' : 'Enable wind'}
-      </button>
-      {sound.error && (
-        <p role="status">Sound unavailable. Try enabling it again.</p>
-      )}
-      <small>Uniform wind test · No shelter effects yet</small>
+      <small>
+        Arrow length shows local wind. Reverse the wind to swap the sheltered
+        side. Turn layers off for the uniform baseline.
+      </small>
     </aside>
   );
 }

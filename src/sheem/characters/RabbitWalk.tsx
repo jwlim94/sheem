@@ -1,12 +1,13 @@
-import { WIND_TEST_GROUND } from '../wind/windTestGround';
-import { useWindAudio } from '../wind/useWindAudio';
-import { DEFAULT_WIND } from '../wind/windField';
-import type { WindConfig } from '../wind/windField';
 import {
-  WindTestEnvironment,
-  RabbitWindProbe,
-  WindPanel,
-} from '../wind/WindLab';
+  WIND_TEST_GROUND,
+  WIND_TEST_SPOTS,
+  WIND_TEST_CONFIG,
+} from '../wind/windTestGround';
+import { useWindAudio } from '../wind/useWindAudio';
+import { createTerrainWind } from '../wind/terrainWind';
+import { WindTerrain } from '../wind/WindTerrain';
+import type { TerrainWindConfig } from '../wind/terrainWind';
+import { RabbitWindProbe, WindPanel } from '../wind/WindLab';
 import {
   Suspense,
   useCallback,
@@ -87,7 +88,7 @@ function WalkingScene({
   duck: boolean;
   slopes: boolean;
   wind: boolean;
-  windConfig: WindConfig;
+  windConfig: TerrainWindConfig;
   windSound: ReturnType<typeof useWindAudio>;
   onWindReadout: (text: string) => void;
 }) {
@@ -97,6 +98,10 @@ function WalkingScene({
       ? SLOPE_TEST_GROUND
       : MEADOW_GROUND;
   const startY = ground.height(...ground.spawn);
+  const windField = useMemo(
+    () => createTerrainWind(windConfig, WIND_TEST_GROUND.height),
+    [windConfig]
+  );
   const cameraClearance = useMemo(() => createRabbitCameraClearance(), []);
   const actor = useRef<Group>(null);
   const travelVelocity = useRef(new Vector3());
@@ -142,9 +147,11 @@ function WalkingScene({
     const state = movement.current;
     if (input.current.reset !== consumed.current.reset) {
       const fresh = createRabbitMovement(ground);
-      if (slopes) {
+      if (slopes || wind) {
         cameraClearance.reset();
-        const spot = SLOPE_TEST_SPOTS[input.current.spot];
+        const spot = (wind ? WIND_TEST_SPOTS : SLOPE_TEST_SPOTS)[
+          input.current.spot
+        ];
         fresh.position.set(spot.x, ground.height(spot.x, spot.z), spot.z);
         fresh.yaw = spot.yaw;
         controls.target.copy(fresh.position).addScaledVector(scratch.up, 0.85);
@@ -278,7 +285,7 @@ function WalkingScene({
   return (
     <>
       {wind ? (
-        <WindTestEnvironment />
+        <WindTerrain field={windField} />
       ) : slopes ? (
         <SlopeTestEnvironment />
       ) : (
@@ -302,7 +309,7 @@ function WalkingScene({
         <RabbitWindProbe
           actor={actor}
           velocity={travelVelocity}
-          config={windConfig}
+          field={windField}
           sound={windSound}
           onReadout={onWindReadout}
         />
@@ -329,7 +336,7 @@ function WalkingScene({
         makeDefault
         enablePan={false}
         minDistance={3}
-        maxDistance={slopes ? 24 : 7}
+        maxDistance={slopes || wind ? 24 : 7}
         minPolarAngle={0.4}
         maxPolarAngle={WALK_CAMERA_MAX_POLAR}
         enableDamping
@@ -345,7 +352,8 @@ export function RabbitWalk({ onLeave }: { onLeave?: () => void } = {}) {
     () => params.get('terrain') === 'slopes'
   );
   const wind = params.get('terrain') === 'wind';
-  const [windConfig, setWindConfig] = useState<WindConfig>(DEFAULT_WIND);
+  const [windConfig, setWindConfig] =
+    useState<TerrainWindConfig>(WIND_TEST_CONFIG);
   const windSound = useWindAudio(wind);
   const windReadout = useRef<HTMLOutputElement>(null);
   const onWindReadout = useCallback((text: string) => {
@@ -461,6 +469,12 @@ export function RabbitWalk({ onLeave }: { onLeave?: () => void } = {}) {
           onChange={setWindConfig}
           sound={windSound}
           readout={windReadout}
+          onSpot={(index) => {
+            input.current.keys.clear();
+            input.current.touch.clear();
+            input.current.spot = index;
+            input.current.reset += 1;
+          }}
           onTurn={(angle) => {
             input.current.keys.clear();
             input.current.touch.clear();

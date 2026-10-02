@@ -163,3 +163,78 @@ stayed zero. Holding movement into the test boundary reduced apparent speed to
 near zero; stopping and Back to start returned the gain/output to zero without a
 teleport spike. Lint/build and pure wind tests passed. No new headphone listening
 assessment was performed.
+
+## Wind stages 3–4: extend the same test space (2026-10-02)
+
+The existing `/playground/rabbit/walk?terrain=wind` scene now retains its flat
+spawn and extends northward into a 3.2 m hill. The walkable radius is 22 m around
+(0, -8). West side, hilltop, east side and an authored quiet patch are all in this
+same space; **Compare locations** moves the character between them for A/B checks,
+and every point is also reachable on foot. Existing meadow and slope-test routes
+are unchanged. The earlier flat-only descriptions above record stages 1–2.
+
+`terrainWind.ts` implements the existing field interface with an injected terrain
+height provider. `TerrainWindConfig` extends the version-1 base configuration with
+explicit zone, gust and shelter settings. All nested settings are validated and
+copied when constructing a field; no renderer, audio context or character model
+is required. Future map editors can edit these JSON-compatible settings. There
+is no persistence/editor UI beyond the current test controls yet.
+
+- **Zones:** circular horizontal regions with a smooth boundary band and a speed
+  multiplier. Overlaps use normalized, order-independent blending rather than
+  multiplying gains. The quiet patch centered at (10, 2), radius 6 m, transitions
+  over 3 m to 40% of base speed. This is an authored comparison region, not a claim
+  that flat ground physically blocks wind.
+- **Traveling gusts:** a continuous deterministic pulse travels with the base wind
+  direction. Phase depends on time minus distance along that direction divided by
+  propagation speed. Default period is 14 s, propagation speed 6 m/s and peak
+  boost 60%. Adjacent positions therefore experience the same swell at different
+  times. Changing frame rate does not change the sampled field. This is a stylized
+  repeatable gust, not stochastic turbulence or a fluid simulation.
+- **Hill shelter:** query a three-ray upstream fan out to 24 m at <=1 m steps,
+  compare terrain against listener height, and smoothly attenuate toward a 22%
+  floor as elevated upstream terrain blocks the flow. Distance weighting recovers
+  smoothly away from the ridge. Reverse wind rotates the queries, rather than
+  selecting a hardcoded sheltered side. A listener above the ridge is exposed.
+  No mesh walls, trees, deflected flow, vortices or pressure solver are included.
+- Local speed = base speed × zone multiplier × gust multiplier × exposure.
+  The audio engine then subtracts resolved character velocity as before. HRTF
+  direction and ear-air timbre use this relative wind; diffuse sound and arrows
+  use the local environmental field. Existing gain bounds still limit loudness.
+
+The listener and twenty field markers share a single field instance. Marker
+lengths update at 8 Hz at roughly ear height and show local environmental speed;
+head audio samples after animation. Render-frame changes remain outside React
+state. The sampling budget is bounded (72 height queries per position with the
+default shelter range); this is a small-map baseline, not a whole-map benchmark.
+The displayed **Local wind**, **Shelter** and **Gust** values describe the same
+sample used by audio. **Wind layers** independently disables zones, gusts and
+shelter to recover the original uniform test. **Reverse wind** supports direct
+comparison. No new recording is introduced; the timbre is still procedural.
+
+Validation: `node scripts/check-wind-terrain.mjs` checks reversed shelter, altitude,
+zone and direction transition continuity, gust propagation timing and bounds,
+calm, nested configuration snapshots and invalid input. It also drives the entire
+comparison route walking/running at 30/60/120 fps using the real movement solver.
+With gusts off at base 4 m/s, calculated west-side speed is 4 m/s and east-side
+speed is approximately 1.27 m/s; reversing direction swaps the results. The crest
+remains exposed. `check-wind-field.mjs` continues to cover the uniform field and
+character-relative wind. Actual headphone listening and Safari/Firefox remain
+untested; numerical attenuation is not proof of natural acoustic realism.
+
+Observable acceptance: start on the original flat pad, approach the western hill
+side, cross the top and descend east. Turn off traveling gusts for a repeatable
+shelter comparison, then reverse wind and compare again. Turn gusts back on and
+watch the marker lengths change across the course. A short video can pair that
+crossing with the live local-wind readout and a stereo capture. Vegetation motion,
+physical rustling emitters and richer obstacle flow remain the next stages.
+
+Chrome browser validation: comparison buttons placed the actual animated rabbit
+on both hill sides, crest and quiet patch. With gusts disabled, the readout and
+Web Audio diffuse gain changed from 4.0 m/s / 0.150 on the exposed side to
+1.3 m/s / 0.048 on the sheltered side. Reverse wind swapped that relationship.
+The quiet patch read 1.6 m/s with gain 0.060; the crest and original flat spawn
+remained at 4.0 m/s. Real movement input advanced the rabbit from the west side to
+the crest (root height approximately 3.20 m). Mute reached exact zero. Rendered
+terrain, location controls and overlay ordering were inspected. Lint/build and
+both wind test scripts passed; the existing bundle-size advisory remains.

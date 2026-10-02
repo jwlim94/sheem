@@ -1295,3 +1295,9 @@ turn-in-place controls let the user compare head-relative listening independentl
 of camera orbit. See [spatial audio](spatial-audio.md) for the reusable wind
 contract, current synthetic timbre, and staged map-editor direction. Existing
 meadow bounds and the slope course remain unchanged.
+
+Wind stages 3–4 extend that same test pad with a hill and quiet comparison region,
+not a second wind route. Compare locations can reset to the flat start, west/east
+hill sides, hilltop and quiet patch; all are walkable. Grounding and camera clearance
+sample the same height function as the rendered hill. Relative-wind velocity still
+excludes these location resets. See the latest spatial-audio implementation record.

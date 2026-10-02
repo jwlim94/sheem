@@ -49,3 +49,32 @@
     font-size: 12px;
   }
 }
+.wind-panel output {
+  white-space: pre-line;
+  line-height: 1.6;
+}
+.wind-panel input[type='checkbox'] {
+  display: inline-block;
+  width: auto;
+  margin-right: 7px;
+}
+.wind-panel summary {
+  cursor: pointer;
+  padding: 8px 0;
+}
+.wind-spots {
+  display: flex;
+  flex-wrap: wrap;
+}
+.wind-location {
+  display: block;
+  white-space: nowrap;
+  border-radius: 8px;
+  padding: 5px 9px;
+  background: #f8f6ebdc;
+  color: #40543c;
+  font-size: 12px;
+}
+.wind-panel {
+  z-index: 20;
+}
