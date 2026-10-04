@@ -1,8 +1,9 @@
+import { createTreeDetail } from './treeDetail';
 import { createTreeWind } from './treeWind';
 import type { WindField, Point3 } from './windField';
 import { varyTreeGeometry } from '../title/treeVariation';
 import type { TreeVariation } from '../title/treeVariation';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useLoader } from '@react-three/fiber';
 import type { RefObject } from 'react';
 import type { GrassContactBody } from './grassContact';
 import { createFoliageContact } from './foliageContact';
@@ -14,6 +15,18 @@ import * as THREE from 'three';
 import { windTestHeight } from './windTestGround';
 
 const MODEL = '/models/trees/stylized-tree.glb';
+// Source-space shading is identical for every instance, regardless of placement.
+const crownCache = new WeakMap<
+  THREE.Object3D,
+  ReturnType<typeof fitCrownLobes>
+>();
+const shadingCache = new WeakMap<
+  THREE.BufferGeometry,
+  {
+    coordinates: THREE.BufferAttribute;
+    crown?: THREE.BufferAttribute;
+  }
+>();
 export function Broadleaf({
   styled,
   x,
@@ -44,6 +57,13 @@ export function Broadleaf({
   onWind?: (id: string, position: Readonly<Point3>, speed: number) => void;
 }) {
   const { scene } = useGLTF(MODEL);
+  const lodData = useLoader(
+    THREE.FileLoader,
+    '/models/trees/broadleaf-lod.bin',
+    (loader) => {
+      loader.setResponseType('arraybuffer');
+    }
+  ) as ArrayBuffer;
   const windEnabled = !!field;
   const owned = useMemo(() => {
     const root = scene.clone(true);
@@ -62,7 +82,11 @@ export function Broadleaf({
       )
         leafMeshes.push(object);
     });
-    const lobes = styled ? fitCrownLobes(leafMeshes) : [];
+    let lobes = crownCache.get(scene);
+    if (styled && !lobes) {
+      lobes = fitCrownLobes(leafMeshes);
+      crownCache.set(scene, lobes);
+    }
     const scale = treeHeight / size.y;
     root.scale.multiply(new THREE.Vector3(scale * width, scale, scale * width));
     root.position.add(
@@ -81,30 +105,35 @@ export function Broadleaf({
       object.receiveShadow = true;
       if (styled) {
         const geometry = object.geometry.clone();
-        if (leafMeshes.includes(object))
-          geometry.setAttribute(
-            'crownNormal',
-            crownNormalAttribute(object, lobes)
+        let shading = shadingCache.get(object.geometry);
+        if (!shading) {
+          const positions = geometry.getAttribute('position');
+          const coordinates = new THREE.Float32BufferAttribute(
+            positions.count * 3,
+            3
           );
-        // Shared source-space coordinates keep shading continuous across mesh splits.
-        const positions = geometry.getAttribute('position');
-        const coordinates = new THREE.Float32BufferAttribute(
-          positions.count * 3,
-          3
-        );
-        const point = new THREE.Vector3();
-        for (let i = 0; i < positions.count; i++) {
-          point
-            .fromBufferAttribute(positions, i)
-            .applyMatrix4(object.matrixWorld);
-          coordinates.setXYZ(
-            i,
-            (point.x - center.x) / size.y,
-            (point.y - bounds.min.y) / size.y,
-            (point.z - center.z) / size.y
-          );
+          const point = new THREE.Vector3();
+          for (let i = 0; i < positions.count; i++) {
+            point
+              .fromBufferAttribute(positions, i)
+              .applyMatrix4(object.matrixWorld);
+            coordinates.setXYZ(
+              i,
+              (point.x - center.x) / size.y,
+              (point.y - bounds.min.y) / size.y,
+              (point.z - center.z) / size.y
+            );
+          }
+          shading = {
+            coordinates,
+            crown: leafMeshes.includes(object)
+              ? crownNormalAttribute(object, lobes!)
+              : undefined,
+          };
+          shadingCache.set(object.geometry, shading);
         }
-        geometry.setAttribute('treeCoordinate', coordinates);
+        geometry.setAttribute('treeCoordinate', shading.coordinates);
+        if (shading.crown) geometry.setAttribute('crownNormal', shading.crown);
         object.geometry = geometry;
         geometries.push(geometry);
         if (variation)
@@ -209,6 +238,7 @@ export function Broadleaf({
     });
     return {
       root,
+      detail: styled ? createTreeDetail(root, treeHeight, lodData) : undefined,
       materials,
       geometries,
       foliage,
@@ -225,6 +255,7 @@ export function Broadleaf({
     };
   }, [
     scene,
+    lodData,
     styled,
     width,
     x,
@@ -238,16 +269,24 @@ export function Broadleaf({
   ]);
   useFrame((state, delta) => {
     if (field)
-      owned.wind?.update(field, state.clock.elapsedTime, delta, reducedMotion);
+      owned.wind?.update(
+        field,
+        state.clock.elapsedTime,
+        delta,
+        reducedMotion,
+        owned.detail?.level === 2 ? 0.5 : owned.detail?.level === 1 ? 0.2 : 0.1
+      );
     if (owned.wind)
       onWind?.(`tree:${x}:${z}`, owned.wind.position, owned.wind.speed);
     if (contacts)
       for (const foliage of owned.foliage)
         foliage.update(contacts.current, delta, owned.wind);
+    owned.detail?.update(state.camera, delta, contacts?.current);
   });
   useEffect(
     () => () => {
       owned.wind?.dispose();
+      owned.detail?.dispose();
       owned.materials.forEach((m) => m.dispose());
       owned.geometries.forEach((g) => g.dispose());
     },

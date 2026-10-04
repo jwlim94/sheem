@@ -143,7 +143,8 @@ export function createTreeWind(
       field: WindField,
       seconds: number,
       delta: number,
-      reducedMotion = false
+      reducedMotion = false,
+      sampleInterval = 0.1
     ) {
       if (!initialized) {
         root.updateWorldMatrix(true, true);
@@ -169,7 +170,7 @@ export function createTreeWind(
       }
       const dt = Math.min(Math.max(delta, 0), 0.05);
       timer += dt;
-      if (timer >= 0.1) {
+      if (timer >= sampleInterval) {
         timer = 0;
         field.sample(point.set(x, y + height * 0.25, z), seconds, low);
         field.sample(point.set(x, y + height * 0.8, z), seconds, high);
