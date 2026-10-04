@@ -1301,3 +1301,7 @@ not a second wind route. Compare locations can reset to the flat start, west/eas
 hill sides, hilltop and quiet patch; all are walkable. Grounding and camera clearance
 sample the same height function as the rendered hill. Relative-wind velocity still
 excludes these location resets. See the latest spatial-audio implementation record.
+
+2026-10-03: the same wind course now includes existing meadow grass and tree assets
+whose movement reads the local wind field. The rabbit's relative airflow remains
+independent of plant motion. No new rustling sound or foliage collision is added.

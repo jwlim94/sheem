@@ -1,3 +1,4 @@
+import { WindVegetation } from '../wind/WindVegetation';
 import {
   WIND_TEST_GROUND,
   WIND_TEST_SPOTS,
@@ -285,7 +286,10 @@ function WalkingScene({
   return (
     <>
       {wind ? (
-        <WindTerrain field={windField} />
+        <>
+          <WindTerrain field={windField} />
+          <WindVegetation field={windField} reducedMotion={reducedMotion} />
+        </>
       ) : slopes ? (
         <SlopeTestEnvironment />
       ) : (

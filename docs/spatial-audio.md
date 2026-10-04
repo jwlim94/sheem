@@ -238,3 +238,45 @@ remained at 4.0 m/s. Real movement input advanced the rabbit from the west side 
 the crest (root height approximately 3.20 m). Mute reached exact zero. Rendered
 terrain, location controls and overlay ordering were inspected. Lint/build and
 both wind test scripts passed; the existing bundle-size advisory remains.
+
+## Vegetation motion from the same field (2026-10-03)
+
+The existing wind course now places five small grass patches and four trees using
+the actual meadow assets. `vegetationGeometry.ts` extracts the existing nine-vertex
+grass blade without changing its shape; the original meadow and test course share
+that factory and `grassMaterial`. `Trees.tsx` extracts the existing seven-sided
+trunk and eighteen faceted crown clusters per tree, retaining the seeded shape,
+colors and default meadow placements. Test trees use smaller placement scales.
+The main meadow keeps its previous animation until its wind integration is scoped.
+
+`WindVegetation` receives the **same field instance** as the listener and markers.
+Grass samples environmental wind in one-metre cells at 10 Hz, at low vegetation
+height, interpolates response each frame, and supplies a per-instance bend vector
+to the shared shader. Displacement happens after blade yaw/scale, so world wind
+has the same direction across differently oriented blades. Quadratic height
+weighting fixes roots and bends tips; flutter amplitude vanishes with wind. There
+are 4,500 blade instances, not thousands of React components or per-blade terrain
+queries. No React state is updated per frame.
+
+Trees sample the field near canopy height and apply smoothed, bounded rotation
+around each tree's own ground root to both trunk and crowns. Crown flutter is
+small and wind-dependent. The entire grove is no longer rotated around the world
+origin in the field-driven mode. Tall crowns can remain exposed while low grass
+is sheltered: both query the same terrain field at their respective heights.
+Character velocity only affects ear airflow, never plant motion. Reduced-motion
+preference removes dynamic bend/flutter while leaving audio and field data active.
+
+This step adds movement only, not new rustling audio, tree collision, or tree-caused
+wind obstruction. Geometry/material cleanup follows the existing scene ownership;
+grass bounds include displacement and the four animated test trees are not culled
+against stale instance bounds. Actual full-map performance remains a later task.
+
+Chrome validation: no shader compile failures; grass X bend was positive for eastward
+wind and negative after reversal. At 4 m/s without gusts, mean bend was about
+0.111 m on the exposed western patch and 0.053 m on the eastern patch; reversal
+swapped their relative strength. Tree instance transforms changed with direction.
+Calm settled grass below 0.000001 m; reduced-motion made bend exactly zero and
+restored tree rest transforms. A rendered overview was inspected. Existing wind
+field/terrain checks and lint/build pass, with the existing bundle-size advisory.
+For acceptance, use Reverse wind, compare west/east plants, enable traveling gusts,
+and set speed to zero. This can be shown in a Short without changing test spaces.

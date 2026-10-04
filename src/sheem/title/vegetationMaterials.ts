@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // Keep native Three lighting, shadow maps and fog for both soil and vegetation.
-export function grassMaterial(time: { value: number }) {
+export function grassMaterial(time: { value: number }, fieldDriven = false) {
   const material = new THREE.MeshStandardMaterial({
     roughness: 1,
     side: THREE.DoubleSide,
@@ -11,6 +11,7 @@ export function grassMaterial(time: { value: number }) {
     shader.uniforms.grassTime = time;
     shader.vertexShader = `uniform float grassTime;
       attribute vec3 groundNormal; attribute vec3 groundColor;
+      ${fieldDriven ? 'attribute vec2 windBend;' : ''}
       varying vec3 vGrassNormal; varying vec3 vGroundColor;
       varying float vBladeHeight; varying float vGrassDistance; varying float vGrassAccent;
       ${shader.vertexShader}`;
@@ -20,9 +21,13 @@ export function grassMaterial(time: { value: number }) {
       #include <begin_vertex>
       vec3 root = (instanceMatrix * vec4(0.,0.,0.,1.)).xyz;
       float variation = fract(sin(dot(root.xz,vec2(12.9898,78.233)))*43758.5453);
-      float gust = sin(grassTime*.8 + root.x*.075 + root.z*.045);
+      ${
+        fieldDriven
+          ? ''
+          : `float gust = sin(grassTime*.8 + root.x*.075 + root.z*.045);
       transformed.x += (.18 + variation*.48 + gust*.17)*position.y*position.y;
-      transformed.z += cos(grassTime*.6+root.z*.065)*.08*position.y*position.y;
+      transformed.z += cos(grassTime*.6+root.z*.065)*.08*position.y*position.y;`
+      }
       vGrassNormal = normalize(normalMatrix * groundNormal);
       vGroundColor = groundColor;
       vBladeHeight = position.y;
@@ -30,6 +35,21 @@ export function grassMaterial(time: { value: number }) {
       vGrassDistance = distance(cameraPosition, (modelMatrix * vec4(root,1.)).xyz);
     `
     );
+    if (fieldDriven)
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <project_vertex>',
+        `
+      vec4 mvPosition = vec4(transformed, 1.0);
+      #ifdef USE_INSTANCING
+        mvPosition = instanceMatrix * mvPosition;
+      #endif
+      // Displace in world-aligned mesh space AFTER per-blade yaw/scale.
+      float flutter = 1. + .10*sin(grassTime*2.1 + root.x*1.7 + root.z*2.3);
+      mvPosition.xz += windBend * position.y * position.y * flutter;
+      mvPosition = modelViewMatrix * mvPosition;
+      gl_Position = projectionMatrix * mvPosition;
+    `
+      );
     shader.fragmentShader = `varying vec3 vGrassNormal; varying vec3 vGroundColor;
       varying float vBladeHeight; varying float vGrassDistance; varying float vGrassAccent;
       ${shader.fragmentShader}`;
@@ -57,7 +77,8 @@ export function grassMaterial(time: { value: number }) {
     `
     );
   };
-  material.customProgramCacheKey = () => 'sheem-grass-lit-v2';
+  material.customProgramCacheKey = () =>
+    fieldDriven ? 'sheem-grass-field-v1' : 'sheem-grass-lit-v2';
   return material;
 }
 

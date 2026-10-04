@@ -1,9 +1,10 @@
+import { Trees } from './Trees';
+import { createGrassBlade } from './vegetationGeometry';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import {
-  groundHeight,
   groundColorAt,
   grassDirection,
   grassDensity,
@@ -122,40 +123,7 @@ function Meadow({
   const flowers = useRef<THREE.InstancedMesh>(null);
   const material = useMemo(() => grassMaterial({ value: 0 }), []);
   useEffect(() => () => material.dispose(), [material]);
-  const blade = useMemo(() => {
-    const g = new THREE.BufferGeometry();
-    const positions: number[] = [],
-      indices: number[] = [];
-    for (let row = 0; row < 4; row++) {
-      const t = row / 4;
-      const width = 0.055 * (1 - t * 0.85);
-      positions.push(-width, t, 0, width, t, 0);
-      if (row < 3) {
-        const k = row * 2;
-        indices.push(k, k + 1, k + 2, k + 1, k + 3, k + 2);
-      }
-    }
-    positions.push(0, 1, 0);
-    indices.push(6, 7, 8);
-    g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    g.setIndex(indices);
-    g.computeVertexNormals();
-    g.setAttribute(
-      'groundNormal',
-      new THREE.InstancedBufferAttribute(
-        new Float32Array(MAX_GRASS_BLADES * 3),
-        3
-      )
-    );
-    g.setAttribute(
-      'groundColor',
-      new THREE.InstancedBufferAttribute(
-        new Float32Array(MAX_GRASS_BLADES * 3),
-        3
-      )
-    );
-    return g;
-  }, []);
+  const blade = useMemo(() => createGrassBlade(MAX_GRASS_BLADES), []);
   useLayoutEffect(() => {
     if (!grass.current || !flowers.current) return;
     const random = seededRandom(121);
@@ -274,96 +242,6 @@ function Meadow({
         <meshStandardMaterial roughness={1} />
       </instancedMesh>
     </>
-  );
-}
-
-const treePositions = [
-  [-22, -10, 1.25],
-  [-37, -3, 1],
-  [-49, -17, 0.85],
-  [38, -20, 1.25],
-  [43, -28, 0.8],
-  [-23, -77, 0.85],
-  [-34, -87, 0.65],
-  [55, -86, 0.8],
-  [64, -95, 0.75],
-  [-80, -115, 1],
-  [-62, -130, 0.8],
-  [21, -165, 0.6],
-  [-12, -190, 0.85],
-  [80, -175, 0.8],
-];
-function Trees({ reducedMotion }: { reducedMotion: boolean }) {
-  const crowns = useRef<THREE.InstancedMesh>(null);
-  const trunks = useRef<THREE.InstancedMesh>(null);
-  const group = useRef<THREE.Group>(null);
-  useLayoutEffect(() => {
-    if (!crowns.current || !trunks.current) return;
-    const random = seededRandom(719),
-      dummy = new THREE.Object3D(),
-      color = new THREE.Color();
-    let leaf = 0;
-    treePositions.forEach(([x, z, s], i) => {
-      const y = groundHeight(x, z);
-      dummy.position.set(x, y + 2.6 * s, z);
-      dummy.rotation.set(0, 0, 0.04);
-      dummy.scale.set(0.34 * s, 5.5 * s, 0.34 * s);
-      dummy.updateMatrix();
-      trunks.current!.setMatrixAt(i, dummy.matrix);
-      for (let n = 0; n < 18; n++) {
-        const a = random() * Math.PI * 2,
-          r = Math.sqrt(random()) * 4.3 * s;
-        dummy.position.set(
-          x + Math.cos(a) * r,
-          y + 6.3 * s + random() * 2.6 * s - r * 0.26,
-          z + Math.sin(a) * r
-        );
-        dummy.rotation.set(random(), random(), random());
-        dummy.scale.set(
-          (1.9 + random()) * s,
-          (1.4 + random()) * s,
-          (1.8 + random()) * s
-        );
-        dummy.updateMatrix();
-        crowns.current!.setMatrixAt(leaf, dummy.matrix);
-        color.setHSL(
-          0.19 + random() * 0.055,
-          0.3 + random() * 0.15,
-          0.25 + random() * 0.14
-        );
-        crowns.current!.setColorAt(leaf++, color);
-      }
-    });
-    for (const mesh of [crowns.current, trunks.current]) {
-      mesh.instanceMatrix.needsUpdate = true;
-      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-      mesh.computeBoundingSphere();
-    }
-  }, []);
-  useFrame(({ clock }) => {
-    if (group.current && !reducedMotion)
-      group.current.rotation.z = Math.sin(clock.elapsedTime * 0.35) * 0.0012;
-  });
-  return (
-    <group ref={group}>
-      <instancedMesh
-        ref={trunks}
-        args={[undefined, undefined, treePositions.length]}
-        castShadow
-      >
-        <cylinderGeometry args={[0.65, 1, 1, 7]} />
-        <meshStandardMaterial color="#625943" roughness={1} />
-      </instancedMesh>
-      <instancedMesh
-        ref={crowns}
-        args={[undefined, undefined, treePositions.length * 18]}
-        castShadow
-        receiveShadow
-      >
-        <icosahedronGeometry args={[1, 1]} />
-        <meshStandardMaterial roughness={1} flatShading />
-      </instancedMesh>
-    </group>
   );
 }
 
