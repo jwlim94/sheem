@@ -1,4 +1,3 @@
-import { Trees } from './Trees';
 import { createGrassBlade } from './vegetationGeometry';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
@@ -348,7 +347,6 @@ export function MeadowEnvironment({
       />
       <Landscape reducedMotion={reducedMotion} />
       <Meadow reducedMotion={reducedMotion} clearing={clearing} />
-      <Trees reducedMotion={reducedMotion} />
       <DriftingSeeds reducedMotion={reducedMotion} />
     </>
   );

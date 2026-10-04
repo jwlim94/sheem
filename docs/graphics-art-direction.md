@@ -269,3 +269,11 @@ instructions for trunk collision and low-leaf contact. The unchanged source GLB
 and CC BY attribution remain required; styling and contact are runtime changes,
 not a separately baked model. Contact checks on rabbit-height low leaves confirmed
 local movement and recovery, with no fresh-load runtime errors.
+
+## Retire faceted placeholder trees — 2026-10-04
+
+Removed the old polygon-cluster Trees component and its placements from both the
+main meadow/title scene and the wind course. Grass and its wind/contact/audio
+behaviour are preserved. The styled pine and broadleaf remain in the wind course;
+this removal does not automatically distribute those heavier models across the
+main meadow. The title landscape is now more open until a separate placement pass.

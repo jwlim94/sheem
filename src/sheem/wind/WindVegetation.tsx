@@ -6,7 +6,6 @@ import type { GrassContactBody } from './grassContact';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { Trees } from '../title/Trees';
 import { createGrassBlade } from '../title/vegetationGeometry';
 import { grassMaterial } from '../title/vegetationMaterials';
 import { seededRandom } from '../title/landscape';
@@ -20,12 +19,6 @@ const PATCHES = [
   [0, -17],
   [10, 4],
   [0, 3],
-] as const;
-const TREES = [
-  [-10, -16, 0.32],
-  [10, -16, 0.32],
-  [3, -15, 0.32],
-  [13, 3, 0.4],
 ] as const;
 const COLORS = ['#4d6c29', '#688b37', '#7b9645', '#8a9f50', '#a3ae66'];
 const COUNT = PATCHES.length * 300 * 3;
@@ -248,12 +241,6 @@ export function WindVegetation({
         ref={mesh}
         args={[assets.geometry, assets.material, COUNT]}
         receiveShadow
-      />
-      <Trees
-        positions={TREES}
-        height={windTestHeight}
-        wind={field}
-        reducedMotion={reducedMotion}
       />
     </group>
   );
