@@ -239,7 +239,7 @@ export function Broadleaf({
       owned.wind?.update(field, state.clock.elapsedTime, delta, reducedMotion);
     if (contacts)
       for (const foliage of owned.foliage)
-        foliage.update(contacts.current, delta);
+        foliage.update(contacts.current, delta, owned.wind);
   });
   useEffect(
     () => () => {

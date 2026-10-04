@@ -9,6 +9,11 @@ import {
 import { stepGrassContact } from './grassContact.ts';
 import type { GrassContactBody } from './grassContact.ts';
 
+export type FoliageWind = {
+  maxDisplacement: number;
+  offset(mesh: Mesh, index: number, out: Vector3): void;
+};
+
 /** Each leaf point uses the grass contact response locally. No shared branch
  * displacement: a touch cannot move distant parts of the same connected frond. */
 export function createFoliageContact(
@@ -61,6 +66,7 @@ export function createFoliageContact(
     root = new Vector3(),
     tip = new Vector3();
   const center = new Vector3();
+  const windOffset = new Vector3();
   const responses = Array.from({ length: position.count }, () => ({
     x: 0,
     z: 0,
@@ -75,7 +81,11 @@ export function createFoliageContact(
   return {
     probe: tip,
     anchor: root,
-    update(bodies: readonly GrassContactBody[], delta: number) {
+    update(
+      bodies: readonly GrassContactBody[],
+      delta: number,
+      wind?: FoliageWind
+    ) {
       if (!initialized) {
         mesh.updateWorldMatrix(true, false);
         inverse.copy(mesh.matrixWorld).invert();
@@ -162,7 +172,7 @@ export function createFoliageContact(
       // Visit only touched cells plus vertices still recovering, even for dense assets.
       for (const body of bodies) {
         if (!body.active) continue;
-        const r = body.radius + 0.12;
+        const r = body.radius + 0.12 + (wind?.maxDisplacement ?? 0);
         for (
           let x = Math.floor((body.position.x - r) / cellSize);
           x <= Math.floor((body.position.x + r) / cellSize);
@@ -183,6 +193,10 @@ export function createFoliageContact(
       const changed = active.size > 0;
       for (const i of active) {
         point.fromArray(worldRest, i * 3);
+        if (wind) {
+          wind.offset(mesh, i, windOffset);
+          point.add(windOffset);
+        }
         const response = responses[i];
         // Identical local range, depth, direction and recovery model as grass.
         // 30 cm effective leaf length: visible local brushing, capped at 25.5 cm.
@@ -195,6 +209,9 @@ export function createFoliageContact(
           response.z = 0;
           active.delete(i);
         }
+        // Contact is computed at the wind-displaced point. Store only its offset
+        // relative to rest: the GPU adds wind once, including during recovery.
+        point.fromArray(worldRest, i * 3);
         point.x += response.x * weights[i];
         point.z += response.z * weights[i];
         point.y -= Math.hypot(response.x, response.z) * weights[i] * 0.12;

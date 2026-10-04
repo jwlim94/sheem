@@ -103,6 +103,31 @@ export function createTreeWind(
     depths.push(depth);
   });
   return {
+    // Largest possible world offset at 12 m/s, including leaf flutter.
+    maxDisplacement: strength * 12 * (kind === 'pine' ? 1.12 : 1.24),
+    /** Mirror the GPU formula using its Float32 shape attribute and shared clock.
+     * CPU contact queries this position but leaves wind rendering to the shader. */
+    offset(mesh: Mesh, index: number, out: Vector3) {
+      const shape = mesh.geometry.getAttribute('treeWindShape');
+      if (!shape || !initialized) {
+        out.set(0, 0, 0);
+        return;
+      }
+      const h = shape.getX(index),
+        phase = shape.getY(index);
+      const time = uniforms.treeWindTime.value;
+      const sway =
+        0.82 +
+        0.18 * Math.sin(time * (kind === 'pine' ? 0.85 : 1.15) + phase * 0.12);
+      const flutter =
+        (kind === 'pine' ? 0.12 : 0.24) *
+        h *
+        Math.sin(time * (kind === 'pine' ? 1.7 : 2.3) + phase);
+      out
+        .copy(uniforms.treeWindLow.value)
+        .lerp(uniforms.treeWindHigh.value, h)
+        .multiplyScalar(h * h * sway + flutter);
+    },
     update(
       field: WindField,
       seconds: number,

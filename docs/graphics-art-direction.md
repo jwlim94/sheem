@@ -328,3 +328,23 @@ is 0.096 m for pine and 0.176 m for broadleaf. Lint/build pass with the existing
 bundle-size warning. Acceptance: compare the two crowns at 0/4/8 m/s, reverse the
 wind and toggle shelter/gust layers; the trunks must stay planted. This comparison
 is suitable for a short visual wind demonstration.
+
+## Tree wind/contact composition, stage 2 — 2026-10-04
+
+Contact now evaluates leaf points at their current wind-displaced world positions.
+The CPU mirrors the GPU formula using the same Float32 height/phase attributes,
+smoothed field vectors and clock. Rest-space spatial cells are queried with a
+conservative wind-displacement margin so leaves blown into reach are not missed.
+Only contact displacement is written into the mesh; wind is added once by the
+shader. On release, contact decays while wind continues, including wind reversal.
+No model rebuilding, palette changes or new sound is involved.
+
+Browser tests at 12 m/s verified both species: a leaf outside resting reach reacts
+when blown into reach; a leaf blown away does not produce phantom contact; release
+plus wind reversal returns contact to zero without clearing wind. Maximum sampled
+60 Hz vertex step was 5.4 mm (pine), 14.5 mm (broadleaf) in the synthetic boundary
+case. Actual model low-leaf checks exercise local deformation and recovery as well.
+Lint/build pass with the existing bundle-size warning. Acceptance: brush low leaves
+while gusts run, stop inside foliage, then back out and reverse the wind; untouched
+foliage should continue swaying and touched foliage should settle into that motion.
+This remains wind-course-only until the meadow receives its wind field.

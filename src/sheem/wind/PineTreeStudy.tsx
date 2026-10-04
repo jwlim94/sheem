@@ -229,7 +229,7 @@ export function Pine({
       assets.wind?.update(field, state.clock.elapsedTime, delta, reducedMotion);
     if (contacts)
       for (const foliage of assets.foliage)
-        foliage.update(contacts.current, delta);
+        foliage.update(contacts.current, delta, assets.wind);
     if (brushMarker.current && assets.foliage[0]) {
       brushMarker.current.position.copy(assets.foliage[0].anchor);
       brushMarker.current.position.x -= x;
