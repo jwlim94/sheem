@@ -184,6 +184,32 @@ export function WindPanel({
           . Sheem modifications: materials, leaf shading and contact movement.
         </small>
       </details>
+      <details>
+        <summary>Broadleaf tree</summary>
+        <p>
+          Use Compare locations → Broadleaf tree. The trunk is solid; low leaves
+          bend gently where your character brushes against them.
+        </p>
+        <small>
+          <a
+            href="https://sketchfab.com/3d-models/stylized-tree-6d1aeea748f147789004bc03e1930d32"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Stylized Tree
+          </a>{' '}
+          by yonimantz ·{' '}
+          <a
+            href="https://creativecommons.org/licenses/by/4.0/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            CC BY 4.0
+          </a>
+          . Sheem modifications: proportions, materials, leaf shading and
+          contact movement.
+        </small>
+      </details>
       <output ref={readout} />
       <button aria-pressed={sound.enabled} onClick={() => void sound.toggle()}>
         {sound.enabled ? 'Mute sound' : 'Enable sound'}

@@ -193,3 +193,79 @@ and its Leaf contact teleport entry. The isolated-frond code remains available
 for future debugging. Updated visible labels/instructions and preserved attribution.
 `pine-tree.glb` remains the unchanged source asset required at runtime; palette,
 shading and contact modifications are code-driven, not a separately exported GLB.
+
+## Broadleaf reference comparison — 2026-10-04
+
+Imported the user's `Downloads/stylized_tree.glb` unchanged as
+`public/models/trees/stylized-tree.glb` (14,893,416 bytes). Embedded metadata names
+Stylized Tree by yonimantz, CC BY 4.0; provenance and modifications are recorded
+in tree credits and exposed in the wind panel. Both variants are grounded, 5 m
+high, at (-9,-5) and (-3,-5). Original materials remain intact in the left clone.
+Sheem widens X/Z by 18%, uses matte bark, alpha-cutout leaves and a muted green
+palette retaining source texture variation. Per-instance materials are owned and
+disposed; geometry and embedded textures remain loader-owned/shared.
+`Compare locations > Tree comparison` positions the player for a wider view.
+This is a static appearance comparison, not a new baked GLB: no new broadleaf
+wind/contact animation, collision, or audio. The heavy source remains confined to
+the wind-course experiment; grove deployment needs LOD/geometry/texture review.
+Browser rendering verified both 5 m bounds and no runtime errors. Lint/build pass
+(existing bundle warning). A side-by-side render was inspected and the initial
+pale leaf treatment deepened. This comparison can illustrate the next tree-style
+Short; no content was published.
+
+Broadleaf palette refinement: user requested more freshness than the initial
+olive treatment. A three-stop texture-driven palette now uses deep green shadows,
+fresh green midtones and restrained yellow-green highlights. This restores
+saturation without changing lighting, trunk material, proportions or the original
+reference. Browser comparison render inspected with no runtime errors; lint/build
+pass (existing bundle-size warning).
+
+Broadleaf fine-contrast pass: compressed the source-texture tonal range by 20%,
+slightly lifted the darkest leaf palette and restrained bright leaf colours.
+Fresh green midtones remain; scene lighting/shadows still provide canopy depth.
+This targets small mottled patches without flattening the entire canopy or changing
+geometry, alpha silhouettes, bark or the original comparison. Browser comparison
+inspected without runtime errors; lint/build pass (existing bundle-size warning).
+
+Broadleaf volume lighting: retained the approved palette shader unchanged. Added
+six deterministically fitted canopy lighting lobes shared across both source leaf
+meshes. A separate per-vertex crown-normal attribute blends rounded-volume lighting
+with original leaf-face lighting (48% crown), including stable volume orientation
+on leaf backs. Source positions, UVs, texture and normals remain unchanged; only
+styled geometry clones own the extra attribute and are disposed on unmount.
+This softens isolated card contrast while giving leaf clusters coherent light and
+shade; it does not add leaf geometry, animation or a new bitmap texture. Lobe fitting
+runs once during model setup, not every frame. No triangle-count increase.
+
+Broadleaf finishing pass: preserved the leaf palette and added subtle, continuous
+upper-canopy tonal pockets (up to 13% darkening) to break up uniform highlights.
+Canopy-height bark blends toward a muted olive-brown so fine branches recede;
+the exposed lower trunk retains its warm colour. No branches were removed.
+Shared source-space coordinates keep both effects continuous across mesh splits;
+styled geometry clones own these attributes and dispose on unmount. Browser
+comparison inspected with no runtime errors and unchanged model bounds. Lint and
+build pass, with the existing bundle-size warning.
+
+Broadleaf trunk collision: both comparison trees now share visual placement and
+solid footprints through `broadleafTreeLayout.ts`. Collider centres account for
+the source trunk's small offset from the canopy centre; the styled width scales
+its footprint. Reuses the pine's body-radius/substep/slide solver; foliage remains
+passable. Browser-loaded solver checks passed at walking/running speeds and for
+oblique sliding, with no runtime errors. Model bounds unchanged; lint/build pass
+(existing bundle warning). Keyboard-driven visual feel still needs user review.
+
+Broadleaf contact: the styled tree now consumes the same resolved character
+contact body as the pine (rabbit radius 0.34 m, height 1.45 m). Reuses grass-like
+local displacement/recovery, with attachment weights scaled to each small leaf's
+size instead of pine-frond distances. Original comparison remains static. Only
+leaf geometry moves; trunk collision and approved materials are unchanged. The
+shared foliage helper now indexes rest vertices into horizontal cells and updates
+nearby vertices plus recovering ones, avoiding full dense-canopy per-frame work.
+This still assumes static tree transforms, as does the pine implementation.
+
+Broadleaf accepted: removed the original comparison instance and its collider;
+only Sheem broadleaf remains at (-3,-5). Updated the location shortcut and panel
+instructions for trunk collision and low-leaf contact. The unchanged source GLB
+and CC BY attribution remain required; styling and contact are runtime changes,
+not a separately baked model. Contact checks on rabbit-height low leaves confirmed
+local movement and recovery, with no fresh-load runtime errors.

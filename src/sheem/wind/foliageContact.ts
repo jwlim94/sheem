@@ -15,7 +15,8 @@ export function createFoliageContact(
   mesh: Mesh,
   trunkX: number,
   trunkZ: number,
-  isolate = false
+  isolate = false,
+  smallLeaves = false
 ) {
   const position = mesh.geometry.getAttribute('position') as BufferAttribute;
   position.setUsage(DynamicDrawUsage);
@@ -65,6 +66,9 @@ export function createFoliageContact(
     z: 0,
     intensity: 0,
   }));
+  const buckets = new Map<string, number[]>();
+  const active = new Set<number>();
+  const cellSize = 0.75;
   const triangles: number[] = [];
   let selected: number[] = [],
     initialized = false;
@@ -128,7 +132,13 @@ export function createFoliageContact(
             point.fromArray(worldRest, i * 3).sub(root);
             // Anchor only the actual attachment. Squaring progress along the
             // whole frond suppressed most mid-branch touches almost to zero.
-            weights[i] = MathUtils.smoothstep(point.length(), 0.18, 0.65);
+            weights[i] = smallLeaves
+              ? MathUtils.smoothstep(
+                  point.length(),
+                  Math.sqrt(far) * 0.08,
+                  Math.max(0.001, Math.sqrt(far) * 0.75)
+                )
+              : MathUtils.smoothstep(point.length(), 0.18, 0.65);
           }
           if (vertices === selected) {
             pickedTip.copy(tip);
@@ -138,25 +148,60 @@ export function createFoliageContact(
         tip.copy(pickedTip);
         root.copy(pickedRoot);
         if (!isolate) selected = branchVertices.flat();
+        for (const i of selected) {
+          const key = `${Math.floor(worldRest[i * 3] / cellSize)},${Math.floor(worldRest[i * 3 + 2] / cellSize)}`;
+          if (!buckets.has(key)) buckets.set(key, []);
+          buckets.get(key)!.push(i);
+        }
         mesh.geometry.computeBoundingSphere();
         const scale = new Vector3().setFromMatrixScale(mesh.matrixWorld);
         mesh.geometry.boundingSphere!.radius +=
           0.3 / Math.min(scale.x, scale.y, scale.z);
         initialized = true;
       }
-      for (const i of selected) {
+      // Visit only touched cells plus vertices still recovering, even for dense assets.
+      for (const body of bodies) {
+        if (!body.active) continue;
+        const r = body.radius + 0.12;
+        for (
+          let x = Math.floor((body.position.x - r) / cellSize);
+          x <= Math.floor((body.position.x + r) / cellSize);
+          x++
+        )
+          for (
+            let z = Math.floor((body.position.z - r) / cellSize);
+            z <= Math.floor((body.position.z + r) / cellSize);
+            z++
+          )
+            for (const i of buckets.get(`${x},${z}`) ?? [])
+              if (
+                worldRest[i * 3 + 1] <= body.position.y + body.height &&
+                worldRest[i * 3 + 1] + 0.3 >= body.position.y
+              )
+                active.add(i);
+      }
+      const changed = active.size > 0;
+      for (const i of active) {
         point.fromArray(worldRest, i * 3);
         const response = responses[i];
         // Identical local range, depth, direction and recovery model as grass.
         // 30 cm effective leaf length: visible local brushing, capped at 25.5 cm.
         stepGrassContact(point, 0.3, bodies, delta, response);
+        if (
+          response.intensity === 0 &&
+          Math.hypot(response.x, response.z) < 0.0001
+        ) {
+          response.x = 0;
+          response.z = 0;
+          active.delete(i);
+        }
         point.x += response.x * weights[i];
         point.z += response.z * weights[i];
         point.y -= Math.hypot(response.x, response.z) * weights[i] * 0.12;
         point.applyMatrix4(inverse);
         position.setXYZ(i, point.x, point.y, point.z);
       }
-      position.needsUpdate = true;
+      if (changed) position.needsUpdate = true;
     },
   };
 }

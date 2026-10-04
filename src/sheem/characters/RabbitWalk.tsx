@@ -1,3 +1,4 @@
+import { BroadleafTreeStudy } from '../wind/BroadleafTreeStudy';
 import { PineTreeStudy } from '../wind/PineTreeStudy';
 import type { GrassContactBody } from '../wind/grassContact';
 import { WindVegetation } from '../wind/WindVegetation';
@@ -176,10 +177,12 @@ function WalkingScene({
         fresh.position.set(spot.x, ground.height(spot.x, spot.z), spot.z);
         fresh.yaw = spot.yaw;
         controls.target.copy(fresh.position).addScaledVector(scratch.up, 0.85);
+        const cameraDistance =
+          'cameraDistance' in spot ? (spot.cameraDistance ?? 4.5) : 4.5;
         camera.position.set(
-          spot.x - Math.sin(spot.yaw) * 4.5,
-          fresh.position.y + 2.5,
-          spot.z - Math.cos(spot.yaw) * 4.5
+          spot.x - Math.sin(spot.yaw) * cameraDistance,
+          fresh.position.y + Math.max(2.5, cameraDistance * 0.4),
+          spot.z - Math.cos(spot.yaw) * cameraDistance
         );
         controls.update();
         scratch.smoothedSlope.identity();
@@ -315,6 +318,7 @@ function WalkingScene({
         <>
           <WindTerrain field={windField} />
           <PineTreeStudy contacts={foliageBodies} />
+          <BroadleafTreeStudy contacts={foliageBodies} />
           <WindVegetation
             field={windField}
             reducedMotion={reducedMotion}

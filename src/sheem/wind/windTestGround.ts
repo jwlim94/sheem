@@ -1,3 +1,4 @@
+import { BROADLEAF_TRUNKS } from './broadleafTreeLayout';
 import { PINE_TREE_LAYOUT } from './pineTreeLayout';
 import type { RabbitGround } from '../characters/rabbitMovement';
 import type { TerrainWindConfig } from './terrainWind';
@@ -8,7 +9,7 @@ export function windTestHeight(x: number, z: number) {
   return r >= 1 ? 0 : 3.2 * Math.pow(0.5 + 0.5 * Math.cos(Math.PI * r), 1.25);
 }
 export const WIND_TEST_GROUND: RabbitGround = {
-  trunks: PINE_TREE_LAYOUT,
+  trunks: [...PINE_TREE_LAYOUT, ...BROADLEAF_TRUNKS],
   spawn: [0, 0],
   center: [0, -8],
   radius: 22,
@@ -16,6 +17,7 @@ export const WIND_TEST_GROUND: RabbitGround = {
 };
 export const WIND_TEST_SPOTS = [
   { name: 'Flat start', x: 0, z: 0, yaw: Math.PI },
+  { name: 'Broadleaf tree', x: -3, z: -1, yaw: Math.PI, cameraDistance: 6 },
   { name: 'West side', x: -8, z: -14, yaw: Math.PI / 2 },
   { name: 'Hilltop', x: 0, z: -14, yaw: Math.PI / 2 },
   { name: 'East side', x: 8, z: -14, yaw: -Math.PI / 2 },
