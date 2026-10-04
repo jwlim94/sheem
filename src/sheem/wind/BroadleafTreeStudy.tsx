@@ -1,3 +1,5 @@
+import { createTreeWind } from './treeWind';
+import type { WindField } from './windField';
 import { varyTreeGeometry } from '../title/treeVariation';
 import type { TreeVariation } from '../title/treeVariation';
 import { useFrame } from '@react-three/fiber';
@@ -23,6 +25,8 @@ export function Broadleaf({
   yaw = 0,
   label = true,
   variation,
+  field,
+  reducedMotion = false,
 }: {
   styled: boolean;
   x: number;
@@ -34,8 +38,11 @@ export function Broadleaf({
   yaw?: number;
   label?: boolean;
   variation?: TreeVariation;
+  field?: WindField;
+  reducedMotion?: boolean;
 }) {
   const { scene } = useGLTF(MODEL);
+  const windEnabled = !!field;
   const owned = useMemo(() => {
     const root = scene.clone(true);
     root.updateMatrixWorld(true);
@@ -198,15 +205,45 @@ export function Broadleaf({
         ? object.material.map(convert)
         : convert(object.material);
     });
-    return { root, materials, geometries, foliage };
-  }, [scene, styled, width, x, z, treeHeight, variation, contacts, yaw]);
-  useFrame((_, delta) => {
+    return {
+      root,
+      materials,
+      geometries,
+      foliage,
+      wind: windEnabled
+        ? createTreeWind(
+            root,
+            'broadleaf',
+            x,
+            terrainHeight(x, z),
+            z,
+            treeHeight
+          )
+        : undefined,
+    };
+  }, [
+    scene,
+    styled,
+    width,
+    x,
+    z,
+    treeHeight,
+    variation,
+    contacts,
+    yaw,
+    windEnabled,
+    terrainHeight,
+  ]);
+  useFrame((state, delta) => {
+    if (field)
+      owned.wind?.update(field, state.clock.elapsedTime, delta, reducedMotion);
     if (contacts)
       for (const foliage of owned.foliage)
         foliage.update(contacts.current, delta);
   });
   useEffect(
     () => () => {
+      owned.wind?.dispose();
       owned.materials.forEach((m) => m.dispose());
       owned.geometries.forEach((g) => g.dispose());
     },
@@ -242,13 +279,23 @@ export function Broadleaf({
 /** Styled wind-course tree with local character contact. */
 export function BroadleafTreeStudy({
   contacts,
+  field,
+  reducedMotion,
 }: {
   contacts: RefObject<GrassContactBody[]>;
+  field?: WindField;
+  reducedMotion?: boolean;
 }) {
   return (
     <group name="BroadleafTreeStudy">
       {BROADLEAF_TREE_LAYOUT.map((tree) => (
-        <Broadleaf key={tree.x} {...tree} contacts={contacts} />
+        <Broadleaf
+          key={tree.x}
+          {...tree}
+          contacts={contacts}
+          field={field}
+          reducedMotion={reducedMotion}
+        />
       ))}
     </group>
   );

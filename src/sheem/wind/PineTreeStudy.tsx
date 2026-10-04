@@ -1,3 +1,5 @@
+import { createTreeWind } from './treeWind';
+import type { WindField } from './windField';
 import { varyTreeGeometry } from '../title/treeVariation';
 import type { TreeVariation } from '../title/treeVariation';
 import { useFrame } from '@react-three/fiber';
@@ -24,6 +26,8 @@ export function Pine({
   yaw = 0,
   label = true,
   variation,
+  field,
+  reducedMotion = false,
 }: {
   isolated?: boolean;
   styled: boolean;
@@ -36,8 +40,11 @@ export function Pine({
   yaw?: number;
   label?: boolean;
   variation?: TreeVariation;
+  field?: WindField;
+  reducedMotion?: boolean;
 }) {
   const { scene } = useGLTF(MODEL);
+  const windEnabled = !!field;
   const brushMarker = useRef<THREE.Group>(null);
   const assets = useMemo(() => {
     const root = scene.clone(true);
@@ -189,15 +196,37 @@ export function Pine({
         if (variation) varyTreeGeometry(object, bounds, variation, true);
         if (contacts)
           foliage.push(createFoliageContact(object, x, z, isolated));
-      } else if (variation) {
+      } else if (variation || windEnabled) {
         object.geometry = object.geometry.clone();
         geometries.push(object.geometry);
-        varyTreeGeometry(object, bounds, variation, false);
+        if (variation) varyTreeGeometry(object, bounds, variation, false);
       }
     });
-    return { root, materials, geometries, foliage };
-  }, [scene, styled, x, z, isolated, treeHeight, width, variation, contacts]);
-  useFrame((_, delta) => {
+    return {
+      root,
+      materials,
+      geometries,
+      foliage,
+      wind: windEnabled
+        ? createTreeWind(root, 'pine', x, terrainHeight(x, z), z, treeHeight)
+        : undefined,
+    };
+  }, [
+    scene,
+    styled,
+    x,
+    z,
+    isolated,
+    treeHeight,
+    width,
+    variation,
+    contacts,
+    windEnabled,
+    terrainHeight,
+  ]);
+  useFrame((state, delta) => {
+    if (field)
+      assets.wind?.update(field, state.clock.elapsedTime, delta, reducedMotion);
     if (contacts)
       for (const foliage of assets.foliage)
         foliage.update(contacts.current, delta);
@@ -211,6 +240,7 @@ export function Pine({
   });
   useEffect(
     () => () => {
+      assets.wind?.dispose();
       assets.materials.forEach((m) => m.dispose());
       assets.geometries.forEach((g) => g.dispose());
     },
@@ -266,13 +296,23 @@ export function Pine({
 
 export function PineTreeStudy({
   contacts,
+  field,
+  reducedMotion,
 }: {
   contacts: RefObject<GrassContactBody[]>;
+  field?: WindField;
+  reducedMotion?: boolean;
 }) {
   return (
     <group name="PineTreeStudy">
       {PINE_TREE_LAYOUT.map((pine) => (
-        <Pine key={pine.x} {...pine} contacts={contacts} />
+        <Pine
+          key={pine.x}
+          {...pine}
+          contacts={contacts}
+          field={field}
+          reducedMotion={reducedMotion}
+        />
       ))}
     </group>
   );

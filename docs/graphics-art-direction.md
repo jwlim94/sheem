@@ -304,3 +304,27 @@ and build pass (existing bundle-size warning). Desktop render counters were abou
 2.10 M triangles / 48 calls in the title scene, 1.74 M triangles in the walking view
 (including terrain/grass and render passes); mobile performance and LOD are not yet
 validated. A before/after landing pan can illustrate this milestone in a Short.
+
+## Styled tree wind, stage 1 — 2026-10-04
+
+The wind-course pine and broadleaf now take an optional ambient WindField. A shared
+GPU deformation samples each tree at quarter/crown height at 10 Hz, smoothing the
+world-space velocity before applying height-weighted bend and small leaf motion.
+The base stays fixed; pine responds more slowly with smaller amplitude than
+broadleaf. Direction, gusts, zones and terrain shelter come from the existing field,
+never the character's relative air velocity. Calm and reduced-motion states settle
+the displacement to zero. Material palettes and geometry topology are unchanged.
+Matching depth shaders keep directional-light shadows aligned. Owned depth materials
+are disposed along with the tree's other assets; source meshes are not mutated.
+Changing wind settings preserves geometry and contact state rather than rebuilding.
+
+GPU wind adds to the existing CPU contact deformation. Precise contact queries
+still use resting leaf positions; accounting for the wind-displaced touch location
+is stage 2. This turn connects only the two wind-course specimens; the title/meadow
+placements remain unchanged pending evaluation in the course. No tree audio added.
+Browser checks cover shader compilation, fixed-base weights, positive/reversed
+wind, calm recovery and reduced motion. At 8 m/s the settled pre-wave crown offset
+is 0.096 m for pine and 0.176 m for broadleaf. Lint/build pass with the existing
+bundle-size warning. Acceptance: compare the two crowns at 0/4/8 m/s, reverse the
+wind and toggle shelter/gust layers; the trunks must stay planted. This comparison
+is suitable for a short visual wind demonstration.

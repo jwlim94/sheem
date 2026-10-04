@@ -317,8 +317,16 @@ function WalkingScene({
       {wind ? (
         <>
           <WindTerrain field={windField} />
-          <PineTreeStudy contacts={foliageBodies} />
-          <BroadleafTreeStudy contacts={foliageBodies} />
+          <PineTreeStudy
+            contacts={foliageBodies}
+            field={windField}
+            reducedMotion={reducedMotion}
+          />
+          <BroadleafTreeStudy
+            contacts={foliageBodies}
+            field={windField}
+            reducedMotion={reducedMotion}
+          />
           <WindVegetation
             field={windField}
             reducedMotion={reducedMotion}
