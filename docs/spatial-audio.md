@@ -327,3 +327,91 @@ smoothing remains in place; this is perceptual tuning, not a fluid simulation.
 Field checks cover calm walk/run levels, stationary ambient invariance,
 headwind/tailwind and continuous speed transitions. Lint/build pass. Headphone
 listening remains a user acceptance check; no claim of measured perceived loudness.
+
+### Contact rustling in the wind course — 2026-10-03
+
+Grass contacts now feed a bounded positional rustle layer in the wind experience's
+existing AudioContext, master bus and head/ear listener. The UI button is now
+Enable sound / Mute sound because it controls wind and contact audio together.
+Set wind speed to zero to isolate rustling. Camera orbit does not drive the listener.
+
+`WindVegetation` gathers the strongest current contact in each of four world-space
+quadrants around the local character. Depth and resolved horizontal speed drive
+strength; travel below 0.08 m/s, no contact, and post-contact visual recovery do not
+trigger sounds. Current aggregation supports the local character only, although
+the visual solver accepts multiple bodies. The emitter remains at the contacted
+blade's mid-height. HRTF panning and inverse distance attenuation are applied in
+world coordinates. Individual blades do not create individual sources.
+
+`grassRustle.ts` generates five short mono test textures (0.22–0.36 s) from seeded
+noise, filtered noise and smooth grain envelopes. These are original procedural
+placeholders, not sourced field recordings or certified natural grass Foley.
+No downloaded assets or third-party licenses were added. Buffer creation is
+separate from contact aggregation and can be replaced with decoded recordings.
+Playback varies sample and rate, avoids immediate sample repetition, limits
+starts to at most about 12 per second and overlapping voices to six. Ended voices
+release their nodes; mute/hidden-tab stops current voices, suspended contexts do
+not queue events, and experience disposal releases the layer with the context.
+Wind-driven vegetation rustling is still not implemented.
+
+Validation: `node scripts/check-grass-rustle.mjs` checks depth/speed response,
+spatial node positions, rate/polyphony limits, variation, silence, suspension,
+cleanup and finite bounded sample data with quiet endpoints. Chrome keyboard
+walk-through at zero wind produced zero events before contact, eight during the
+sampled passage and no new events after stopping; muted movement produced none.
+Source positions followed contacted blades and no runtime errors appeared.
+Wind field regression checks and lint/build pass (existing chunk-size advisory).
+Headphone sound quality and left/right perception remain manual acceptance work.
+
+Acceptance: enable sound, set wind speed to zero, walk into a patch, stop inside,
+then run out. Compare grazing its edge to deeper contact, approach from either
+side and orbit the camera while the rabbit is still. Verify soft sample tails end
+without new rustles at rest, and mute suppresses both airflow and contact sounds.
+A Short can pair the visible grass parting with the localized contact sounds.
+
+### Recorded foliage replacement — 2026-10-03
+
+The synthetic contact textures above were rejected in listening feedback and
+have been removed. Contact now uses six 0.65-second mono WAV excerpts of kyles'
+CC0 recording, “foliage leaves rustle brush movement.flac” (Freesound 637547).
+The downloaded source is the public high-quality MP3 preview, not the original
+login-only FLAC. Source/processing/license details are in
+`public/sounds/foliage/CREDITS.md`; the unedited MP3 and exact segment metadata
+are preserved in `art/audio/foliage/`. The runtime excerpts total about 375 KB.
+Selection was based on RMS/transient measurements; headphone quality remains a
+user acceptance test. No synthetic noise is mixed into these contact sounds.
+
+Natural texture is preserved with only ±3% playback-rate variation. Starts are
+spaced 0.26–0.36 seconds apart, capped at three simultaneous voices, at lower
+per-contact gain. WAVs load/decode on audio activation. Activation waits for the
+assets and context; failures expose the existing retry message and dispose the
+failed context, so another click starts a fresh load. Disposing aborts requests
+and ignores late decodes. Muting during loading cannot re-enable the output.
+
+Tests cover the real WAV sample endpoints/headroom, fetch failure and disposal
+during decode in addition to the existing contact and lifecycle checks. Chrome
+loaded the new samples, emitted three contact events on the tested pass, emitted
+none while stationary or muted, and logged no runtime errors. Lint/build pass.
+
+### Contact/wind balance — 2026-10-04
+
+Raised recorded contact gain by a factor of two (approximately +6 dB) following
+listening feedback that foliage was masked by wind. Sample processing, contact
+strength response, spatial attenuation, three-voice limit and wind levels are
+unchanged. Per-voice gain now ranges from 0.16 to 0.8 before distance and the 0.22
+master. This is a first mix adjustment; perceived balance still needs listening
+with wind enabled, especially at different wind speeds.
+
+Further listening feedback: contact was still masked. Raised contact another
+6 dB (now ×4 versus the original recording mix) and routed both wind layers
+through a 0.63-gain bus (about −4 dB). This changes the contact/wind ratio by about
+10 dB relative to the previous adjustment while preserving spatial controls and
+source texture. Wind bus is owned/disconnected with the experience. At the
+largest excerpt peak (~0.577), three fully coincident maximum-gain contact
+voices have a pre-HRTF master-scaled peak bound of ~0.61; this is headroom evidence,
+not a guarantee of the final wind-plus-HRTF mix or a listening certification.
+
+Further mix adjustment: reduced only the directional relative-airflow coefficient
+from 2 to 1.26 (another ~4 dB). Diffuse wind bed, foliage gain, filters and direction
+response remain unchanged. This targets the wind hitting the listener directly,
+which remained too prominent in user listening feedback.

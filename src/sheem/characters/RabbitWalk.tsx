@@ -305,6 +305,7 @@ function WalkingScene({
             field={windField}
             reducedMotion={reducedMotion}
             contacts={grassBodies}
+            onContact={windSound.contact}
           />
         </>
       ) : slopes ? (

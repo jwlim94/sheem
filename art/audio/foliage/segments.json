@@ -1,0 +1,44 @@
+[
+  {
+    "file": "public/sounds/foliage/kyles-brush-1.wav",
+    "startSeconds": 7.5,
+    "duration": 0.65,
+    "gain": 16.0,
+    "peak": 0.47726916862550395
+  },
+  {
+    "file": "public/sounds/foliage/kyles-brush-2.wav",
+    "startSeconds": 20.5,
+    "duration": 0.65,
+    "gain": 16.0,
+    "peak": 0.24075702619772293
+  },
+  {
+    "file": "public/sounds/foliage/kyles-brush-3.wav",
+    "startSeconds": 24.0,
+    "duration": 0.65,
+    "gain": 16.0,
+    "peak": 0.27733315021422833
+  },
+  {
+    "file": "public/sounds/foliage/kyles-brush-4.wav",
+    "startSeconds": 29.5,
+    "duration": 0.65,
+    "gain": 16.0,
+    "peak": 0.3870495739698589
+  },
+  {
+    "file": "public/sounds/foliage/kyles-brush-5.wav",
+    "startSeconds": 36.5,
+    "duration": 0.65,
+    "gain": 16.0,
+    "peak": 0.25330410255765057
+  },
+  {
+    "file": "public/sounds/foliage/kyles-brush-6.wav",
+    "startSeconds": 39.5,
+    "duration": 0.65,
+    "gain": 16.0,
+    "peak": 0.5762206791350409
+  }
+]

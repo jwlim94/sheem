@@ -1,3 +1,4 @@
+import { createGrassRustle } from './grassRustle';
 import { Vector3, Quaternion } from 'three';
 import { relativeWind, windExposure } from './windField';
 import { windAudioStrength } from './windAudioLevel';
@@ -9,7 +10,12 @@ export function createWindAudio() {
   const master = context.createGain();
   master.gain.value = 0;
   master.connect(context.destination);
-  const nodes: AudioNode[] = [master];
+  // Keep wind behind nearby contact sounds without changing its spatial response.
+  const windBus = context.createGain();
+  windBus.gain.value = 0.63;
+  windBus.connect(master);
+  const rustle = createGrassRustle(context, master);
+  const nodes: AudioNode[] = [master, windBus];
   const sources: AudioBufferSourceNode[] = [];
   function noise(seed: number, channels: number) {
     const buffer = context.createBuffer(
@@ -58,13 +64,13 @@ export function createWindAudio() {
   const panner = context.createPanner();
   panner.panningModel = 'HRTF';
   panner.rolloffFactor = 0;
-  bed.connect(bedFilter).connect(bedGain).connect(master);
+  bed.connect(bedFilter).connect(bedGain).connect(windBus);
   local
     .connect(high)
     .connect(airFilter)
     .connect(airGain)
     .connect(panner)
-    .connect(master);
+    .connect(windBus);
   nodes.push(bedFilter, airFilter, high, bedGain, airGain, panner);
   sources.forEach((s) => s.start());
   const forward = new Vector3(),
@@ -77,7 +83,10 @@ export function createWindAudio() {
   }
   return {
     context,
+    ready: rustle.ready,
+    contact: rustle.update,
     setAudible(value: boolean) {
+      rustle.setAudible(value);
       const now = context.currentTime;
       master.gain.cancelScheduledValues(now);
       master.gain.setValueAtTime(master.gain.value, now);
@@ -102,7 +111,8 @@ export function createWindAudio() {
         Math.hypot(listenerVelocity.x, listenerVelocity.y, listenerVelocity.z)
       );
       smooth(bedGain.gain, 0.45 * Math.min(1, ambient.speed / 12));
-      smooth(airGain.gain, 2 * strength * (0.8 + 0.2 * e.front));
+      // Keep direct airflow behind nearby foliage contact (another ~4 dB reduction).
+      smooth(airGain.gain, 1.26 * strength * (0.8 + 0.2 * e.front));
       smooth(airFilter.frequency, 1100 + 1800 * strength + 650 * e.front);
       for (const [key, p] of [
         ['x', listener.positionX],
@@ -133,6 +143,7 @@ export function createWindAudio() {
     dispose() {
       if (disposed) return;
       disposed = true;
+      rustle.dispose();
       sources.forEach((s) => s.stop());
       nodes.forEach((n) => n.disconnect());
       void context.close();

@@ -1,3 +1,4 @@
+import type { GrassRustleContact } from './grassRustle';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Quaternion } from 'three';
 import { createWindAudio } from './createWindAudio';
@@ -21,14 +22,15 @@ export function useWindAudio(active: boolean) {
     try {
       current = audio.current ?? createWindAudio();
       audio.current = current;
-      await current.context.resume();
+      await Promise.all([current.context.resume(), current.ready]);
       if (audio.current !== current) return;
       if (current.context.state !== 'running')
         throw new Error('Audio suspended');
       current.setAudible(desired.current && !document.hidden);
     } catch {
       if (audio.current !== current) return;
-      current?.setAudible(false);
+      current?.dispose();
+      audio.current = null;
       desired.current = false;
       setEnabled(false);
       setError(true);
@@ -57,5 +59,8 @@ export function useWindAudio(active: boolean) {
       setEnabled(false);
     };
   }, [active]);
-  return { enabled, error, toggle, update };
+  const contact = useCallback((contacts: readonly GrassRustleContact[]) => {
+    audio.current?.contact(contacts);
+  }, []);
+  return { enabled, error, toggle, update, contact };
 }

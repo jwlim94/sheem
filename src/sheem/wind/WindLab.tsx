@@ -158,7 +158,7 @@ export function WindPanel({
       </p>
       <output ref={readout} />
       <button aria-pressed={sound.enabled} onClick={() => void sound.toggle()}>
-        {sound.enabled ? 'Mute wind' : 'Enable wind'}
+        {sound.enabled ? 'Mute sound' : 'Enable sound'}
       </button>
       {sound.error && (
         <p role="status">Sound unavailable. Try enabling it again.</p>

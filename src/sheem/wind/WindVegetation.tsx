@@ -1,3 +1,5 @@
+import { grassRustleStrength } from './grassRustle';
+import type { GrassRustleContact } from './grassRustle';
 import type { RefObject } from 'react';
 import { stepGrassContact } from './grassContact';
 import type { GrassContactBody } from './grassContact';
@@ -31,8 +33,10 @@ export function WindVegetation({
   field,
   reducedMotion,
   contacts,
+  onContact,
 }: {
   contacts: RefObject<GrassContactBody[]>;
+  onContact: (contacts: readonly GrassRustleContact[]) => void;
   field: WindField;
   reducedMotion: boolean;
 }) {
@@ -155,6 +159,12 @@ export function WindVegetation({
     },
     [assets]
   );
+  const regions = useRef(
+    Array.from({ length: 4 }, () => ({
+      position: { x: 0, y: 0, z: 0 },
+      strength: 0,
+    }))
+  );
   const timer = useRef(1);
   const sample = useMemo(
     () => ({ velocity: { x: 0, y: 0, z: 0 }, speed: 0 }),
@@ -172,6 +182,11 @@ export function WindVegetation({
     }
     const blend = 1 - Math.exp(-Math.min(delta, 0.05) * 8);
     for (const cell of assets.cells) cell.value.lerp(cell.target, blend);
+    for (const region of regions.current) region.strength = 0;
+    const body = contacts.current[0];
+    const speed = body?.active
+      ? Math.hypot(body.velocity.x, body.velocity.z)
+      : 0;
     for (let i = 0; i < COUNT; i++) {
       const v = assets.cells[assets.cellIndices[i]].value,
         gain = reducedMotion ? 0 : 0.06 * assets.heights[i];
@@ -187,7 +202,23 @@ export function WindVegetation({
         v.y * gain
       );
       assets.contact.setXY(i, response.x, response.z);
+      if (body && speed > 0.08 && response.intensity > 0) {
+        const root = assets.roots[i];
+        const region =
+          regions.current[
+            (root.x >= body.position.x ? 1 : 0) +
+              (root.z >= body.position.z ? 2 : 0)
+          ];
+        const strength = grassRustleStrength(response.intensity, speed);
+        if (strength > region.strength) {
+          region.strength = strength;
+          region.position.x = root.x;
+          region.position.y = root.y + assets.heights[i] * 0.5;
+          region.position.z = root.z;
+        }
+      }
     }
+    onContact(regions.current);
     if (mesh.current) {
       mesh.current.geometry.attributes.windBend.needsUpdate = true;
       mesh.current.geometry.attributes.contactBend.needsUpdate = true;
