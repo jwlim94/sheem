@@ -1,5 +1,5 @@
 import { createTreeWind } from './treeWind';
-import type { WindField } from './windField';
+import type { WindField, Point3 } from './windField';
 import { varyTreeGeometry } from '../title/treeVariation';
 import type { TreeVariation } from '../title/treeVariation';
 import { useFrame } from '@react-three/fiber';
@@ -28,6 +28,7 @@ export function Pine({
   variation,
   field,
   reducedMotion = false,
+  onWind,
 }: {
   isolated?: boolean;
   styled: boolean;
@@ -42,6 +43,7 @@ export function Pine({
   variation?: TreeVariation;
   field?: WindField;
   reducedMotion?: boolean;
+  onWind?: (id: string, position: Readonly<Point3>, speed: number) => void;
 }) {
   const { scene } = useGLTF(MODEL);
   const windEnabled = !!field;
@@ -227,6 +229,8 @@ export function Pine({
   useFrame((state, delta) => {
     if (field)
       assets.wind?.update(field, state.clock.elapsedTime, delta, reducedMotion);
+    if (assets.wind)
+      onWind?.(`tree:${x}:${z}`, assets.wind.position, assets.wind.speed);
     if (contacts)
       for (const foliage of assets.foliage)
         foliage.update(contacts.current, delta, assets.wind);
@@ -298,10 +302,12 @@ export function PineTreeStudy({
   contacts,
   field,
   reducedMotion,
+  onWind,
 }: {
   contacts: RefObject<GrassContactBody[]>;
   field?: WindField;
   reducedMotion?: boolean;
+  onWind?: (id: string, position: Readonly<Point3>, speed: number) => void;
 }) {
   return (
     <group name="PineTreeStudy">
@@ -312,6 +318,7 @@ export function PineTreeStudy({
           contacts={contacts}
           field={field}
           reducedMotion={reducedMotion}
+          onWind={onWind}
         />
       ))}
     </group>

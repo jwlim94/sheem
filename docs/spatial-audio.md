@@ -453,3 +453,49 @@ it, compare speed 0 and 4 m/s, then toggle gusts. Walk around/away from the patc
 check direction and fade; orbiting the camera must not alter the ear listener.
 This single patch is the next Short: stationary rabbit, gust bends the grass,
 local rustle rises, then settles.
+
+### Tree canopy wind trial — 2026-10-04
+
+The wind course now uses the user-selected keweldog `breeze.wav` CC0 recording
+(see `public/sounds/foliage/CREDITS.md`) as two independent mono canopy emitters.
+They share one decoded loop and the existing rabbit-ear listener/master bus;
+playback starts at different offsets to avoid identical phasing. Emitters sit at
+60% tree height, use HRTF and linear attenuation (2 m reference, 14 m maximum).
+Gain follows the smoothed ambient wind driving tree motion, including local gusts
+and shelter; character speed does not produce tree rustle. Calm fades out smoothly.
+Sound toggle, tab hiding, failed loads and teardown use the existing audio lifecycle.
+
+This is a wind-rustle trial only: no new tree contact sound or meadow audio hookup.
+Existing grass contact/wind and direct-air levels are unchanged. The pine recording
+is temporarily shared by both species; the user should compare its mix near the
+canopy against the grass patch before choosing species-specific sources.
+
+### Quiet wind-course default — 2026-10-04
+
+Reduced default map wind from 4 to 2 m/s and lengthened gust cycles from 14 to
+24 seconds. Local shelter/zones and foliage audio remain intact. Ear-level ambient
+wind is silent below 2.5 m/s, rising quadratically above it; its maximum gain is
+also reduced. The diffuse low wind bed is silent below 5 m/s and reaches only
+0.12 at 12 m/s. Walking/running airflow keeps the existing soft movement weighting.
+This separates visible vegetation motion from audible air: quiet periods still
+have local grass/tree sounds where appropriate. Direct-air gains, calm thresholds,
+downwind reduction and walking/running limits were checked programmatically.
+The default unsheltered gust cycle spans 2–3.2 m/s; most of the cycle has no direct
+wind sound. Strong-wind testing remains available via the speed slider.
+
+### Authored calm/windy regions — 2026-10-04
+
+The course now has zero background wind, a feathered breeze region around the
+existing trees and a stronger region around the exposed hill. Flat start, the
+front grass patch and Quiet patch have zero ambient wind, including during gusts.
+This drives vegetation and foliage sound as well as direct air; it is not merely
+an audio-volume mask. Movement-relative air can still exist while running in calm
+space, and distant windy vegetation may remain audible through spatial falloff.
+
+TerrainWindConfig adds optional backgroundMultiplier (default 1 for existing maps)
+and zonesEnabled (default true). Zones blend against that baseline; turning off
+Local wind regions restores a uniform baseline for comparisons. Region edges use
+the existing smooth transition and overlapping regions remain order-independent.
+Checks sample calm areas throughout two gust cycles, active tree/hill regions,
+boundary continuity and backward-compatible/uniform settings. Spatial zero regions
+do not yet add intermittent full calms inside an otherwise windy region.

@@ -1,5 +1,5 @@
 import { createTreeWind } from './treeWind';
-import type { WindField } from './windField';
+import type { WindField, Point3 } from './windField';
 import { varyTreeGeometry } from '../title/treeVariation';
 import type { TreeVariation } from '../title/treeVariation';
 import { useFrame } from '@react-three/fiber';
@@ -27,6 +27,7 @@ export function Broadleaf({
   variation,
   field,
   reducedMotion = false,
+  onWind,
 }: {
   styled: boolean;
   x: number;
@@ -40,6 +41,7 @@ export function Broadleaf({
   variation?: TreeVariation;
   field?: WindField;
   reducedMotion?: boolean;
+  onWind?: (id: string, position: Readonly<Point3>, speed: number) => void;
 }) {
   const { scene } = useGLTF(MODEL);
   const windEnabled = !!field;
@@ -237,6 +239,8 @@ export function Broadleaf({
   useFrame((state, delta) => {
     if (field)
       owned.wind?.update(field, state.clock.elapsedTime, delta, reducedMotion);
+    if (owned.wind)
+      onWind?.(`tree:${x}:${z}`, owned.wind.position, owned.wind.speed);
     if (contacts)
       for (const foliage of owned.foliage)
         foliage.update(contacts.current, delta, owned.wind);
@@ -281,10 +285,12 @@ export function BroadleafTreeStudy({
   contacts,
   field,
   reducedMotion,
+  onWind,
 }: {
   contacts: RefObject<GrassContactBody[]>;
   field?: WindField;
   reducedMotion?: boolean;
+  onWind?: (id: string, position: Readonly<Point3>, speed: number) => void;
 }) {
   return (
     <group name="BroadleafTreeStudy">
@@ -295,6 +301,7 @@ export function BroadleafTreeStudy({
           contacts={contacts}
           field={field}
           reducedMotion={reducedMotion}
+          onWind={onWind}
         />
       ))}
     </group>

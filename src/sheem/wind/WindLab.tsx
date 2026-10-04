@@ -258,21 +258,22 @@ export function WindPanel({
       </button>
       <details className="wind-options">
         <summary>Wind layers</summary>
+        <p>
+          Flat start and Quiet patch are calm. Walk toward the trees for a
+          breeze; the hill is more exposed.
+        </p>
         <label>
           <input
             type="checkbox"
-            checked={config.zones.some((z) => z.enabled)}
+            checked={config.zonesEnabled ?? true}
             onChange={(e) =>
               onChange({
                 ...config,
-                zones: config.zones.map((z) => ({
-                  ...z,
-                  enabled: e.target.checked,
-                })),
+                zonesEnabled: e.target.checked,
               })
             }
           />{' '}
-          Position variation
+          Local wind regions
         </label>
         <label>
           <input

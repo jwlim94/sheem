@@ -38,3 +38,23 @@ CC0 does not require attribution; credit is retained for provenance.
   final 5 ms endpoint correction. Measured PCM peak 0.482; endpoints match.
 - Reproduce: decode MP3 with `afconvert -f WAVE -d LEI16 source.mp3 decoded.wav`,
   then `python3 scripts/prepare-grass-wind.py decoded.wav` from repository root.
+
+## Wind-driven tree canopy trial
+
+- Creator: **keweldog**
+- Title: **breeze.wav** (wind through pines)
+- Source: https://freesound.org/people/keweldog/sounds/181801/
+- License: **CC0 1.0** — https://creativecommons.org/publicdomain/zero/1.0/
+- Retrieved: 2026-10-04; selected by the user after previewing candidate #1.
+- Download: https://cdn.freesound.org/previews/181/181801_3153523-hq.mp3
+- Preserved: `art/audio/foliage/keweldog-181801-hq-preview.mp3`.
+- Public MP3 preview, not the login-only original WAV.
+- Runtime: `tree-wind-loop.wav`, mono 16-bit PCM, 23 seconds.
+- Processing: source seconds 2–26, stereo average, 180 Hz high-pass / 6.5 kHz
+  low-pass, one-second equal-power overlap, RMS target 0.055 with 0.75 peak cap,
+  5 ms endpoint correction. Measured PCM peak 0.750; endpoints match.
+- Reproduce: `afconvert -f WAVE -d LEI16 input.mp3 decoded.wav`, then
+  `python3 scripts/prepare-tree-wind.py decoded.wav`.
+- Both test trees use this pine recording as an initial wind-rustle trial, with
+  independent loop offsets. It is not a species-specific broadleaf recording or
+  a character-contact sound. Final mix requires in-scene listening feedback.

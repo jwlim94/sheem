@@ -1,8 +1,9 @@
+import { createTreeRustleAudio } from './treeRustleAudio';
 import { createWindGrassAudio } from './windGrassAudio';
 import { createGrassRustle } from './grassRustle';
 import { Vector3, Quaternion } from 'three';
 import { relativeWind, windExposure } from './windField';
-import { windAudioStrength } from './windAudioLevel';
+import { windAudioStrength, windBedLevel } from './windAudioLevel';
 import type { WindSample, Point3 } from './windField';
 
 /** Owned per experience. Procedural sound is a tuning source, not recorded wind. */
@@ -17,6 +18,7 @@ export function createWindAudio() {
   windBus.connect(master);
   const rustle = createGrassRustle(context, master);
   const grassWind = createWindGrassAudio(context, master);
+  const treeRustle = createTreeRustleAudio(context, master);
   const nodes: AudioNode[] = [master, windBus];
   const sources: AudioBufferSourceNode[] = [];
   function noise(seed: number, channels: number) {
@@ -85,12 +87,14 @@ export function createWindAudio() {
   }
   return {
     context,
-    ready: Promise.all([rustle.ready, grassWind.ready]),
+    ready: Promise.all([rustle.ready, grassWind.ready, treeRustle.ready]),
     patchWind: grassWind.update,
+    treeWind: treeRustle.update,
     contact: rustle.update,
     setAudible(value: boolean) {
       rustle.setAudible(value);
       grassWind.setAudible(value);
+      treeRustle.setAudible(value);
       const now = context.currentTime;
       master.gain.cancelScheduledValues(now);
       master.gain.setValueAtTime(master.gain.value, now);
@@ -114,9 +118,9 @@ export function createWindAudio() {
         apparent.speed,
         Math.hypot(listenerVelocity.x, listenerVelocity.y, listenerVelocity.z)
       );
-      smooth(bedGain.gain, 0.45 * Math.min(1, ambient.speed / 12));
-      // Keep direct airflow behind nearby foliage contact (another ~4 dB reduction).
-      smooth(airGain.gain, 1.26 * strength * (0.8 + 0.2 * e.front));
+      smooth(bedGain.gain, windBedLevel(ambient.speed));
+      // Stronger gusts can be heard at the ears; gentle wind is carried by foliage.
+      smooth(airGain.gain, 0.85 * strength * (0.8 + 0.2 * e.front));
       smooth(airFilter.frequency, 1100 + 1800 * strength + 650 * e.front);
       for (const [key, p] of [
         ['x', listener.positionX],
@@ -149,6 +153,7 @@ export function createWindAudio() {
       disposed = true;
       rustle.dispose();
       grassWind.dispose();
+      treeRustle.dispose();
       sources.forEach((s) => s.stop());
       nodes.forEach((n) => n.disconnect());
       void context.close();

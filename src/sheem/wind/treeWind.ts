@@ -103,6 +103,17 @@ export function createTreeWind(
     depths.push(depth);
   });
   return {
+    position: { x, y: y + height * 0.6, z },
+    get speed() {
+      return (
+        Math.hypot(
+          uniforms.treeWindLow.value.x * 0.4 +
+            uniforms.treeWindHigh.value.x * 0.6,
+          uniforms.treeWindLow.value.z * 0.4 +
+            uniforms.treeWindHigh.value.z * 0.6
+        ) / strength
+      );
+    },
     // Largest possible world offset at 12 m/s, including leaf flutter.
     maxDisplacement: strength * 12 * (kind === 'pine' ? 1.12 : 1.24),
     /** Mirror the GPU formula using its Float32 shape attribute and shared clock.

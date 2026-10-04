@@ -23,6 +23,9 @@ export type ShelterSettings = {
 };
 export type TerrainWindConfig = WindConfig & {
   zones: WindZone[];
+  /** Ambient multiplier outside authored wind regions; defaults to 1 for old maps. */
+  backgroundMultiplier?: number;
+  zonesEnabled?: boolean;
   gust: GustSettings;
   shelter: ShelterSettings;
 };
@@ -50,6 +53,10 @@ export function validateTerrainWind(
   const valid = (n: number, lo: number, hi: number) =>
     Number.isFinite(n) && n >= lo && n <= hi;
   if (
+    (config.backgroundMultiplier !== undefined &&
+      !valid(config.backgroundMultiplier, 0, 2)) ||
+    (config.zonesEnabled !== undefined &&
+      typeof config.zonesEnabled !== 'boolean') ||
     !Array.isArray(config.zones) ||
     config.zones.length > 32 ||
     !config.gust ||
@@ -80,6 +87,8 @@ export function validateTerrainWind(
   }
   return {
     ...base,
+    backgroundMultiplier: config.backgroundMultiplier ?? 1,
+    zonesEnabled: config.zonesEnabled ?? true,
     zones: config.zones.map((z) => ({ ...z })),
     gust: { ...config.gust },
     shelter: { ...config.shelter },
@@ -103,18 +112,21 @@ export function createTerrainWind(
   const steps = Math.ceil(c.shelter.distance);
   return {
     sample(p, seconds, out) {
+      const background = c.backgroundMultiplier ?? 1;
       let weighted = 0,
         totalWeight = 0;
       for (const z of c.zones)
-        if (z.enabled) {
+        if (c.zonesEnabled && z.enabled) {
           const w = smooth(
             (z.radius - Math.hypot(p.x - z.x, p.z - z.z)) / z.transition
           );
-          weighted += (z.multiplier - 1) * w;
+          weighted += (z.multiplier - background) * w;
           totalWeight += w;
         }
       // Order-independent blending; overlapping zones cannot multiply to extreme gains.
-      const zone = 1 + weighted / Math.max(1, totalWeight);
+      const zone = c.zonesEnabled
+        ? background + weighted / Math.max(1, totalWeight)
+        : 1;
       const phase =
         (seconds - (p.x * dx + p.z * dz) / c.gust.travelSpeed) / c.gust.period;
       const pulse = Math.pow(0.5 + 0.5 * Math.sin(2 * Math.PI * phase), 3);

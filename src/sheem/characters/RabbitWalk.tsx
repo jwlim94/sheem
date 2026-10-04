@@ -321,11 +321,13 @@ function WalkingScene({
             contacts={foliageBodies}
             field={windField}
             reducedMotion={reducedMotion}
+            onWind={windSound.treeWind}
           />
           <BroadleafTreeStudy
             contacts={foliageBodies}
             field={windField}
             reducedMotion={reducedMotion}
+            onWind={windSound.treeWind}
           />
           <WindVegetation
             field={windField}

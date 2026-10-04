@@ -65,5 +65,11 @@ export function useWindAudio(active: boolean) {
   const patchWind = useCallback((position: Readonly<Point3>, speed: number) => {
     audio.current?.patchWind(position, speed);
   }, []);
-  return { enabled, error, toggle, update, contact, patchWind };
+  const treeWind = useCallback(
+    (id: string, position: Readonly<Point3>, speed: number) => {
+      audio.current?.treeWind(id, position, speed);
+    },
+    []
+  );
+  return { enabled, error, toggle, update, contact, patchWind, treeWind };
 }
