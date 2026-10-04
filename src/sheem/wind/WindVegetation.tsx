@@ -1,3 +1,6 @@
+import type { RefObject } from 'react';
+import { stepGrassContact } from './grassContact';
+import type { GrassContactBody } from './grassContact';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -27,7 +30,9 @@ const COUNT = PATCHES.length * 300 * 3;
 export function WindVegetation({
   field,
   reducedMotion,
+  contacts,
 }: {
+  contacts: RefObject<GrassContactBody[]>;
   field: WindField;
   reducedMotion: boolean;
 }) {
@@ -41,6 +46,12 @@ export function WindVegetation({
     );
     bend.setUsage(THREE.DynamicDrawUsage);
     geometry.setAttribute('windBend', bend);
+    const contact = new THREE.InstancedBufferAttribute(
+      new Float32Array(COUNT * 2),
+      2
+    );
+    contact.setUsage(THREE.DynamicDrawUsage);
+    geometry.setAttribute('contactBend', contact);
     const random = seededRandom(121),
       dummy = new THREE.Object3D(),
       normal = new THREE.Vector3();
@@ -108,6 +119,13 @@ export function WindVegetation({
         }
       }
     return {
+      roots: matrices.map((m) => ({
+        x: m.elements[12],
+        y: m.elements[13],
+        z: m.elements[14],
+      })),
+      responses: matrices.map(() => ({ x: 0, z: 0, intensity: 0 })),
+      contact,
       geometry,
       material,
       bend,
@@ -158,9 +176,21 @@ export function WindVegetation({
       const v = assets.cells[assets.cellIndices[i]].value,
         gain = reducedMotion ? 0 : 0.06 * assets.heights[i];
       assets.bend.setXY(i, v.x * gain, v.y * gain);
+      const response = assets.responses[i];
+      stepGrassContact(
+        assets.roots[i],
+        assets.heights[i],
+        contacts.current,
+        delta,
+        response,
+        v.x * gain,
+        v.y * gain
+      );
+      assets.contact.setXY(i, response.x, response.z);
     }
     if (mesh.current) {
       mesh.current.geometry.attributes.windBend.needsUpdate = true;
+      mesh.current.geometry.attributes.contactBend.needsUpdate = true;
       (
         mesh.current.material as THREE.MeshStandardMaterial
       ).userData.grassTime.value = reducedMotion ? 0 : clock.elapsedTime;

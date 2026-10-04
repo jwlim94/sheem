@@ -280,3 +280,34 @@ restored tree rest transforms. A rendered overview was inspected. Existing wind
 field/terrain checks and lint/build pass, with the existing bundle-size advisory.
 For acceptance, use Reverse wind, compare west/east plants, enable traveling gusts,
 and set speed to zero. This can be shown in a Short without changing test spaces.
+
+### Grass contact response — 2026-10-03
+
+The existing wind test course now combines local wind with character contact on
+its same 4,500 meadow blades. `grassContact.ts` accepts world-space upright body
+volumes and resolved velocities independently of React, audio, or rabbit assets.
+The current character adapter uses one lower-body volume (0.34 m radius, 0.85 m
+height), not per-limb mesh collision. Nearby blades push away from the contact
+center with a travel-direction bias; penetration and speed increase displacement.
+A fast attack and slower exponential recovery preserve stationary contact and
+release smoothly after departure. Wind-bent positions participate in proximity
+checks. Multiple contact bodies are supported by the solver; networking is not
+connected. A per-blade contact intensity is available for future rustling work.
+
+The shader sums wind and contact displacement, bounds bending relative to blade
+height, and lowers tips as they bend. Root vertices receive zero displacement.
+Reduced-motion suppresses ambient sway but retains direct contact feedback.
+Only the wind test course is connected in this step; full-meadow integration,
+swept/individual-foot contact, and contact audio are not implemented. No sound
+assets or audio graph were changed.
+
+Acceptance: open Try the wind, set Wind speed to zero, walk through the grass
+near Flat start, stop inside it, then leave; repeat with Shift and restore wind.
+Blades should part locally, remain displaced while occupied, and recover after
+leaving. A Short can show calm grass parting around the rabbit and recovering.
+`node scripts/check-grass-contact.mjs` covers locality, direction, speed/depth,
+vertical separation, stationary contact, 30/60/120 Hz recovery, multiple bodies,
+and wind-shifted contact. Chrome keyboard testing recorded 139 displaced blades
+at the sampled passage frame, then less than 0.00005 m residual displacement
+three seconds after reset; instance root transforms stayed unchanged and no
+runtime/shader errors appeared. Lint and build pass (existing bundle-size warning).

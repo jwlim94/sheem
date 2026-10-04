@@ -11,7 +11,7 @@ export function grassMaterial(time: { value: number }, fieldDriven = false) {
     shader.uniforms.grassTime = time;
     shader.vertexShader = `uniform float grassTime;
       attribute vec3 groundNormal; attribute vec3 groundColor;
-      ${fieldDriven ? 'attribute vec2 windBend;' : ''}
+      ${fieldDriven ? 'attribute vec2 windBend; attribute vec2 contactBend;' : ''}
       varying vec3 vGrassNormal; varying vec3 vGroundColor;
       varying float vBladeHeight; varying float vGrassDistance; varying float vGrassAccent;
       ${shader.vertexShader}`;
@@ -45,7 +45,14 @@ export function grassMaterial(time: { value: number }, fieldDriven = false) {
       #endif
       // Displace in world-aligned mesh space AFTER per-blade yaw/scale.
       float flutter = 1. + .10*sin(grassTime*2.1 + root.x*1.7 + root.z*2.3);
-      mvPosition.xz += windBend * position.y * position.y * flutter;
+      vec2 combinedBend = windBend * flutter + contactBend;
+      float bladeLength = length(instanceMatrix[1].xyz);
+      float bendLength = length(combinedBend);
+      float bendLimit = bladeLength*.85;
+      combinedBend *= min(1.,bendLimit/max(bendLength,.00001));
+      float ratio = min(.85,bendLength/max(bladeLength,.00001));
+      mvPosition.xz += combinedBend * position.y * position.y;
+      mvPosition.y -= bladeLength*(1.-sqrt(1.-ratio*ratio))*position.y*position.y;
       mvPosition = modelViewMatrix * mvPosition;
       gl_Position = projectionMatrix * mvPosition;
     `
@@ -78,7 +85,7 @@ export function grassMaterial(time: { value: number }, fieldDriven = false) {
     );
   };
   material.customProgramCacheKey = () =>
-    fieldDriven ? 'sheem-grass-field-v1' : 'sheem-grass-lit-v2';
+    fieldDriven ? 'sheem-grass-field-contact-v2' : 'sheem-grass-lit-v2';
   return material;
 }
 

@@ -1,3 +1,4 @@
+import type { GrassContactBody } from '../wind/grassContact';
 import { WindVegetation } from '../wind/WindVegetation';
 import {
   WIND_TEST_GROUND,
@@ -106,6 +107,15 @@ function WalkingScene({
   const cameraClearance = useMemo(() => createRabbitCameraClearance(), []);
   const actor = useRef<Group>(null);
   const travelVelocity = useRef(new Vector3());
+  const grassBodies = useRef<GrassContactBody[]>([
+    {
+      position: new Vector3(),
+      velocity: new Vector3(),
+      radius: 0.34,
+      height: 0.85,
+      active: false,
+    },
+  ]);
   const orbit = useRef<OrbitControlsImpl>(null);
   const { camera } = useThree();
   const drive = useRef<RabbitDrive>({ motion: 'Idle', timeScale: 1, reset: 0 });
@@ -221,6 +231,9 @@ function WalkingScene({
     else travelVelocity.current.set(0, 0, 0);
     body.position.copy(state.position);
     body.position.y += 0.008;
+    Object.assign(grassBodies.current[0].position, state.position);
+    grassBodies.current[0].velocity = travelVelocity.current;
+    grassBodies.current[0].active = true;
     // Rabbit balance stays upright; its legs adapt independently to terrain.
     const x = state.position.x,
       z = state.position.z,
@@ -288,7 +301,11 @@ function WalkingScene({
       {wind ? (
         <>
           <WindTerrain field={windField} />
-          <WindVegetation field={windField} reducedMotion={reducedMotion} />
+          <WindVegetation
+            field={windField}
+            reducedMotion={reducedMotion}
+            contacts={grassBodies}
+          />
         </>
       ) : slopes ? (
         <SlopeTestEnvironment />
