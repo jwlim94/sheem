@@ -311,3 +311,19 @@ and wind-shifted contact. Chrome keyboard testing recorded 139 displaced blades
 at the sampled passage frame, then less than 0.00005 m residual displacement
 three seconds after reset; instance root transforms stayed unchanged and no
 runtime/shader errors appeared. Lint and build pass (existing bundle-size warning).
+
+### Movement airflow level tuning — 2026-10-03
+
+`windAudioLevel.ts` now tunes the audible strength independently of physical
+relative wind. The part of apparent speed above local ambient speed receives
+3–20% gain through a smooth movement-speed curve (1.6–3 m/s). In calm air this
+puts 1.8 m/s walking at about 4% of its former directional gain and 3 m/s running
+at 20%. Ambient contribution and stationary wind levels are unchanged; tailwind
+can still reduce apparent flow and headwind still increases it. The same tuned
+strength controls filter brightness. Direction, physical readouts, vegetation,
+and the diffuse ambient bed retain their existing inputs. Existing AudioParam
+smoothing remains in place; this is perceptual tuning, not a fluid simulation.
+
+Field checks cover calm walk/run levels, stationary ambient invariance,
+headwind/tailwind and continuous speed transitions. Lint/build pass. Headphone
+listening remains a user acceptance check; no claim of measured perceived loudness.

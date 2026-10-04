@@ -44,3 +44,16 @@ for(const speed of [0,1.8,3]){
 relativeWind(calm,{x:0,y:2,z:0},apparent);close(apparent.velocity.y,-2);
 assert(windExposure({velocity:{x:30,y:0,z:0},speed:30},{x:-1,y:0,z:0},{x:0,y:0,z:-1}).strength<=1);
 console.log('Relative wind: headwind, tailwind, outrunning, crosswind, calm walking/running, vertical motion and bounded level passed.');
+
+const { windAudioStrength } = await import('../src/sheem/wind/windAudioLevel.ts');
+close(windAudioStrength(0,0,0),0);
+const walkLevel=windAudioStrength(0,1.8,1.8),runLevel=windAudioStrength(0,3,3);
+assert(walkLevel < (1.8/12)*.05);
+close(runLevel,(3/12)*.2);
+assert(runLevel > walkLevel);
+for(const speed of [0,.5,2,4,12])close(windAudioStrength(speed,speed,0),speed/12);
+assert(windAudioStrength(4,7,3)>windAudioStrength(4,4,0),'Headwind still increases level');
+assert(windAudioStrength(4,1,3)<windAudioStrength(4,4,0),'Tailwind still reduces level');
+let last=0;
+for(let speed=0;speed<6;speed+=.01){const level=windAudioStrength(0,speed,speed);assert(level>=last && level-last<.001);last=level;}
+console.log('Audio levels: near-silent walk, soft run, unchanged stationary wind, head/tailwind and continuous transitions passed.');

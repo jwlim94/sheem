@@ -1,5 +1,6 @@
 import { Vector3, Quaternion } from 'three';
 import { relativeWind, windExposure } from './windField';
+import { windAudioStrength } from './windAudioLevel';
 import type { WindSample, Point3 } from './windField';
 
 /** Owned per experience. Procedural sound is a tuning source, not recorded wind. */
@@ -95,9 +96,14 @@ export function createWindAudio() {
       relativeWind(ambient, listenerVelocity, apparent);
       const e = windExposure(apparent, forward, right),
         listener = context.listener;
+      const strength = windAudioStrength(
+        ambient.speed,
+        apparent.speed,
+        Math.hypot(listenerVelocity.x, listenerVelocity.y, listenerVelocity.z)
+      );
       smooth(bedGain.gain, 0.45 * Math.min(1, ambient.speed / 12));
-      smooth(airGain.gain, 2 * e.strength * (0.8 + 0.2 * e.front));
-      smooth(airFilter.frequency, 1100 + 1800 * e.strength + 650 * e.front);
+      smooth(airGain.gain, 2 * strength * (0.8 + 0.2 * e.front));
+      smooth(airFilter.frequency, 1100 + 1800 * strength + 650 * e.front);
       for (const [key, p] of [
         ['x', listener.positionX],
         ['y', listener.positionY],
