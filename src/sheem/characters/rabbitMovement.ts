@@ -1,4 +1,6 @@
 import { MathUtils, Vector3 } from 'three';
+import { moveAroundTrunks } from './trunkCollision';
+import type { TrunkCollider } from './trunkCollision';
 import { surfaceHeight } from '../title/landscape';
 
 export const RABBIT_SPAWN = [-9, -25] as const;
@@ -7,6 +9,7 @@ export const RABBIT_SPEED = 1.8;
 export const RABBIT_RUN_SPEED = 3.0;
 export const RABBIT_CLEARING = [RABBIT_SPAWN[0], RABBIT_SPAWN[1], 7] as const;
 export type RabbitGround = {
+  trunks?: readonly TrunkCollider[];
   spawn: readonly [number, number];
   center: readonly [number, number];
   radius: number;
@@ -92,7 +95,24 @@ export function stepRabbit(
   }
   const oldX = state.position.x,
     oldZ = state.position.z;
-  state.position.addScaledVector(state.velocity, dt);
+  const blocked = ground.trunks
+    ? moveAroundTrunks(
+        state.position,
+        state.velocity.x * dt,
+        state.velocity.z * dt,
+        ground.trunks
+      )
+    : false;
+  if (!ground.trunks) state.position.addScaledVector(state.velocity, dt);
+  if (blocked) {
+    state.velocity.set(
+      (state.position.x - oldX) / dt,
+      0,
+      (state.position.z - oldZ) / dt
+    );
+    // Do not restore a pre-collision inward velocity during the landing/brake.
+    if (state.stopping) state.brakeVelocity.copy(state.velocity);
+  }
   const dx = state.position.x - ground.center[0],
     dz = state.position.z - ground.center[1];
   const distance = Math.hypot(dx, dz);

@@ -159,6 +159,31 @@ export function WindPanel({
       <p>
         Listen beside the grass near Flat start for wind rustling through it.
       </p>
+      <details>
+        <summary>Sheem pine</summary>
+        <p>
+          Walk beside the pine near Flat start to brush its low leaves. The
+          trunk is solid; nearby foliage bends gently on contact.
+        </p>
+        <small>
+          <a
+            href="https://sketchfab.com/3d-models/pine-tree-e52769d653cd4e52a4acff3041961e65"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Pine tree
+          </a>{' '}
+          by Andriy Shekh ·{' '}
+          <a
+            href="https://creativecommons.org/licenses/by/4.0/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            CC BY 4.0
+          </a>
+          . Sheem modifications: materials, leaf shading and contact movement.
+        </small>
+      </details>
       <output ref={readout} />
       <button aria-pressed={sound.enabled} onClick={() => void sound.toggle()}>
         {sound.enabled ? 'Mute sound' : 'Enable sound'}

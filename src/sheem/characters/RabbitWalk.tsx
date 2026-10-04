@@ -1,3 +1,4 @@
+import { PineTreeStudy } from '../wind/PineTreeStudy';
 import type { GrassContactBody } from '../wind/grassContact';
 import { WindVegetation } from '../wind/WindVegetation';
 import {
@@ -113,6 +114,15 @@ function WalkingScene({
       velocity: new Vector3(),
       radius: 0.34,
       height: 0.85,
+      active: false,
+    },
+  ]);
+  const foliageBodies = useRef<GrassContactBody[]>([
+    {
+      position: new Vector3(),
+      velocity: new Vector3(),
+      radius: 0.34,
+      height: duck ? 1.1 : 1.45,
       active: false,
     },
   ]);
@@ -234,6 +244,9 @@ function WalkingScene({
     Object.assign(grassBodies.current[0].position, state.position);
     grassBodies.current[0].velocity = travelVelocity.current;
     grassBodies.current[0].active = true;
+    Object.assign(foliageBodies.current[0].position, state.position);
+    foliageBodies.current[0].velocity = travelVelocity.current;
+    foliageBodies.current[0].active = true;
     // Rabbit balance stays upright; its legs adapt independently to terrain.
     const x = state.position.x,
       z = state.position.z,
@@ -301,6 +314,7 @@ function WalkingScene({
       {wind ? (
         <>
           <WindTerrain field={windField} />
+          <PineTreeStudy contacts={foliageBodies} />
           <WindVegetation
             field={windField}
             reducedMotion={reducedMotion}
