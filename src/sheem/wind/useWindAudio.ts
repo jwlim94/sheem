@@ -62,5 +62,8 @@ export function useWindAudio(active: boolean) {
   const contact = useCallback((contacts: readonly GrassRustleContact[]) => {
     audio.current?.contact(contacts);
   }, []);
-  return { enabled, error, toggle, update, contact };
+  const patchWind = useCallback((position: Readonly<Point3>, speed: number) => {
+    audio.current?.patchWind(position, speed);
+  }, []);
+  return { enabled, error, toggle, update, contact, patchWind };
 }

@@ -415,3 +415,41 @@ Further mix adjustment: reduced only the directional relative-airflow coefficien
 from 2 to 1.26 (another ~4 dB). Diffuse wind bed, foliage gain, filters and direction
 response remain unchanged. This targets the wind hitting the listener directly,
 which remained too prominent in user listening feedback.
+
+### Wind-driven grass patch — 2026-10-04
+
+The existing Flat start grass patch at (0, 3) now has one positional wind-rustle
+emitter at blade height, using a separately sourced CC0 dried-grass field recording
+by Coral_Island_Studios (Freesound 387338). This is not the contact sample pool or
+new synthesized noise. See `public/sounds/foliage/CREDITS.md` for source/license,
+MP3-preview provenance and reproducible processing. It is a texture trial;
+headphone suitability for green meadow grass remains a listening acceptance test.
+
+`WindVegetation` samples the same map field used by blades at the patch center
+10 times per second, including gusts/zones/terrain shelter. The reusable
+`createWindGrassAudio` owns one looping source, gain and HRTF panner inside the
+existing context/master, sharing the rabbit ear listener. Character velocity and
+contact intensity never enter this layer. Gain follows local speed with a 0.15 m/s
+quiet threshold and 350 ms smoothing. Linear distance attenuation reaches silence
+at 12 m; this is a small-patch point approximation, not a whole-field sound model.
+Only this patch has wind audio; other patches and trees retain visual sway only.
+Reduced-motion preference affects visual sway, not the environmental sound.
+
+The 10.5-second mono clip has a crossfaded loop seam. The current Enable/Mute sound
+and hidden-tab behavior control all three layers. Loads join the activation ready
+promise and existing error/retry handling. Abort and disposed guards prevent late
+loads from starting; disposal stops/disconnects the owned loop and processing nodes.
+
+Validation: `check-wind-grass-audio.mjs` covers calm/gust level mapping, source
+position, smoothing targets, mute, disposal, failed fetch and late completion.
+Contact and terrain regression checks plus lint/build pass. After a fresh Chrome
+navigation, stationary wind produced nonzero patch gain (~0.39), zero wind settled
+to zero, walking in zero wind did not increase it, and mute returned zero without
+runtime errors. An initial dev HMR hook error did not recur on a fresh navigation.
+No headphone audition or cross-browser verification is claimed.
+
+Acceptance: enable sound near Flat start, stand beside its grass without touching
+it, compare speed 0 and 4 m/s, then toggle gusts. Walk around/away from the patch to
+check direction and fade; orbiting the camera must not alter the ear listener.
+This single patch is the next Short: stationary rabbit, gust bends the grass,
+local rustle rises, then settles.

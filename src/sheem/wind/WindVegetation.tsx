@@ -34,7 +34,9 @@ export function WindVegetation({
   reducedMotion,
   contacts,
   onContact,
+  onPatchWind,
 }: {
+  onPatchWind: (position: THREE.Vector3, speed: number) => void;
   contacts: RefObject<GrassContactBody[]>;
   onContact: (contacts: readonly GrassRustleContact[]) => void;
   field: WindField;
@@ -165,6 +167,16 @@ export function WindVegetation({
       strength: 0,
     }))
   );
+  // The existing Flat start patch; sample at blade height, independent of contact.
+  const audiblePatch = useMemo(
+    () =>
+      new THREE.Vector3(
+        PATCHES[4][0],
+        windTestHeight(...PATCHES[4]) + 0.3,
+        PATCHES[4][1]
+      ),
+    []
+  );
   const timer = useRef(1);
   const sample = useMemo(
     () => ({ velocity: { x: 0, y: 0, z: 0 }, speed: 0 }),
@@ -174,6 +186,8 @@ export function WindVegetation({
     timer.current += delta;
     if (timer.current >= 0.1) {
       timer.current = 0;
+      field.sample(audiblePatch, clock.elapsedTime, sample);
+      onPatchWind(audiblePatch, sample.speed);
       for (const cell of assets.cells) {
         field.sample(cell.point, clock.elapsedTime, sample);
         const limit = sample.speed > 12 ? 12 / sample.speed : 1;

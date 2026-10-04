@@ -1,3 +1,4 @@
+import { createWindGrassAudio } from './windGrassAudio';
 import { createGrassRustle } from './grassRustle';
 import { Vector3, Quaternion } from 'three';
 import { relativeWind, windExposure } from './windField';
@@ -15,6 +16,7 @@ export function createWindAudio() {
   windBus.gain.value = 0.63;
   windBus.connect(master);
   const rustle = createGrassRustle(context, master);
+  const grassWind = createWindGrassAudio(context, master);
   const nodes: AudioNode[] = [master, windBus];
   const sources: AudioBufferSourceNode[] = [];
   function noise(seed: number, channels: number) {
@@ -83,10 +85,12 @@ export function createWindAudio() {
   }
   return {
     context,
-    ready: rustle.ready,
+    ready: Promise.all([rustle.ready, grassWind.ready]),
+    patchWind: grassWind.update,
     contact: rustle.update,
     setAudible(value: boolean) {
       rustle.setAudible(value);
+      grassWind.setAudible(value);
       const now = context.currentTime;
       master.gain.cancelScheduledValues(now);
       master.gain.setValueAtTime(master.gain.value, now);
@@ -144,6 +148,7 @@ export function createWindAudio() {
       if (disposed) return;
       disposed = true;
       rustle.dispose();
+      grassWind.dispose();
       sources.forEach((s) => s.stop());
       nodes.forEach((n) => n.disconnect());
       void context.close();

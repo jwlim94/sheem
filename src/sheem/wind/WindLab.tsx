@@ -156,6 +156,9 @@ export function WindPanel({
         Walk or hold Shift to run and feel the difference. Orbiting the camera
         keeps your listening direction.
       </p>
+      <p>
+        Listen beside the grass near Flat start for wind rustling through it.
+      </p>
       <output ref={readout} />
       <button aria-pressed={sound.enabled} onClick={() => void sound.toggle()}>
         {sound.enabled ? 'Mute sound' : 'Enable sound'}
