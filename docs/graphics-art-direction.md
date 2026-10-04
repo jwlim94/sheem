@@ -277,3 +277,30 @@ main meadow/title scene and the wind course. Grass and its wind/contact/audio
 behaviour are preserved. The styled pine and broadleaf remain in the wind course;
 this removal does not automatically distribute those heavier models across the
 main meadow. The title landscape is now more open until a separate placement pass.
+
+## Styled meadow tree placement — 2026-10-04
+
+The landing landscape and walking meadow now share 14 authored placements (eight
+pines, six broadleaf trees), with the approved runtime materials. Heights range
+from 5.2–13 m; width, yaw, crown spread and a slight upper-trunk lean vary by a
+stable seed. A continuous source-space warp applies equally to bark/branches and
+leaves. Density variants drop complete connected leaf cards rather than arbitrary
+triangles; source GLBs, UVs and credits remain intact. Variations are built once,
+not per frame. Per-tree geometry/material clones are disposed on unmount; cached
+textures remain loader-owned. Independent Suspense boundaries let entry render
+while trees load.
+
+The river/title centre remains open, with mixed groups on either bank and a small
+broadleaf beside the walking clearing. Layout data also supplies scaled/rotated
+trunk footprints. Nearby walking trees use the existing local foliage-contact
+response; distant decorative trees do not allocate contact state. This is static
+placement/shape variety, not a new tree wind-animation system. Existing wind-course
+specimens retain their sizes, positions, labels and contact behaviour.
+
+Acceptance: landing screenshot shows varied silhouettes framing the river; Enter
+shows the same layout at rabbit scale. Browser keyboard movement and nearby trunk
+collision verified (0.502864 m body clearance); no runtime errors observed. Lint
+and build pass (existing bundle-size warning). Desktop render counters were about
+2.10 M triangles / 48 calls in the title scene, 1.74 M triangles in the walking view
+(including terrain/grass and render passes); mobile performance and LOD are not yet
+validated. A before/after landing pan can illustrate this milestone in a Short.

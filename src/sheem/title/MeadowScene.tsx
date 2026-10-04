@@ -1,3 +1,6 @@
+import { MeadowTrees } from './MeadowTrees';
+import type { RefObject } from 'react';
+import type { GrassContactBody } from '../wind/grassContact';
 import { createGrassBlade } from './vegetationGeometry';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
@@ -323,9 +326,11 @@ function Camera({
 export function MeadowEnvironment({
   reducedMotion,
   clearing,
+  contacts,
 }: {
   reducedMotion: boolean;
   clearing?: readonly [number, number, number];
+  contacts?: RefObject<GrassContactBody[]>;
 }) {
   return (
     <>
@@ -347,6 +352,7 @@ export function MeadowEnvironment({
       />
       <Landscape reducedMotion={reducedMotion} />
       <Meadow reducedMotion={reducedMotion} clearing={clearing} />
+      <MeadowTrees contacts={contacts} />
       <DriftingSeeds reducedMotion={reducedMotion} />
     </>
   );

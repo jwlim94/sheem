@@ -1,3 +1,5 @@
+import { varyTreeGeometry } from '../title/treeVariation';
+import type { TreeVariation } from '../title/treeVariation';
 import { useFrame } from '@react-three/fiber';
 import type { RefObject } from 'react';
 import type { GrassContactBody } from './grassContact';
@@ -10,18 +12,28 @@ import * as THREE from 'three';
 import { windTestHeight } from './windTestGround';
 
 const MODEL = '/models/trees/stylized-tree.glb';
-function Broadleaf({
+export function Broadleaf({
   styled,
   x,
   z,
   width,
   contacts,
+  treeHeight = 5,
+  terrainHeight = windTestHeight,
+  yaw = 0,
+  label = true,
+  variation,
 }: {
   styled: boolean;
   x: number;
   z: number;
   width: number;
-  contacts: RefObject<GrassContactBody[]>;
+  contacts?: RefObject<GrassContactBody[]>;
+  treeHeight?: number;
+  terrainHeight?: (x: number, z: number) => number;
+  yaw?: number;
+  label?: boolean;
+  variation?: TreeVariation;
 }) {
   const { scene } = useGLTF(MODEL);
   const owned = useMemo(() => {
@@ -42,7 +54,7 @@ function Broadleaf({
         leafMeshes.push(object);
     });
     const lobes = styled ? fitCrownLobes(leafMeshes) : [];
-    const scale = 5 / size.y;
+    const scale = treeHeight / size.y;
     root.scale.multiply(new THREE.Vector3(scale * width, scale, scale * width));
     root.position.add(
       new THREE.Vector3(
@@ -86,12 +98,25 @@ function Broadleaf({
         geometry.setAttribute('treeCoordinate', coordinates);
         object.geometry = geometry;
         geometries.push(geometry);
-        if (leafMeshes.includes(object))
+        if (variation)
+          varyTreeGeometry(
+            object,
+            bounds,
+            variation,
+            leafMeshes.includes(object)
+          );
+        if (contacts && leafMeshes.includes(object))
           foliage.push(
             createFoliageContact(
               object,
-              x + 0.044 * width,
-              z + 0.018 * width,
+              x +
+                (treeHeight / 5) *
+                  width *
+                  (0.044 * Math.cos(yaw) + 0.018 * Math.sin(yaw)),
+              z +
+                (treeHeight / 5) *
+                  width *
+                  (-0.044 * Math.sin(yaw) + 0.018 * Math.cos(yaw)),
               false,
               true
             )
@@ -174,10 +199,11 @@ function Broadleaf({
         : convert(object.material);
     });
     return { root, materials, geometries, foliage };
-  }, [scene, styled, width, x, z]);
+  }, [scene, styled, width, x, z, treeHeight, variation, contacts, yaw]);
   useFrame((_, delta) => {
-    for (const foliage of owned.foliage)
-      foliage.update(contacts.current, delta);
+    if (contacts)
+      for (const foliage of owned.foliage)
+        foliage.update(contacts.current, delta);
   });
   useEffect(
     () => () => {
@@ -189,24 +215,27 @@ function Broadleaf({
   return (
     <group
       name={styled ? 'BroadleafStyled' : 'BroadleafReference'}
-      position={[x, windTestHeight(x, z), z]}
+      position={[x, terrainHeight(x, z) - (variation ? 0.035 : 0), z]}
+      rotation-y={yaw}
     >
       <primitive object={owned.root} dispose={null} />
-      <Html
-        position={[0, 0.25, 0]}
-        center
-        style={{
-          pointerEvents: 'none',
-          whiteSpace: 'nowrap',
-          fontSize: 13,
-          background: '#f7f5e8',
-          color: '#40533f',
-          padding: '5px 10px',
-          borderRadius: 8,
-        }}
-      >
-        {styled ? 'Sheem broadleaf' : 'Broadleaf · Original'}
-      </Html>
+      {label && (
+        <Html
+          position={[0, 0.25, 0]}
+          center
+          style={{
+            pointerEvents: 'none',
+            whiteSpace: 'nowrap',
+            fontSize: 13,
+            background: '#f7f5e8',
+            color: '#40533f',
+            padding: '5px 10px',
+            borderRadius: 8,
+          }}
+        >
+          {styled ? 'Sheem broadleaf' : 'Broadleaf · Original'}
+        </Html>
+      )}
     </group>
   );
 }

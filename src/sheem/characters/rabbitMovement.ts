@@ -1,3 +1,4 @@
+import { MEADOW_TREE_TRUNKS } from '../title/meadowTreeLayout';
 import { MathUtils, Vector3 } from 'three';
 import { moveAroundTrunks } from './trunkCollision';
 import type { TrunkCollider } from './trunkCollision';
@@ -16,6 +17,7 @@ export type RabbitGround = {
   height: (x: number, z: number) => number;
 };
 export const MEADOW_GROUND: RabbitGround = {
+  trunks: MEADOW_TREE_TRUNKS,
   spawn: RABBIT_SPAWN,
   center: RABBIT_SPAWN,
   radius: RABBIT_RADIUS,

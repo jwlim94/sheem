@@ -333,6 +333,7 @@ function WalkingScene({
         <MeadowEnvironment
           reducedMotion={reducedMotion}
           clearing={RABBIT_CLEARING}
+          contacts={foliageBodies}
         />
       )}
       <group

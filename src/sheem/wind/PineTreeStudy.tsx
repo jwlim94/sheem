@@ -1,3 +1,5 @@
+import { varyTreeGeometry } from '../title/treeVariation';
+import type { TreeVariation } from '../title/treeVariation';
 import { useFrame } from '@react-three/fiber';
 import type { RefObject } from 'react';
 import type { GrassContactBody } from './grassContact';
@@ -10,18 +12,30 @@ import { windTestHeight } from './windTestGround';
 
 const MODEL = '/models/trees/pine-tree.glb';
 /** Keep the loader's cached source untouched; own only study materials/geometries. */
-function Pine({
+export function Pine({
   styled,
   x,
   z,
   contacts,
   isolated = false,
+  treeHeight = 5,
+  width = 1,
+  terrainHeight = windTestHeight,
+  yaw = 0,
+  label = true,
+  variation,
 }: {
   isolated?: boolean;
   styled: boolean;
   x: number;
   z: number;
-  contacts: RefObject<GrassContactBody[]>;
+  contacts?: RefObject<GrassContactBody[]>;
+  treeHeight?: number;
+  width?: number;
+  terrainHeight?: (x: number, z: number) => number;
+  yaw?: number;
+  label?: boolean;
+  variation?: TreeVariation;
 }) {
   const { scene } = useGLTF(MODEL);
   const brushMarker = useRef<THREE.Group>(null);
@@ -34,13 +48,13 @@ function Pine({
     const bounds = new THREE.Box3().setFromObject(root);
     const size = bounds.getSize(new THREE.Vector3());
     const center = bounds.getCenter(new THREE.Vector3());
-    const scale = 5 / size.y;
-    root.scale.multiplyScalar(scale);
+    const scale = treeHeight / size.y;
+    root.scale.multiply(new THREE.Vector3(scale * width, scale, scale * width));
     root.position.add(
       new THREE.Vector3(
-        -center.x * scale,
+        -center.x * scale * width,
         -bounds.min.y * scale,
-        -center.z * scale
+        -center.z * scale * width
       )
     );
     root.traverse((object) => {
@@ -172,14 +186,21 @@ function Pine({
         normals.needsUpdate = true;
         geometry.setAttribute('canopyTone', tones);
         object.geometry = geometry;
-        foliage.push(createFoliageContact(object, x, z, isolated));
+        if (variation) varyTreeGeometry(object, bounds, variation, true);
+        if (contacts)
+          foliage.push(createFoliageContact(object, x, z, isolated));
+      } else if (variation) {
+        object.geometry = object.geometry.clone();
+        geometries.push(object.geometry);
+        varyTreeGeometry(object, bounds, variation, false);
       }
     });
     return { root, materials, geometries, foliage };
-  }, [scene, styled, x, z, isolated]);
+  }, [scene, styled, x, z, isolated, treeHeight, width, variation, contacts]);
   useFrame((_, delta) => {
-    for (const foliage of assets.foliage)
-      foliage.update(contacts.current, delta);
+    if (contacts)
+      for (const foliage of assets.foliage)
+        foliage.update(contacts.current, delta);
     if (brushMarker.current && assets.foliage[0]) {
       brushMarker.current.position.copy(assets.foliage[0].anchor);
       brushMarker.current.position.x -= x;
@@ -197,7 +218,8 @@ function Pine({
   );
   return (
     <group
-      position={[x, windTestHeight(x, z), z]}
+      position={[x, terrainHeight(x, z) - (variation ? 0.035 : 0), z]}
+      rotation-y={yaw}
       name={
         isolated ? 'PineBranchTest' : styled ? 'PineStyled' : 'PineReference'
       }
@@ -221,7 +243,7 @@ function Pine({
           </Html>
         </group>
       )}
-      {!isolated && (
+      {!isolated && label && (
         <Html
           position={[0, 0.2, 0]}
           center
