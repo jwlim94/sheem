@@ -14,6 +14,7 @@ import {
   gradBeats,
   arenaBeats,
   mismBeats,
+  flyBeats,
   rewindBeats,
   schoolBeats,
   split,
@@ -54,6 +55,8 @@ function Loader({ ready }: { ready: boolean }) {
 }
 
 /** Caption windows over the 0..1 story progress: [fade in, fade out]. */
+/** Bridge's marketplace search over the valley (natural language). */
+const SEARCH = 'profitable businesses in Utah County under $1.5M';
 const captions = [
   { id: 'intro', from: -1, to: 0.14 },
   { id: 'work', from: 0.2, to: 0.4 },
@@ -85,6 +88,7 @@ export default function RoomPortfolio() {
     grad = useRef(0), // the admission mail into chapter 3, 0..1
     arena = useRef(0), // chapter 3, the commencement (out of the flow), 0..1
     mism = useRef(0), // chapter 3, the MISM's classroom, 0..1
+    fly = useRef(0), // the way to Bridge, over Utah Valley, 0..1
     pointer = useRef({ x: 0, y: 0 }),
     caption = useRef<Record<string, HTMLElement | null>>({}),
     hint = useRef<HTMLDivElement>(null),
@@ -106,6 +110,10 @@ export default function RoomPortfolio() {
     yearStrip = useRef<HTMLDivElement>(null),
     flash = useRef<HTMLDivElement>(null),
     flashWhite = useRef<HTMLDivElement>(null),
+    // Bridge's marketplace search, over the valley's listings.
+    search = useRef<HTMLDivElement>(null),
+    searchText = useRef<HTMLSpanElement>(null),
+    searchCount = useRef<HTMLDivElement>(null),
     sky = useRef<HTMLDivElement>(null);
   const [reduced, setReduced] = useState(
     () => matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -157,7 +165,8 @@ export default function RoomPortfolio() {
       lastFlipDesk = 0,
       lastLeafDesk = 0,
       lastFlipGrad = 0,
-      lastLeafGrad = 0;
+      lastLeafGrad = 0,
+      lastFlipFly = 0;
     const tick = (now: number) => {
       const e = scroll.current;
       if (e) {
@@ -176,6 +185,7 @@ export default function RoomPortfolio() {
           gb = gradBeats(parts.grad),
           ab = arenaBeats(parts.arena),
           ib = mismBeats(parts.mism),
+          fb = flyBeats(parts.fly),
           // Chapter 3's opening: the arena's or the classroom's (one is
           // out of the flow; its beats stay at 0).
           reveal3 = Math.max(ab.reveal, ib.reveal);
@@ -188,6 +198,7 @@ export default function RoomPortfolio() {
         grad.current = parts.grad;
         arena.current = parts.arena;
         mism.current = parts.mism;
+        fly.current = parts.fly;
         const show = (el: HTMLElement | null | undefined, o: number) => {
           if (!el) return;
           el.style.opacity = String(o);
@@ -211,36 +222,59 @@ export default function RoomPortfolio() {
             // the east windows as a day passes outside.
             // Into chapter 3: 2024 rolls on to 2025 on the admission's
             // white, as into chapter 2.
-            gm = parts.grad > 0,
-            desk = !gm && parts.desk > 0,
-            on = gm || (!desk && parts.mail > 0),
+            // Into chapter 4: 2024 rolls on to 2025 on his window's white.
+            fm = parts.fly > 0,
+            gm = !fm && parts.grad > 0,
+            desk = !fm && !gm && parts.desk > 0,
+            on = fm || gm || (!desk && parts.mail > 0),
             // Mechanical counter: each year rests, then flips quickly to the next.
-            steps = gm
-              ? gb.roll
-              : desk
-                ? db.roll * 2
-                : on
-                  ? mb.roll * 3
-                  : rb.spin * last,
+            steps = fm
+              ? fb.roll
+              : gm
+                ? gb.roll
+                : desk
+                  ? db.roll * 2
+                  : on
+                    ? mb.roll * 3
+                    : rb.spin * last,
             whole = Math.floor(steps),
             stepped = whole + MathUtils.smoothstep(steps - whole, 0.55, 1),
-            roll = gm
-              ? YEARS.indexOf(2024) - stepped
-              : desk
-                ? YEARS.indexOf(2022) - stepped
-                : on
-                  ? last - stepped
-                  : stepped,
-            wash = gm ? gb.flash : desk ? 0 : on ? mb.flash : rb.flash,
-            card = gm ? gb.card : desk ? 0 : on ? mb.card : rb.card;
+            roll =
+              fm || gm
+                ? YEARS.indexOf(2024) - stepped
+                : desk
+                  ? YEARS.indexOf(2022) - stepped
+                  : on
+                    ? last - stepped
+                    : stepped,
+            wash = fm
+              ? fb.flash
+              : gm
+                ? gb.flash
+                : desk
+                  ? 0
+                  : on
+                    ? mb.flash
+                    : rb.flash,
+            card = fm
+              ? fb.card
+              : gm
+                ? gb.card
+                : desk
+                  ? 0
+                  : on
+                    ? mb.card
+                    : rb.card;
           y.style.opacity = String(
-            gm
-              ? gb.counter * (1 - reveal3)
-              : desk
-                ? db.counter
-                : on
-                  ? mb.counter * (1 - ob.reveal)
-                  : rb.counter * (1 - sb.reveal)
+            fm
+              ? fb.counter
+              : gm
+                ? gb.counter * (1 - reveal3)
+                : desk
+                  ? db.counter
+                  : on
+                    ? mb.counter * (1 - ob.reveal)
+                    : rb.counter * (1 - sb.reveal)
           );
           y.style.color = mix(on ? 1 : wash);
           y.style.textShadow = on
@@ -250,17 +284,22 @@ export default function RoomPortfolio() {
           // centred over the card; over the windows on the way to his desk.
           const tall = innerWidth < innerHeight,
             off = 1 - wash;
-          y.style.transform = gm
-            ? `translate(-50%, calc(-50% - ${card * 9}vh))`
-            : desk
-              ? `translate(-50%, calc(-50% - ${tall ? 30 : 26}vh))`
-              : tall
-                ? `translate(-50%, calc(-50% + ${off * 24 - card * 9}vh))`
-                : `translate(calc(-50% + ${off * 17}vw), calc(-50% - ${card * 9}vh))`;
+          y.style.transform =
+            fm || gm
+              ? `translate(-50%, calc(-50% - ${card * 9}vh))`
+              : desk
+                ? `translate(-50%, calc(-50% - ${tall ? 30 : 26}vh))`
+                : tall
+                  ? `translate(-50%, calc(-50% + ${off * 24 - card * 9}vh))`
+                  : `translate(calc(-50% + ${off * 17}vw), calc(-50% - ${card * 9}vh))`;
           yearStrip.current.style.transform = `translateY(${-roll}em)`;
           // A page turn each time a year starts to flip over (forward only).
           const flip = Math.floor(steps + 0.45);
-          if (gm) {
+          if (fm) {
+            if (flip > lastFlipFly && fb.counter > 0.5)
+              audio.current?.flipPage(true, fb.counter);
+            lastFlipFly = flip;
+          } else if (gm) {
             if (flip > lastFlipGrad && gb.counter > 0.5)
               audio.current?.flipPage(true, gb.counter);
             lastFlipGrad = flip;
@@ -323,7 +362,13 @@ export default function RoomPortfolio() {
         // The mail's white lifts off the meeting room's whiteboard.
         if (flashWhite.current)
           flashWhite.current.style.opacity = String(
-            Math.max(mb.flash * (1 - ob.reveal), gb.flash * (1 - reveal3))
+            Math.max(
+              mb.flash * (1 - ob.reveal),
+              gb.flash * (1 - reveal3),
+              // Up through the classroom's ceiling, and at his window.
+              fb.punch,
+              fb.flash
+            )
           );
         show(caption.current.chapter2, mb.card * (1 - ob.reveal));
         show(caption.current.interview, fade(parts.office, 0.19, 0.42));
@@ -335,20 +380,49 @@ export default function RoomPortfolio() {
         show(caption.current.neighbor, db.card * (1 - gb.leave));
         // Chapter 3: its title on the admission's white, and its closing card.
         show(caption.current.chapter3, gb.card * (1 - reveal3));
-        show(caption.current.masters, Math.max(ab.card, ib.card));
+        show(
+          caption.current.masters,
+          Math.max(ab.card, ib.card) * (1 - fb.leave)
+        );
+        // Chapter 4: its title on his window's white.
+        show(caption.current.chapter4, fb.card);
+        // Over the valley, the marketplace's search: the query typed, then
+        // what it finds.
+        if (search.current && searchText.current && searchCount.current) {
+          search.current.style.opacity = String(fb.ui);
+          search.current.style.transform = `translate(-50%, ${(1 - fb.ui) * -16}px)`;
+          const typed = Math.round(
+            MathUtils.clamp((parts.fly - 0.47) / 0.08, 0, 1) * SEARCH.length
+          );
+          if (searchText.current.textContent?.length !== typed)
+            searchText.current.textContent = SEARCH.slice(0, typed);
+          searchCount.current.style.opacity = String(
+            MathUtils.smoothstep(parts.fly, 0.56, 0.6)
+          );
+        }
         // Into either chapter, the sound goes muffled as the camera falls
         // in and reopens on the card; a whoosh pulls it in.
-        audio.current?.setMuffle(Math.max(rb.muffle, mb.muffle, gb.muffle));
+        audio.current?.setMuffle(
+          Math.max(rb.muffle, mb.muffle, gb.muffle, fb.muffle)
+        );
         audio.current?.setRiser(parts.rewind);
         // (The same whoosh pulls each mail's white into the next chapter.)
-        audio.current?.setMailRiser(parts.grad > 0 ? parts.grad : parts.mail);
+        // (And up through the classroom's ceiling: its window, 0.84..1,
+        // over the punch.)
+        audio.current?.setMailRiser(
+          parts.fly > 0
+            ? 0.84 + ((parts.fly - 0.11) / 0.08) * 0.16
+            : parts.grad > 0
+              ? parts.grad
+              : parts.mail
+        );
         audio.current?.setMusicOut(rb.musicOut);
         // Chapter 1's song comes up with its card, as the muffle reopens, and
         // fades away into the mail, as the room's song did into the clock.
         // Back at BYU (chapter 3) the same song comes up again with that
         // chapter's card, from its intro: the school's theme (2026-11-19).
         audio.current?.setSchoolMusic(
-          Math.max(rb.card * (1 - mb.musicOut), gb.card)
+          Math.max(rb.card * (1 - mb.musicOut), gb.card * (1 - fb.musicOut))
         );
         // Chapter 2's song comes up with its card; muffled while he thinks,
         // opening as he writes; its big hit as he finishes the solution.
@@ -607,6 +681,7 @@ export default function RoomPortfolio() {
                 grad={grad}
                 arena={arena}
                 mism={mism}
+                fly={fly}
                 pointer={pointer}
                 reduced={reduced}
                 audio={audio}
@@ -687,6 +762,28 @@ export default function RoomPortfolio() {
             className="room-flash room-flash-white"
             aria-hidden="true"
           />
+          <div ref={search} className="room-search" aria-hidden="true">
+            <div className="room-search-bar">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="10.5" cy="10.5" r="6.5" />
+                <path d="M15.5 15.5 21 21" />
+              </svg>
+              <span ref={searchText} />
+              <i />
+              <span className="room-search-filters">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
+                  <circle cx="16" cy="7" r="2" />
+                  <circle cx="10" cy="17" r="2" />
+                </svg>
+                Filters
+              </span>
+              <span className="room-search-go">Search →</span>
+            </div>
+            <div ref={searchCount} className="room-search-count">
+              9,500+ businesses for sale · 1,400+ industries
+            </div>
+          </div>
           <div ref={year} className="room-year" aria-hidden="true">
             <div ref={yearStrip} className="room-year-strip">
               {YEARS.map((y) => (
@@ -788,7 +885,14 @@ export default function RoomPortfolio() {
                 takes away.
               </li>
             </ul>
-            <p className="room-soon">Next: Bridge, in Lehi. Coming soon.</p>
+            <p className="room-soon">Next: Bridge, in Lehi.</p>
+          </section>
+          <section ref={bind('chapter4')} className="room-caption room-chapter">
+            <p className="room-kicker">
+              CHAPTER 4<span className="room-sr"> · 2025</span>
+            </p>
+            <h2>Bridge</h2>
+            <p>Lehi, Utah · Full-Stack Engineer</p>
           </section>
         </div>
         <div className="room-track" />

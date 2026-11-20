@@ -217,9 +217,9 @@
 .room-track {
   /* Room story 400dvh + rewind 280dvh + school 360dvh + mail 240dvh +
      office 520dvh + desk 380dvh + grad 460dvh + the MISM classroom 520dvh
-     (story.ts; the arena's part has no length while it's out of the
-     flow), plus the first screen. */
-  height: 3260dvh;
+     + the way to Bridge 560dvh (story.ts; the arena's part has no length
+     while it's out of the flow), plus the first screen. */
+  height: 3820dvh;
   margin-top: -100dvh;
 }
 /* The rewind: the dial's cream washing over the screen. */
@@ -540,5 +540,105 @@
   .room-hold span,
   .room-hint span {
     animation: none;
+  }
+}
+
+/* Bridge's marketplace search, over the valley's listings (chapter 4's way
+   in): a map app's search bar, its query typed, then what it found. */
+.room-search {
+  position: absolute;
+  left: 50%;
+  top: clamp(72px, 11vh, 110px);
+  width: min(680px, calc(100vw - 32px));
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 0);
+}
+.room-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  padding: 0 20px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow:
+    0 10px 30px rgba(20, 24, 40, 0.28),
+    0 1px 2px rgba(20, 24, 40, 0.2);
+  color: #23262e;
+  font-size: clamp(14px, 1.6vw, 17px);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.room-search-bar svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: #6b6e77;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+.room-search-bar i {
+  flex: none;
+  width: 2px;
+  height: 20px;
+  margin-left: -10px;
+  background: #e98b3a;
+  animation: room-caret 1s steps(1) infinite;
+}
+@keyframes room-caret {
+  50% {
+    opacity: 0;
+  }
+}
+.room-search-filters {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding-left: 14px;
+  border-left: 1px solid #e3e3e6;
+  color: #3a3d45;
+  font-size: 14px;
+  font-weight: 600;
+}
+.room-search-filters svg {
+  width: 17px !important;
+  height: 17px !important;
+  stroke: #3a3d45 !important;
+  stroke-width: 2 !important;
+}
+.room-search-go {
+  flex: none;
+  padding: 9px 16px;
+  border-radius: 18px;
+  background: #e98b3a;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  margin-right: -12px;
+}
+.room-search-count {
+  margin: 10px auto 0;
+  width: fit-content;
+  padding: 7px 14px;
+  border-radius: 16px;
+  background: rgba(24, 28, 40, 0.72);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .room-search-bar i {
+    animation: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .room-search-filters {
+    display: none;
   }
 }

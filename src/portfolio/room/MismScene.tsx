@@ -2,15 +2,19 @@ import { useEffect, useMemo, useRef } from 'react';
 import type { RefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
-import { CanvasTexture, SRGBColorSpace } from 'three';
+import { CanvasTexture, MathUtils, SRGBColorSpace } from 'three';
 import type { Mesh, MeshStandardMaterial } from 'three';
 import { Classmates } from './Classmates';
 import type { Room } from './Classmates';
 import { mismBeats } from './story';
 import {
+  DESK_IN,
+  DESK_TOP,
   FRONT_X,
+  HALF_W,
   HERO_ROW,
   HERO_YAW,
+  LENSES,
   LID_ANGLE,
   MISM_KEYS,
   MISM_LAPTOP,
@@ -19,25 +23,42 @@ import {
   SCREEN_X,
   SCREENS,
   seats,
-  WHITEBOARD,
 } from './mism';
 import { drawCase, drawNotes, drawQuestion, NOTES_LENGTH } from './mismSlides';
+import { drawMismBoard, MISM_BOARD } from './mismBoard';
+import { loadKalam } from './officeDesk';
+import { DeskThings } from './DeskThings';
+import { ProjectorBeam } from './ProjectorBeam';
+import type { Beam } from './ProjectorBeam';
 import { drawKeyboard } from './schoolLaptop';
 import type { RoomAudio } from './audio';
 import { Soundbar } from './Soundbar';
-import { BAR, barOffWall } from './soundbarLayout';
+import { barOffWall } from './soundbarLayout';
 
-// The classroom's soundbar: hung on the front wall over the whiteboard,
-// between the two screens, facing the tiers (as the hall's faces its stage),
-// 2.6x the bookcase's (a 1.46 m bar) so it reads from the back row; its
-// bottom 0.17 m over the board, clear of the professor's head from the
-// seats. The classroom's one speaker light (SpeakerViz).
-const CLASS_BAR = 2.6;
+// The classroom's soundbar: small and out of the way, high on the right
+// side wall near the front, over its maple rail and short of its acoustic
+// panels (build_class.py: they stop 2 m behind the front floor), facing
+// across the room; glimpsed in the establishing shot's far right corner
+// (the user's call, 2026-11-20, as Neighbor's: over the whiteboard, front
+// and centre at 2.6x, it was too plain). The classroom's one speaker light
+// (SpeakerViz).
+const CLASS_BAR = 1.4;
 const CLASS_BAR_AT: [number, number, number] = [
-  FRONT_X - barOffWall(CLASS_BAR),
-  WHITEBOARD.top + 0.17 + (BAR.h / 2) * CLASS_BAR,
-  WHITEBOARD.z,
+  2.2,
+  3.15,
+  HALF_W - barOffWall(CLASS_BAR),
 ];
+
+// The projectors' light: in the bright room the beams themselves aren't
+// seen (drawn at a quarter of the hall's, they cost 0.5 ms a frame for a
+// haze no one saw), only the dust glinting in them (2026-11-20).
+const BEAMS: Beam[] = SCREENS.map((s, i) => ({
+  lens: LENSES[i],
+  slide: { x: SCREEN_X, y: s.y, z: s.z, w: s.w, h: s.h },
+  strength: 0,
+  motes: 260,
+  glint: 0.55,
+}));
 
 const CLASS = '/models/portfolio-mism/class.glb';
 /** Marks a canvas texture redrawn (outside the component: its textures are
@@ -64,17 +85,32 @@ function canvas(w: number, h: number) {
 // they're there from the start (a class under way), the professor in the
 // horseshoe's middle, facing the room, his hand toward the screens.
 const hero = seats().find((s) => s.row === HERO_ROW && s.yaw === HERO_YAW)!;
+/** A seat's angle round the horseshoe (seats(): -SPAN at the left wing). */
+const around = (s: { x: number; z: number }) => Math.atan2(s.z, -s.x);
 const ROOM: Room = {
   seats: seats(),
   free: (s) =>
     (s.row === HERO_ROW && Math.hypot(s.x - hero.x, s.z - hero.z) < 1.2) ||
-    (s.row === HERO_ROW + 1 && Math.hypot(s.x - hero.x, s.z - hero.z) < 2.3),
+    (s.row === HERO_ROW + 1 && Math.hypot(s.x - hero.x, s.z - hero.z) < 2.3) ||
+    // The back of the left wing, under the establishing shot's lens (one
+    // left there): close by, the class's heads massed over its corner
+    // (2026-11-20).
+    (s.row === 3 && around(s) < -0.4 && Math.abs(around(s) + 0.66) > 0.05) ||
+    (s.row === 2 && around(s) < -0.75),
   professor: { at: PROFESSOR, yaw: Math.PI, pose: 'standing' },
   arrive: [-0.06, 0.05],
-  // On the desk in front of them, not on their laps.
-  glow: [0.62, 0.86],
   // In the bright room: a cool slate, denser (pale ones vanished into it).
   tint: { color: '#56617a', rim: '#dfe6f7', body: 0.2, edge: 0.45 },
+  // Their laptops are on their desks (DeskThings), not on their laps.
+  reach: 0.14,
+  // As the class's answers go up on the right screen (behind his left), the
+  // professor holds his hand out to it, and lowers it once all are up.
+  gesture: (m) => {
+    const a = mismBeats(m).answer;
+    return (
+      MathUtils.smoothstep(a, 0, 0.12) * (1 - MathUtils.smoothstep(a, 0.9, 1))
+    );
+  },
 };
 
 /**
@@ -103,14 +139,28 @@ export function MismScene({
     const left = canvas(1600, 1000),
       right = canvas(1600, 1000),
       laptop = canvas(1024, 660),
-      keys = canvas(2048, 1414);
+      keys = canvas(2048, 1414),
+      board = canvas(MISM_BOARD.cw, MISM_BOARD.ch);
+    drawMismBoard(board.ctx);
     drawCase(left.ctx, 1600, 1000);
     drawQuestion(right.ctx, 1600, 1000, 0, 0);
     drawNotes(laptop.ctx, 1024, 660, 0, true);
     keys.ctx.scale(2, 2);
     drawKeyboard(keys.ctx, 1024, 707);
-    return { left, right, laptop, keys };
+    return { left, right, laptop, keys, board };
   }, []);
+  // The board's marker hand once its font is in.
+  useEffect(() => {
+    let alive = true;
+    loadKalam().then(() => {
+      if (!alive) return;
+      drawMismBoard(tex.board.ctx);
+      redrawn(tex.board);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [tex]);
   useEffect(
     () => () => {
       for (const t of Object.values(tex)) t.texture.dispose();
@@ -175,6 +225,23 @@ export function MismScene({
           />
         </mesh>
       ))}
+      {/* The whiteboard's writing, just off its face (6 mm). */}
+      <mesh
+        position={[FRONT_X - 0.035 - 0.006, 1.85, 0]}
+        rotation={[0, -Math.PI / 2, 0]}
+        receiveShadow
+      >
+        <planeGeometry args={[MISM_BOARD.w, MISM_BOARD.h]} />
+        <meshStandardMaterial
+          map={tex.board.texture}
+          roughness={0.25}
+          metalness={0}
+        />
+      </mesh>
+      {BEAMS.map((b, i) => (
+        <ProjectorBeam key={i} reduced={reduced} beam={b} />
+      ))}
+      <DeskThings room={ROOM} top={DESK_TOP} edge={DESK_IN} />
       {/* His laptop's screen on the lid's inner face (the lid leans back from
           the hinge, away from him), and its keyboard deck. */}
       <group position={MISM_LID} rotation={[0, HERO_YAW, 0]}>
@@ -207,7 +274,7 @@ export function MismScene({
         audio={audio}
         reduced={reduced}
         position={CLASS_BAR_AT}
-        rotation={-Math.PI / 2}
+        rotation={Math.PI}
         scale={CLASS_BAR}
         mount="wall"
       />

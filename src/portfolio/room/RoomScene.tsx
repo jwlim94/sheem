@@ -35,9 +35,22 @@ import {
   ARENA_IN_FLOW,
   MISM_ORIGIN,
   mismBeats,
+  flyBeats,
+  FLY_SWITCH,
+  VALLEY_ORIGIN,
 } from './story';
 import { ArenaScene } from './ArenaScene';
 import { MismScene } from './MismScene';
+import { ValleyScene } from './ValleyScene';
+import {
+  BRIDGE_AT,
+  BRIDGE_BOX,
+  FLOOR_H,
+  height as valleyHeight,
+  HIS_WINDOW,
+  PATH as FLY_PATH,
+  START_LOOK,
+} from './valley';
 import { NOTES_CPS, NOTES_HOLD, NOTES_LENGTH } from './mismSlides';
 import {
   FRONT_X as MISM_FRONT,
@@ -129,13 +142,13 @@ const PULL_BACK = 0.6;
 const ease = (a: number, b: number, p: number) => MathUtils.smoothstep(p, a, b);
 
 /** Which scene the camera is in. */
-type Place = 'room' | 'hall' | 'office' | 'desk' | 'arena' | 'mism';
+type Place = 'room' | 'hall' | 'office' | 'desk' | 'arena' | 'mism' | 'fly';
 /** The places drawn once behind the loader (see the warm-up), his room last
  *  (where the story starts). The desk is in the office's group, under the
  *  same lights. */
 const WARM_UP: Place[] = ARENA_IN_FLOW
   ? ['hall', 'office', 'room']
-  : ['hall', 'office', 'mism', 'room'];
+  : ['hall', 'office', 'mism', 'fly', 'room'];
 /** How long the warm-up waits for its programs to compile, at most (ms);
  *  past it, drawing the places finishes them. */
 const WARM_WAIT = 8000;
@@ -323,6 +336,37 @@ const WALK_PTS = WALK.map((p) => aat(...p)),
 // photo, the case on the screens and the professor in the middle; the camera
 // glides along there, then down over the tiers to him, over his right
 // shoulder onto his laptop; then up behind him, the screens over his head.
+// The way to Bridge (valley.ts, at VALLEY_ORIGIN): the camera along its path
+// (centripetal Catmull-Rom, by arc length), looking straight down onto BYU
+// at first, then ahead, then onto his window.
+const VO = new Vector3(...VALLEY_ORIGIN),
+  FLY_CURVE = new CatmullRomCurve3(
+    FLY_PATH.map((p) => new Vector3(...p).add(VO)),
+    false,
+    'centripetal'
+  ),
+  FLY_CAMPUS = new Vector3(...START_LOOK).add(VO),
+  FLY_WINDOW = new Vector3(...HIS_WINDOW).add(VO);
+
+/** The near plane over the valley: a tenth of the camera's clearance (above
+ *  the ground under it, less the campus's tallest; from Bridge's building),
+ *  between 1 and 0.03 (at his window). (2026-11-20: at 0.03 the whole way,
+ *  the depth buffer told apart only ~1.2 m at 110 units off, and surfaces
+ *  a few metres apart could flicker; at 1, a few centimetres.) */
+function flyNear(p: Vector3) {
+  const x = p.x - VO.x,
+    y = p.y - VO.y,
+    z = p.z - VO.z,
+    above = y - Math.max(0, valleyHeight(x, z)) - 2.5,
+    bx = Math.max(0, Math.abs(x - BRIDGE_AT[0]) - BRIDGE_BOX.w / 2),
+    bz = Math.max(0, Math.abs(z - BRIDGE_AT[1]) - BRIDGE_BOX.d / 2),
+    by = Math.max(0, y - BRIDGE_BOX.floors * FLOOR_H);
+  return MathUtils.clamp(
+    Math.min(above, Math.hypot(bx, by, bz)) * 0.1,
+    0.03,
+    1
+  );
+}
 const MO = new Vector3(...MISM_ORIGIN);
 const mat_ = (x: number, y: number, z: number) => new Vector3(x, y, z).add(MO);
 const M_SEAT = mat_(...MISM_SEAT),
@@ -347,6 +391,11 @@ const M_EST = mat_(-9.4, 4.25, -8.6),
     .addScaledVector(M_RIGHT, 0.95)
     .add(new Vector3(0, 2.45, 0)),
   M_SCREENS_LOOK = mat_(MISM_FRONT, 1.75, 0),
+  // Over him, just under the ceiling (CEIL 4.9), the way to Bridge going
+  // up out of the room.
+  M_ABOVE = M_SEAT.clone()
+    .addScaledVector(M_FWD, 0.2)
+    .setY(MO.y + 4.55),
   MISM_FOV = 46;
 /** Where he is along his way (0..1), and which way he is going. */
 function walkAt(t: number, at: Vector3, dir: Vector3) {
@@ -649,6 +698,7 @@ export function RoomScene({
   grad,
   arena,
   mism,
+  fly,
   pointer,
   reduced,
   audio,
@@ -671,6 +721,9 @@ export function RoomScene({
   arena: RefObject<number>;
   /** 0..1 through chapter 3, the MISM's classroom. */
   mism: RefObject<number>;
+  /** 0..1 through the way to Bridge: up out of the classroom, over Utah
+   *  Valley to Lehi (into chapter 4). */
+  fly: RefObject<number>;
   /** Pointer position over the page, -1..1 each way, for a gentle parallax. */
   pointer: RefObject<{ x: number; y: number }>;
   audio: RefObject<RoomAudio | null>;
@@ -813,6 +866,8 @@ export function RoomScene({
     arenaGroup = useRef<Group>(null),
     diploma = useRef<Group>(null),
     mismGroup = useRef<Group>(null),
+    // Utah Valley, the way to Bridge (chapter 4's way in).
+    valleyGroup = useRef<Group>(null),
     spineBone = useRef<Object3D | null>(null),
     // His hips (leaving: where they land, and the camera's aim).
     hipsBone = useRef<Object3D | null>(null);
@@ -839,6 +894,7 @@ export function RoomScene({
       flyT: -1,
       arena: false, // the camera was in the arena last frame
       mism: false, // ... in the classroom
+      fly: false, // ... over the valley
       // Leaving: the camera's aim on him, and turned away (the pan).
       e: new Vector3(),
       f: new Vector3(),
@@ -1083,6 +1139,26 @@ export function RoomScene({
     deskLight = 0,
     dayP = 0
   ) => {
+    if (place === 'fly') {
+      // Over the valley the light is its own (in ValleyScene's shaders):
+      // the scene's lights are out and their maps not drawn. (placeLights
+      // sets them again on the way back.)
+      for (const l of [
+        fill,
+        sun,
+        hemi,
+        ambient,
+        windowGlow,
+        lamp,
+        monitor,
+        screenGlow,
+      ])
+        if (l.current) l.current.intensity = 0;
+      day.on = place;
+      shadowOn(lamp.current, false);
+      shadowOn(sun.current, false);
+      return;
+    }
     const inSchool = place === 'hall',
       atDesk = place === 'desk',
       inOffice = place === 'office' || atDesk;
@@ -1794,7 +1870,8 @@ export function RoomScene({
     camera: Camera,
     mb: ReturnType<typeof mismBeats>,
     tall: boolean,
-    step: number
+    step: number,
+    rise = 0
   ) => {
     const { pos, look } = tmp;
     pos.copy(M_EST).lerp(M_EST2, mb.est);
@@ -1803,6 +1880,9 @@ export function RoomScene({
     look.lerp(M_LID, mb.toHim);
     pos.lerp(M_BEHIND, mb.toScreens);
     look.lerp(M_SCREENS_LOOK, mb.toScreens);
+    // Into chapter 4: up over him to the ceiling, looking down onto him.
+    pos.lerp(M_ABOVE, rise);
+    look.lerp(M_KEYS, rise);
     if (reduced || !tmp.mism) camera.position.copy(pos);
     else camera.position.lerp(pos, 1 - Math.exp(-step * 8));
     tmp.mism = true;
@@ -1810,8 +1890,44 @@ export function RoomScene({
     camera.lookAt(look);
     const cam = camera as PerspectiveCamera,
       fov =
-        (MISM_FOV - 10 * mb.toHim * (1 - mb.toScreens) + 2 * mb.toScreens) *
+        (MISM_FOV -
+          10 * mb.toHim * (1 - mb.toScreens) +
+          2 * mb.toScreens +
+          8 * rise) *
         (tall ? 1.5 : 1);
+    if (Math.abs(cam.fov - fov) > 0.01) {
+      cam.fov = fov;
+      cam.updateProjectionMatrix();
+    }
+  };
+
+  /** The way to Bridge: over Utah Valley along its path, from straight down
+   *  onto BYU to ahead, north, and down onto his window. */
+  const flyCamera = (
+    camera: Camera,
+    fb: ReturnType<typeof flyBeats>,
+    tall: boolean,
+    step: number
+  ) => {
+    const { pos, look } = tmp;
+    FLY_CURVE.getPointAt(fb.path, pos);
+    // Ahead: the ground toward Lehi, out as far as the camera is high and
+    // more (so it looks down at about 30 degrees). (2026-11-20: it looked
+    // along its path, and climbing out over BYU that pointed at the sky.)
+    const alt = Math.max(1, pos.y - VO.y);
+    tmp.e.set(FLY_WINDOW.x - pos.x, 0, FLY_WINDOW.z - pos.z);
+    const far = tmp.e.length();
+    tmp.e.multiplyScalar(Math.min(1, (alt * 1.7 + 20) / Math.max(far, 1e-3)));
+    look.set(pos.x + tmp.e.x, VO.y, pos.z + tmp.e.z);
+    look.lerpVectors(FLY_CAMPUS, look, fb.tilt);
+    look.lerp(FLY_WINDOW, fb.window);
+    if (reduced || !tmp.fly) camera.position.copy(pos);
+    else camera.position.lerp(pos, 1 - Math.exp(-step * 6));
+    tmp.fly = true;
+    tmp.mism = tmp.office = tmp.school = tmp.arena = false;
+    camera.lookAt(look);
+    const cam = camera as PerspectiveCamera,
+      fov = (54 - 12 * fb.window) * (tall ? 1.4 : 1);
     if (Math.abs(cam.fov - fov) > 0.01) {
       cam.fov = fov;
       cam.updateProjectionMatrix();
@@ -2026,6 +2142,11 @@ export function RoomScene({
       ab = arenaBeats(ar),
       mi = mism.current ?? 0,
       mib = mismBeats(mi),
+      fl = fly.current ?? 0,
+      flb = flyBeats(fl),
+      // Over the valley once the punch through the classroom's ceiling is
+      // white.
+      inFly = fl >= FLY_SWITCH,
       // Chapter 3: in the classroom (or the arena, if it's in the flow)
       // once the leaving's white is over.
       inArena = ARENA_IN_FLOW && gr >= GRAD_SWITCH,
@@ -2036,7 +2157,9 @@ export function RoomScene({
       db = deskBeats(dk),
       // Hired: at his desk once the camera is out of the meeting room.
       atDesk = inOffice && dk >= DESK_SWITCH,
-      place: Place = inArena
+      place: Place = inFly
+        ? 'fly'
+        : inArena
         ? 'arena'
         : inMism
           ? 'mism'
@@ -2072,7 +2195,18 @@ export function RoomScene({
     clips.talk?.setEffectiveWeight(0);
     if (ARENA_IN_FLOW && !arenaOn && (dk > 0.3 || gr > 0 || ar > 0))
       setArenaOn(true);
-    if (mismGroup.current) mismGroup.current.visible = inMism;
+    if (mismGroup.current) mismGroup.current.visible = inMism && !inFly;
+    if (valleyGroup.current) valleyGroup.current.visible = inFly;
+    {
+      // Over the valley, a near plane by how close the camera is to anything
+      // (flyNear); elsewhere the rooms'.
+      const cam = camera as PerspectiveCamera,
+        near = inFly ? flyNear(camera.position) : 0.1;
+      if (cam.near !== near) {
+        cam.near = near;
+        cam.updateProjectionMatrix();
+      }
+    }
     if (arenaGroup.current) arenaGroup.current.visible = inArena;
     clips.walk?.setEffectiveWeight(0);
     if (roomGroup.current) roomGroup.current.visible = place === 'room';
@@ -2237,6 +2371,13 @@ export function RoomScene({
       else if (bagDown.current) bagDown.current.visible = false;
     }
     if (!s) return;
+    // Not seen over the valley (he is at his window's desk).
+    s.visible = !inFly;
+    if (inFly) {
+      flyCamera(camera, flb, size.width < size.height, step);
+      return;
+    }
+    tmp.fly = false;
     if (inMism) {
       s.position.copy(M_SEAT);
       s.rotation.y = MISM_YAW + Math.PI / 2; // facing the front floor
@@ -2245,7 +2386,7 @@ export function RoomScene({
         desk.current.mouse = false;
       }
       desk.current.keys.copy(M_KEYS);
-      mismCamera(camera, mib, size.width < size.height, step);
+      mismCamera(camera, mib, size.width < size.height, step, flb.rise);
       return;
     }
     tmp.mism = false;
@@ -2392,6 +2533,7 @@ export function RoomScene({
       hall: schoolGroup.current,
       office: officeGroup.current,
       mism: ARENA_IN_FLOW ? null : mismGroup.current,
+      fly: valleyGroup.current,
     };
     // Every place in (the hall's group stands from the start; its scene
     // inside comes with its model).
@@ -2641,6 +2783,11 @@ export function RoomScene({
           </group>
         </Suspense>
       )}
+      <group ref={valleyGroup} visible={false} position={VALLEY_ORIGIN}>
+        <Suspense fallback={null}>
+          <ValleyScene fly={fly} reduced={reduced} />
+        </Suspense>
+      </group>
       {arenaOn && (
         <group ref={arenaGroup} visible={false} position={ARENA_ORIGIN}>
           <ArenaScene arena={arena} />

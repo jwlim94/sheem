@@ -28,12 +28,25 @@ import { LENS as HALL_LENS, SLIDE } from './hall';
  * density that is zero outside the pyramid and soft at its edges, so there are
  * no hard faces. Local to the school group (see build_school.py).
  */
-// From the booth's projector lens to the slide on the whiteboards (hall.ts).
-const LENS = new Vector3(...HALL_LENS);
-const SLIDE_C = new Vector3(SLIDE.x, SLIDE.y, SLIDE.z);
-const SLIDE_W = SLIDE.w,
-  SLIDE_H = SLIDE.h;
-const MOTES = 700;
+/** A beam: from its lens to the picture it throws on a wall facing ±X (the
+ *  picture across Z, up Y), how dense its light, how many motes, and how
+ *  bright they glint. By default the hall's: from the booth's projector lens
+ *  to the slide on the whiteboards (hall.ts). */
+export type Beam = {
+  lens: [number, number, number];
+  slide: { x: number; y: number; z: number; w: number; h: number };
+  /** The light's density in the air (0: no shaft drawn, the motes only). */
+  strength: number;
+  motes: number;
+  glint: number;
+};
+const HALL_BEAM: Beam = {
+  lens: HALL_LENS,
+  slide: SLIDE,
+  strength: 0.22,
+  motes: 700,
+  glint: 1,
+};
 // Cool projector white.
 const LIGHT = new Color('#dfe7ff');
 
@@ -112,11 +125,12 @@ void main() {
 
 const moteFragment = /* glsl */ `
 uniform vec3 uColor;
+uniform float uGlint;
 varying float vGlow;
 void main() {
   float d = length(gl_PointCoord - 0.5);
   float a = smoothstep(0.5, 0.05, d);
-  gl_FragColor = vec4(uColor * a * vGlow * 0.9, 1.0);
+  gl_FragColor = vec4(uColor * a * vGlow * 0.9 * uGlint, 1.0);
 }`;
 
 const additive = {
@@ -132,12 +146,15 @@ function rand(n: number) {
   return v - Math.floor(v);
 }
 
-/** The three shafts and their motes, local to the school group. */
-function buildBeam() {
+/** The shaft and its motes, local to the place's group. */
+function buildBeam(beam: Beam) {
+  const MOTES = beam.motes,
+    LENS = new Vector3(...beam.lens),
+    SLIDE_C = new Vector3(beam.slide.x, beam.slide.y, beam.slide.z);
   const box = new BoxGeometry(1, 1, 1);
   box.translate(0.5, 0.5, 0.5);
-  const across = new Vector3(0, 0, SLIDE_W),
-    up = new Vector3(0, SLIDE_H, 0),
+  const across = new Vector3(0, 0, beam.slide.w),
+    up = new Vector3(0, beam.slide.h, 0),
     along = SLIDE_C.clone().sub(LENS),
     origin = LENS.clone()
       .addScaledVector(across, -0.5)
@@ -154,7 +171,7 @@ function buildBeam() {
         uBasis: { value: basis },
         uColor: { value: LIGHT },
         uTime: { value: 0 },
-        uStrength: { value: 0.22 },
+        uStrength: { value: beam.strength },
       },
       side: FrontSide,
       ...additive,
@@ -190,6 +207,7 @@ function buildBeam() {
         uColor: { value: LIGHT },
         uTime: { value: 0 },
         uScale: { value: 30 },
+        uGlint: { value: beam.glint },
       },
       ...additive,
     })
@@ -215,7 +233,13 @@ function tick(
   mm.uniforms.uScale.value = scale;
 }
 
-export function ProjectorBeam({ reduced }: { reduced: boolean }) {
+export function ProjectorBeam({
+  reduced,
+  beam = HALL_BEAM,
+}: {
+  reduced: boolean;
+  beam?: Beam;
+}) {
   // Built and owned here (added to the group imperatively), so the frame loop
   // can update their uniforms; removed and disposed on unmount.
   const group = useRef<Group>(null),
@@ -224,8 +248,11 @@ export function ProjectorBeam({ reduced }: { reduced: boolean }) {
   useEffect(() => {
     const g = group.current;
     if (!g) return;
-    const list = buildBeam();
-    for (const { shaft, motes } of list) g.add(shaft, motes);
+    const list = buildBeam(beam);
+    // Without a strength, only the motes: in a lit room the beam itself
+    // isn't seen, only the dust glinting in it.
+    for (const { shaft, motes } of list)
+      g.add(...(beam.strength > 0 ? [shaft, motes] : [motes]));
     live.current = list;
     return () => {
       for (const { shaft, motes } of list) {
@@ -237,7 +264,7 @@ export function ProjectorBeam({ reduced }: { reduced: boolean }) {
       list[0]?.shaft.geometry.dispose();
       live.current = null;
     };
-  }, []);
+  }, [beam]);
 
   useFrame(({ camera, size }, dt) => {
     const list = live.current;

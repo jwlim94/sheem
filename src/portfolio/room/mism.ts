@@ -122,6 +122,13 @@ export const SCREENS = [
   { z: 3.75, y: 2.55, w: 4.0, h: 2.5 },
 ];
 export const SCREEN_X = FRONT_X - 0.07;
+/** The projectors' lenses (build_class.py: hung over the front floor, one
+ *  for each screen, at 0.55 of its distance off the middle). */
+export const LENSES = SCREENS.map((s): [number, number, number] => [
+  -0.8 + 0.235,
+  CEIL - 0.55,
+  s.z * 0.55,
+]);
 /** The whiteboard between them (build_class.py): its frame's top, and its
  *  centre along the wall. */
 export const WHITEBOARD = { top: 1.85 + 0.78, z: 0 };

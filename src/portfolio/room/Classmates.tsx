@@ -29,6 +29,7 @@ import {
   v,
 } from './figures';
 import type { Ball } from './figures';
+import { occupants } from './occupants';
 
 /**
  * The rest of CS 142: translucent silhouettes of classmates, memories around
@@ -54,16 +55,17 @@ function rand(n: number) {
   return x - Math.floor(x);
 }
 
-/** Arms per pose, shoulder to elbow to hand. */
-function seatedArms(pose: number, lean: number): Ball[] {
+/** Arms per pose, shoulder to elbow to hand; `reach`: how much further
+ *  ahead a typist's hands are (on a laptop on a desk, not the lap). */
+function seatedArms(pose: number, lean: number, reach = 0): Ball[] {
   const sx = -0.17 - lean,
     out: Ball[] = [];
   for (const s of [-1, 1]) {
     const sh = v(sx, 1.05, 0.25 * s);
     let elbow: Vector3, hand: Vector3;
     if (pose === 0) {
-      elbow = v(sx + 0.06, 0.78, 0.26 * s); // typing on a laptop on the lap
-      hand = v(0.3, 0.74, 0.11 * s);
+      elbow = v(sx + 0.06 + reach / 2, 0.78 + reach / 4, 0.26 * s); // typing
+      hand = v(0.3 + reach, 0.74 + reach / 4, 0.11 * s);
     } else if (pose === 1) {
       elbow = v(sx + 0.02, 0.74, 0.32 * s); // leaning back, arms on the rests
       hand = v(0.28, 0.69, 0.33 * s);
@@ -90,11 +92,11 @@ const POSES = [
   { lean: 0.03, headDrop: 0 }, // arms crossed
 ];
 
-function seatedFigure(pose: number) {
+function seatedFigure(pose: number, reach = 0) {
   const p = POSES[pose];
   return sculpt([
     ...seatedBody(p.lean, p.headDrop),
-    ...seatedArms(pose, p.lean),
+    ...seatedArms(pose, p.lean, reach),
   ]);
 }
 
@@ -128,8 +130,17 @@ const vertex = /* glsl */ `
 attribute float aAppear, aPhase;
 attribute vec2 aHead; // neck height, head's turning centre (x)
 uniform float uTime;
+// Typists at desks: their hands tap, in bursts (0 or 1).
+uniform float uType;
+// The professor's gesture (0..1): his left arm turned about its shoulder
+// (uPivot) round uAxis by up to uAngle, his head toward it.
+uniform float uPoint, uAngle;
+uniform vec3 uPivot, uAxis;
 varying vec3 vN, vV;
 varying float vA, vFade;
+vec3 turn(vec3 v, vec3 k, float a) {
+  return v * cos(a) + cross(k, v) * sin(a) + k * dot(k, v) * (1.0 - cos(a));
+}
 void main() {
   vA = aAppear;
   vec3 p = position;
@@ -137,9 +148,24 @@ void main() {
   // Breathing: the upper body rises a hair.
   float above = smoothstep(${(HIP + 0.1).toFixed(2)}, ${(HIP + 0.4).toFixed(2)}, p.y);
   p.y += above * 0.008 * sin(uTime * 1.3 + aPhase * 6.283);
-  // Now and then the head turns a little, then back.
+  if (uType > 0.0) {
+    // The forearms and hands (ahead of the body, below the chest), each
+    // hand on its own beat, a few words at a time.
+    float hands = smoothstep(0.1, 0.28, p.x) * (1.0 - smoothstep(0.92, 1.05, p.y));
+    float burst = smoothstep(0.15, 0.55, sin(uTime * 0.8 + aPhase * 23.0));
+    p.y += uType * hands * burst * 0.007 * sin(uTime * 17.0 + aPhase * 50.0 + sign(p.z) * 1.9);
+  }
+  if (uPoint > 0.0) {
+    // His left arm (beyond the shoulder, -z), the upper arm bending in.
+    float arm = smoothstep(0.3, 0.42, -p.z) * smoothstep(1.0, 1.2, p.y);
+    float b = uAngle * uPoint * arm;
+    p = uPivot + turn(p - uPivot, uAxis, b);
+    n = turn(n, uAxis, b);
+  }
+  // Now and then the head turns a little, then back (the professor's, to
+  // his left as he gestures).
   float look = smoothstep(0.82, 0.98, sin(uTime * 0.11 + aPhase * 40.0)) * (aPhase > 0.5 ? 1.0 : -1.0);
-  float a = 0.45 * look * smoothstep(aHead.x - 0.04, aHead.x + 0.06, p.y);
+  float a = (0.45 * look * (1.0 - uPoint) - 0.5 * uPoint) * smoothstep(aHead.x - 0.04, aHead.x + 0.06, p.y);
   vec2 c = vec2(aHead.y, 0.0);
   mat2 r = mat2(cos(a), sin(a), -sin(a), cos(a));
   p.xz = c + r * (p.xz - c);
@@ -189,27 +215,54 @@ type Crowd = {
   meshes: InstancedMesh[];
   appear: InstancedBufferAttribute;
   at: number[]; // when each one appears (chapter progress)
+  /** Its own uniforms (typing, gesture). */
+  own?: ReturnType<typeof motion>;
 };
 
-// Shared by every silhouette material; the time drives breathing and glances.
-const uniforms = {
-  uTime: { value: 0 },
-  uColor: { value: new Color('#8f9bb8') },
-  uRim: { value: new Color('#e6ecff') },
-  uBody: { value: 0.05 },
-  uEdge: { value: 0.34 },
+/** A room's uniforms, shared by its silhouettes' materials: its tint, and
+ *  the time that drives breathing and glances. (One set for every room
+ *  until 2026-11-20: once every place was in from the start, the last room
+ *  to tick set the others' tint, the hall's slate as the classroom's.) */
+type Look = {
+  uTime: { value: number };
+  uColor: { value: Color };
+  uRim: { value: Color };
+  uBody: { value: number };
+  uEdge: { value: number };
 };
+function look(tint: Room['tint']): Look {
+  return {
+    uTime: { value: 0 },
+    uColor: { value: new Color(tint.color) },
+    uRim: { value: new Color(tint.rim) },
+    uBody: { value: tint.body },
+    uEdge: { value: tint.edge },
+  };
+}
+/** A crowd's own: whether it types, and the professor's gesture. */
+function motion(type = 0) {
+  return {
+    uType: { value: type },
+    uPoint: { value: 0 },
+    uAngle: { value: 0 },
+    uPivot: { value: new Vector3() },
+    uAxis: { value: new Vector3(0, 1, 0) },
+  };
+}
 
 /**
  * Depth pass, then colour with an equal-depth test, over the same instances:
  * only each silhouette's outer surface shows (limbs don't show through).
  */
 function crowd(
+  shared: Look,
   geometry: BufferGeometry,
   places: Matrix4[],
   at: number[],
-  head: [number, number] = [NECK, HEAD[0]]
+  head: [number, number] = [NECK, HEAD[0]],
+  own = motion()
 ): Crowd {
+  const uniforms = { ...shared, ...own };
   const n = places.length,
     appear = new InstancedBufferAttribute(new Float32Array(n), 1),
     phase = new InstancedBufferAttribute(
@@ -248,7 +301,7 @@ function crowd(
     mesh.renderOrder = 3 + pass;
     return mesh;
   });
-  return { meshes, appear, at };
+  return { meshes, appear, at, own };
 }
 
 /** The professor standing in the room, asking it: weight on one leg, his
@@ -265,7 +318,12 @@ function standingFigure(): BufferGeometry {
     [0.1, 2.0, 0, 0.11],
     [0.035, 2.11, 0, 0.15],
     ...[-1, 1].flatMap((s) => [
-      ...chain(v(0, 1.08, 0.11 * s), v(0.0, 0.55, 0.12 * s + (s < 0 ? -0.02 : 0)), 0.1, 0.075),
+      ...chain(
+        v(0, 1.08, 0.11 * s),
+        v(0.0, 0.55, 0.12 * s + (s < 0 ? -0.02 : 0)),
+        0.1,
+        0.075
+      ),
       ...chain(v(0.0, 0.55, 0.12 * s), v(0.0, 0.1, 0.13 * s), 0.07, 0.055),
       ...chain(v(0.0, 0.05, 0.13 * s), v(0.12, 0.05, 0.13 * s), 0.055),
     ]),
@@ -323,11 +381,22 @@ function glows(
 export type Room = {
   seats: { row: number; x: number; y: number; z: number; yaw: number }[];
   free: (seat: { row: number; x: number; z: number }) => boolean;
-  professor: { at: [number, number, number]; yaw: number; pose: 'lectern' | 'standing' };
+  professor: {
+    at: [number, number, number];
+    yaw: number;
+    pose: 'lectern' | 'standing';
+  };
   arrive: [number, number];
-  glow: [number, number];
+  /** Where their laptops' glow sits (none where the laptops are real). */
+  glow?: [number, number];
   /** Their tint: body and rim colours, body and rim opacity. */
   tint: { color: string; rim: string; body: number; edge: number };
+  /** A room with desks: the typists' hands reach this much further, onto
+   *  the laptops on them (DeskThings), and tap. */
+  reach?: number;
+  /** The standing professor's gesture (0..1) at the chapter's progress:
+   *  his left arm out toward the screens, his head with it. */
+  gesture?: (progress: number) => number;
 };
 const HALL: Room = {
   seats: seats(),
@@ -340,43 +409,53 @@ const HALL: Room = {
   tint: { color: '#8f9bb8', rim: '#e6ecff', body: 0.05, edge: 0.34 },
 };
 
-function build(room: Room) {
+/** The professor's gesture: his left arm, from where it is held (the hand
+ *  forward and low) to out at his side, a little up and back, toward the
+ *  screens behind his left. About his shoulder; the axis and angle that
+ *  turn the one direction to the other. */
+const SHOULDER = v(0, 1.66, -0.27),
+  ARM_FROM = v(0.4, 1.47, -0.58).sub(SHOULDER).normalize(),
+  ARM_TO = v(0.05, 0.25, -0.97).normalize(),
+  ARM_AXIS = ARM_FROM.clone().cross(ARM_TO).normalize(),
+  ARM_ANGLE = Math.acos(ARM_FROM.dot(ARM_TO));
+
+function build(room: Room, shared: Look) {
   const byPose = POSES.map(() => ({
       places: [] as Matrix4[],
       at: [] as number[],
     })),
     lit = { places: [] as Matrix4[], at: [] as number[] };
-  let n = 0;
-  for (const seat of room.seats) {
-    const { row, z } = seat;
-    // Him and the seats around him stay free; a few scattered gaps too.
-    if (room.free(seat)) continue;
-    if (rand(row * 97 + z * 13.1) < 0.07) continue;
-    n++;
-    const r = rand(n * 5.17),
-      pose = r < 0.4 ? 0 : r < 0.62 ? 1 : r < 0.82 ? 2 : 3,
-      yaw = seat.yaw + (rand(n * 3.1) - 0.5) * 0.14,
-      s = 0.95 + rand(n * 7.7) * 0.1,
-      m = new Matrix4().compose(
-        v(seat.x, seat.y, z),
-        new Quaternion().setFromAxisAngle(v(0, 1, 0), yaw),
-        v(s, s, s)
-      ),
-      t = room.arrive[0] + room.arrive[1] * rand(n * 13.37); // their arrival
+  for (const { pose, m, t, n } of occupants(room)) {
     byPose[pose].places.push(m);
     byPose[pose].at.push(t);
-    if (pose === 0 && rand(n * 2.9) < 0.6) {
+    if (room.glow && pose === 0 && rand(n * 2.9) < 0.6) {
       lit.places.push(m);
       lit.at.push(t + 0.03);
     }
   }
+  const professor = motion();
+  if (room.gesture) {
+    professor.uPivot.value.copy(SHOULDER);
+    professor.uAxis.value.copy(ARM_AXIS);
+    professor.uAngle.value = ARM_ANGLE;
+  }
   return [
-    ...byPose.map((p, i) => crowd(seatedFigure(i), p.places, p.at)),
-    glows(lit.places, lit.at, room.glow),
+    ...byPose.map((p, i) =>
+      crowd(
+        shared,
+        seatedFigure(i, i === 0 ? (room.reach ?? 0) : 0),
+        p.places,
+        p.at,
+        undefined,
+        motion(i === 0 && room.reach ? 1 : 0)
+      )
+    ),
+    ...(room.glow ? [glows(lit.places, lit.at, room.glow)] : []),
     // The professor, there before anyone (from the chapter's first frame),
     // at the lectern or standing in the room; only his head turns (now and
-    // then, to the room).
+    // then, to the room), and his arm where the room says (gesture).
     crowd(
+      shared,
       room.professor.pose === 'lectern' ? lecternFigure() : standingFigure(),
       [
         new Matrix4().compose(
@@ -386,7 +465,8 @@ function build(room: Room) {
         ),
       ],
       [-0.05], // already standing there when the chapter opens
-      room.professor.pose === 'lectern' ? [1.86, 0.11] : [1.86, 0.04]
+      room.professor.pose === 'lectern' ? [1.86, 0.11] : [1.86, 0.04],
+      professor
     ),
   ];
 }
@@ -406,9 +486,9 @@ function tick(c: Crowd, s: number) {
   for (const m of c.meshes) m.visible = s > 0;
 }
 
-/** Advances the shared clock (module state, outside React). */
-function advance(dt: number) {
-  uniforms.uTime.value += dt;
+/** The professor's gesture, for the crowd that has one. */
+function gesture(c: Crowd, value: number) {
+  if (c.own && c.own.uAngle.value > 0) c.own.uPoint.value = value;
 }
 
 export function Classmates({
@@ -422,13 +502,14 @@ export function Classmates({
   room?: Room;
 }) {
   const group = useRef<Group>(null),
-    live = useRef<Crowd[] | null>(null);
+    live = useRef<{ list: Crowd[]; shared: Look } | null>(null);
   useEffect(() => {
     const g = group.current;
     if (!g) return;
-    const list = build(room);
+    const shared = look(room.tint),
+      list = build(room, shared);
     for (const c of list) g.add(...c.meshes);
-    live.current = list;
+    live.current = { list, shared };
     return () => {
       for (const c of list) {
         g.remove(...c.meshes);
@@ -442,15 +523,14 @@ export function Classmates({
     };
   }, [room]);
   useFrame((_, dt) => {
-    const list = live.current;
-    if (!list) return;
-    if (!reduced) advance(Math.min(dt, 0.05));
-    // (The material uniforms are shared: each room sets its tint.)
-    uniforms.uColor.value.set(room.tint.color);
-    uniforms.uRim.value.set(room.tint.rim);
-    uniforms.uBody.value = room.tint.body;
-    uniforms.uEdge.value = room.tint.edge;
-    for (const c of list) tick(c, school.current);
+    const now = live.current;
+    if (!now) return;
+    if (!reduced) now.shared.uTime.value += Math.min(dt, 0.05);
+    const s = school.current ?? 0;
+    for (const c of now.list) {
+      tick(c, s);
+      if (room.gesture) gesture(c, room.gesture(s));
+    }
   });
   return <group ref={group} />;
 }

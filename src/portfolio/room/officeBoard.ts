@@ -13,7 +13,7 @@ export const BOARD_W = 2048;
 export const BOARD_H = 1024;
 export const HAND = "Kalam, 'Bradley Hand', 'Marker Felt', cursive";
 
-const INK = {
+export const INK = {
   black: '#25282e',
   blue: '#1d4fb0',
   red: '#c8322c',
@@ -54,13 +54,13 @@ const cell = (file: number, rank: number) => ({
 });
 
 /** Deterministic pseudo-random in [0, 1). */
-function rand(n: number) {
+export function rand(n: number) {
   const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
   return x - Math.floor(x);
 }
 
 /** A marker stroke from a to b, a little wobbly. */
-function stroke(
+export function stroke(
   ctx: CanvasRenderingContext2D,
   x0: number,
   y0: number,
@@ -82,15 +82,16 @@ function stroke(
 }
 
 /** An arrow from a to b drawn up to t (0..1), its head once it arrives. */
-function arrow(
+export function arrow(
   ctx: CanvasRenderingContext2D,
   a: { x: number; y: number },
   b: { x: number; y: number },
   t: number,
-  seed: number
+  seed: number,
+  width = 6
 ) {
   if (t <= 0) return;
-  stroke(ctx, a.x, a.y, b.x, b.y, seed, 6, Math.min(1, t));
+  stroke(ctx, a.x, a.y, b.x, b.y, seed, width, Math.min(1, t));
   if (t < 0.98) return;
   const ang = Math.atan2(b.y - a.y, b.x - a.x);
   for (const s of [-1, 1])
@@ -101,11 +102,11 @@ function arrow(
       b.x - 26 * Math.cos(ang + s * 0.45),
       b.y - 26 * Math.sin(ang + s * 0.45),
       seed + s * 7,
-      6
+      width
     );
 }
 
-function text(
+export function text(
   ctx: CanvasRenderingContext2D,
   s: string,
   x: number,

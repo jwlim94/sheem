@@ -6,8 +6,9 @@ import { BRIDGE } from './daySky';
  * into chapter 1 (280dvh), the school (360dvh), the mail into chapter 2
  * (240dvh), the interview at Neighbor (520dvh), hired, the way out of the
  * meeting room to his desk (380dvh), his leaving Neighbor into chapter 3
- * (460dvh) and the master's: a security case in a business-school classroom
- * (520dvh). (The commencement in the Marriott Center, built first, is kept
+ * (460dvh), the master's: a security case in a business-school classroom
+ * (520dvh), and the way to Bridge, up out of the classroom and over Utah
+ * Valley from Provo to Lehi (560dvh). (The commencement in the Marriott Center, built first, is kept
  * out of the flow: ARENA_IN_FLOW; its part has no length.) See .room-track
  * in room.css.
  */
@@ -23,6 +24,7 @@ const SEG = {
   grad: 460,
   mism: ARENA_IN_FLOW ? 0 : 520,
   arena: ARENA_IN_FLOW ? 440 : 0,
+  fly: 560,
 };
 const TOTAL = Object.values(SEG).reduce((a, b) => a + b, 0);
 const OFFICE_START = SEG.room + SEG.rewind + SEG.school + SEG.mail;
@@ -30,6 +32,7 @@ const DESK_START = OFFICE_START + SEG.office;
 const GRAD_START = DESK_START + SEG.desk;
 const MISM_START = GRAD_START + SEG.grad;
 const ARENA_START = MISM_START + SEG.mism;
+const FLY_START = ARENA_START + SEG.arena;
 
 /** Where the room story ends (page 0..1): the welcome. */
 export const ROOM_END = SEG.room / TOTAL;
@@ -74,9 +77,8 @@ export const split = (page: number) => {
     desk: MathUtils.clamp((d - DESK_START) / SEG.desk, 0, 1),
     grad: MathUtils.clamp((d - GRAD_START) / SEG.grad, 0, 1),
     mism: SEG.mism ? MathUtils.clamp((d - MISM_START) / SEG.mism, 0, 1) : 0,
-    arena: SEG.arena
-      ? MathUtils.clamp((d - ARENA_START) / SEG.arena, 0, 1)
-      : 0,
+    arena: SEG.arena ? MathUtils.clamp((d - ARENA_START) / SEG.arena, 0, 1) : 0,
+    fly: MathUtils.clamp((d - FLY_START) / SEG.fly, 0, 1),
   };
 };
 
@@ -325,3 +327,44 @@ export function mismBeats(m: number) {
 
 /** Where the classroom is (far from every other set; hidden elsewhere). */
 export const MISM_ORIGIN: [number, number, number] = [0, 0, 900];
+/**
+ * Beats of the way to Bridge (fly progress 0..1), into chapter 4: his
+ * master's card goes; in the classroom the camera rises over him to the
+ * ceiling, looking down, and punches up through it (a white like a cloud's);
+ * it comes out high over BYU, looking straight down onto the campus and the
+ * "Y" on its mountain, and climbs, turning north up Utah Valley; over the
+ * lake in the sunset, along I-15, the towns' lights coming on, it flies to
+ * Lehi; on the way the listings of Bridge's marketplace pop up over the
+ * towns as pins, its search bar over them; it comes down over Lehi's
+ * offices to Bridge's, to his lit window; the white, 2025, chapter 4's card.
+ * (valley.ts, ValleyScene.tsx; 2026-11-20, the user's pick of three.)
+ */
+export function flyBeats(f: number) {
+  return {
+    leave: ease(0, 0.03, f), // his master's card goes
+    rise: smoother(0.01, 0.19, f), // up over him to the ceiling
+    punch: ease(0.12, 0.185, f) * (1 - ease(0.2, 0.27, f)), // through it
+    path: smoother(0.19, 0.93, f), // the flight, along its path
+    campus: ease(0.2, 0.25, f) * (1 - ease(0.3, 0.36, f)), // "BYU" over it
+    tilt: smoother(0.21, 0.4, f), // from straight down to ahead, north
+    labels: ease(0.3, 0.38, f) * (1 - ease(0.8, 0.86, f)), // the towns
+    dusk: ease(0.3, 0.85, f), // the valley's lights come on
+    pins: MathUtils.clamp((f - 0.44) / 0.28, 0, 1), // the clusters pop up
+    // Over Lehi, its cluster opens into its listings' cards.
+    split: MathUtils.clamp((f - 0.71) / 0.09, 0, 1),
+    ui: ease(0.44, 0.49, f) * (1 - ease(0.76, 0.81, f)), // its search bar
+    window: smoother(0.76, 0.9, f), // the aim onto his window
+    flash: ease(0.905, 0.955, f), // the white at his window
+    counter: ease(0.92, 0.95, f), // 2024, rolling on to 2025
+    roll: smoother(0.93, 0.96, f),
+    card: ease(0.95, 0.99, f), // chapter 4's title
+    muffle: ease(0.88, 0.95, f) * (1 - ease(0.98, 1, f)),
+    musicOut: ease(0.78, 0.95, f), // chapter 3's song fades away
+  };
+}
+
+/** Fly progress where the scenes swap, while the white covers the screen. */
+export const FLY_SWITCH = 0.19;
+
+/** Where the valley is (far from every other set; hidden elsewhere). */
+export const VALLEY_ORIGIN: [number, number, number] = [0, 0, 3000];
