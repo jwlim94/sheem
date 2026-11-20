@@ -1,0 +1,717 @@
+.expedition {
+  height: 100dvh;
+  width: 100%;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: #050c18;
+  color: #e9efef;
+  font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.expedition * {
+  box-sizing: border-box;
+}
+.expedition button,
+.expedition a {
+  -webkit-tap-highlight-color: transparent;
+}
+.expedition button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.expedition a {
+  color: inherit;
+  text-decoration: none;
+}
+.expedition :focus-visible {
+  outline: 2px solid #a6e8d2;
+  outline-offset: 5px;
+}
+.exp-space {
+  position: absolute;
+  inset: 0;
+  z-index: -3;
+}
+.exp-atmosphere {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 60%, transparent 30%, #07101b66),
+    linear-gradient(0deg, #050c18, transparent 24%, transparent 75%, #050c18);
+}
+.exp-header {
+  position: absolute;
+  top: 32px;
+  left: 3.5%;
+  right: 3.5%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.exp-brand {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 2px;
+}
+.exp-logo {
+  font-size: 35px;
+  color: #b0e6d8;
+}
+.exp-brand small {
+  display: block;
+  font-size: 7px;
+  letter-spacing: 1.8px;
+  color: #8599a8;
+  margin-top: 7px;
+}
+.exp-header nav {
+  display: flex;
+  gap: 28px;
+  align-items: center;
+  font-size: 11px;
+}
+.exp-header nav span {
+  color: #a5d8c7;
+  margin-left: 10px;
+}
+.exp-header nav button {
+  border: 1px solid #a6d8cd3b;
+  border-radius: 30px;
+  padding: 12px 18px;
+}
+.exp-mission {
+  position: absolute;
+  top: 130px;
+  left: 4%;
+  max-width: 295px;
+  pointer-events: none;
+}
+.exp-kicker {
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1.8px;
+  color: #a4c8c0;
+  line-height: 1.6;
+}
+.exp-kicker i {
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  background: #b8edd4;
+  border-radius: 50%;
+  margin-right: 8px;
+  box-shadow: 0 0 12px #9ef5d6;
+}
+.exp-mission h1 {
+  font-family: Georgia, serif;
+  font-size: 43px;
+  font-weight: 400;
+  letter-spacing: -1.4px;
+  line-height: 1.12;
+  margin: 20px 0;
+}
+.exp-mission h1 em {
+  color: #b2c3c5;
+}
+.exp-mission > p:not(.exp-kicker) {
+  font-size: 12px;
+  line-height: 1.8;
+  color: #99aab9;
+  max-width: 260px;
+}
+.exp-primary {
+  display: inline-flex;
+  gap: 22px;
+  align-items: center;
+  border: 1px solid #b4e9d665 !important;
+  border-radius: 5px;
+  padding: 13px 17px !important;
+  background: #153136cf !important;
+  color: #c9f3e3 !important;
+  font-size: 11px !important;
+  pointer-events: auto;
+  transition:
+    background 0.2s,
+    box-shadow 0.2s;
+}
+.exp-primary:hover {
+  background: #23464c !important;
+  box-shadow: 0 0 25px #76c9d119;
+}
+.exp-mission .exp-primary {
+  margin-top: 17px;
+}
+.has-launched .exp-mission {
+  max-width: 310px;
+}
+.has-launched .exp-mission h1 {
+  font-size: 25px;
+  margin: 15px 0;
+}
+.exp-objective {
+  position: absolute;
+  right: 3.5%;
+  top: 130px;
+  width: 218px;
+}
+.exp-objective > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.exp-objective span {
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: #9baeb8;
+}
+.exp-objective strong {
+  font-family: Georgia, serif;
+  font-size: 27px;
+  font-weight: 400;
+}
+.exp-objective strong small {
+  font-family: Arial, sans-serif;
+  font-size: 10px;
+  color: #6c8195;
+}
+.exp-progress {
+  display: flex;
+  gap: 5px;
+  margin-top: 15px;
+}
+.exp-progress i {
+  height: 3px;
+  flex: 1;
+  background: #4d63734d;
+}
+.exp-progress i.is-done {
+  background: #a7e3c8;
+  box-shadow: 0 0 12px #a7e3c849;
+}
+.exp-objective p {
+  font-size: 10px;
+  line-height: 1.7;
+  color: #859dab;
+  margin-top: 14px;
+}
+.exp-objective > a {
+  font-size: 11px;
+  color: #afe5c8;
+}
+.exp-beacon {
+  text-align: center;
+  white-space: nowrap;
+  padding: 9px 12px !important;
+  border-radius: 5px;
+  background: #050e1b8c !important;
+  transition: background 0.2s;
+}
+.exp-beacon:hover {
+  background: #18313c !important;
+}
+.exp-beacon small {
+  display: block;
+  font-size: 7px;
+  letter-spacing: 1.6px;
+  color: #8ba5b2;
+  margin-bottom: 7px;
+}
+.exp-beacon strong {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.2px;
+  color: #dce7e8;
+}
+.exp-beacon.is-found small {
+  color: #a8e3c4;
+}
+.exp-radar {
+  position: absolute;
+  left: 3.5%;
+  bottom: 105px;
+  width: 170px;
+  padding: 14px;
+  border: 1px solid #99c3c322;
+  border-radius: 7px;
+  background: #071320b3;
+  backdrop-filter: blur(10px);
+}
+.exp-radar-label {
+  font-size: 7px;
+  letter-spacing: 2px;
+  color: #9bbabf;
+}
+.exp-radar-field {
+  height: 96px;
+  margin-top: 12px;
+  position: relative;
+  background:
+    linear-gradient(#66849110 1px, transparent 1px),
+    linear-gradient(90deg, #66849110 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+.exp-radar-field button {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding: 5px;
+  color: #849cab;
+  font-size: 9px;
+  z-index: 1;
+}
+.exp-radar-field button.is-done {
+  color: #beeed1;
+}
+.exp-radar-ship {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 8px #8dedff;
+  left: 50%;
+  top: 59%;
+}
+.exp-radar > small {
+  font-size: 6px;
+  letter-spacing: 0.6px;
+  color: #6e8797;
+}
+.exp-docking {
+  position: absolute;
+  bottom: 107px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 60%;
+  text-align: center;
+}
+.exp-docking > span {
+  font-size: 7px;
+  letter-spacing: 2px;
+  color: #8da9b5;
+}
+.exp-docking > strong {
+  font-weight: 400;
+  font-size: 11px;
+  color: #b8cdd7;
+}
+.exp-docking strong i {
+  color: #acf5d5;
+  letter-spacing: 4px;
+}
+.exp-footer {
+  position: absolute;
+  left: 3.5%;
+  right: 3.5%;
+  bottom: 29px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid #b1ced423;
+  padding-top: 20px;
+  font-size: 9px;
+  color: #7f97a7;
+  gap: 20px;
+}
+.expedition kbd {
+  font-family: inherit;
+  font-size: 8px;
+  border: 1px solid #aeceda30;
+  padding: 3px 5px;
+  border-radius: 3px;
+  letter-spacing: 1px;
+}
+.exp-footer i {
+  font-style: normal;
+  padding: 0 10px;
+}
+.exp-footer button {
+  font-size: 10px;
+  color: #c3dacd;
+}
+.exp-dialog {
+  color: #e2eeee;
+  background: linear-gradient(135deg, #122731, #07121e 70%);
+  border: 1px solid #789aa752;
+  border-radius: 13px;
+  width: min(700px, 92vw);
+  max-height: 85dvh;
+  padding: 30px 40px;
+  box-shadow: 0 30px 140px #000a;
+  scrollbar-width: thin;
+  scrollbar-color: #536d79 transparent;
+}
+.exp-dialog::backdrop {
+  background: #0209139c;
+  backdrop-filter: blur(8px);
+}
+.exp-dialog-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 25px;
+  border-bottom: 1px solid #9ac5cd24;
+  margin-bottom: 25px;
+}
+.exp-dialog-top > span {
+  font-size: 8px;
+  letter-spacing: 1.8px;
+  color: #91b6c1;
+}
+.exp-dialog-top button {
+  font-size: 17px;
+  padding: 4px 7px;
+}
+.exp-dialog h2 {
+  font-family: Georgia, serif;
+  font-size: 44px;
+  line-height: 1.15;
+  letter-spacing: -1.4px;
+  font-weight: 400;
+  margin: 19px 0;
+}
+.exp-dialog h2 em {
+  color: #b4cecc;
+}
+.exp-role {
+  font-size: 14px;
+  color: #c1d9d5;
+}
+.exp-dates {
+  font-size: 10px;
+  color: #88a2b0;
+}
+.exp-dialog h3 {
+  font-family: Georgia, serif;
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1.4;
+  margin: 28px 0 20px;
+}
+.exp-highlights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 27px;
+}
+.exp-highlights span {
+  border: 1px solid #9ae4c830;
+  padding: 8px 10px;
+  border-radius: 3px;
+  font-size: 10px;
+  color: #b7dfcf;
+}
+.exp-contribution {
+  display: flex;
+  gap: 18px;
+  font-size: 12px;
+  line-height: 1.9;
+  color: #a7bdca;
+  margin-bottom: 21px;
+}
+.exp-contribution small {
+  color: #608290;
+  font-size: 9px;
+  padding-top: 3px;
+}
+.exp-next {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  margin-top: 29px;
+  border-top: 1px solid #89bfc428;
+  padding-top: 23px;
+}
+.exp-next > button:first-child {
+  font-size: 11px;
+  color: #92aeb9;
+}
+.exp-log-intro {
+  font-size: 13px;
+  line-height: 1.9;
+  color: #9fb9c6;
+}
+.exp-log-list {
+  margin: 24px 0;
+}
+.exp-log-list > div {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  border-top: 1px solid #93b8c121;
+  padding: 19px 0;
+}
+.exp-log-list > div > span {
+  font-size: 11px;
+  color: #607b8b;
+}
+.exp-log-list > div > span.collected {
+  color: #b1e8c8;
+}
+.exp-log-list button {
+  text-align: left;
+}
+.exp-log-list button:first-of-type {
+  flex: 1;
+}
+.exp-log-list strong {
+  display: block;
+  font-weight: 400;
+  font-size: 14px;
+}
+.exp-log-list small {
+  display: block;
+  font-size: 9px;
+  color: #869eae;
+  margin-top: 7px;
+  line-height: 1.6;
+}
+.exp-log-list button:last-child {
+  color: #b8dbc8;
+  padding: 10px;
+}
+.exp-contact {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid #89bfc428;
+  padding-top: 22px;
+  font-size: 11px;
+  color: #b3d8c7;
+}
+.exp-fallback {
+  position: absolute;
+  top: 48%;
+  width: 100%;
+  text-align: center;
+  padding: 20px;
+  font-size: 13px;
+  color: #95b4c1;
+}
+@media (max-width: 1000px) {
+  .exp-mission {
+    top: 110px;
+    max-width: 230px;
+  }
+  .exp-mission h1 {
+    font-size: 33px;
+  }
+  .exp-objective {
+    width: 165px;
+    top: 112px;
+  }
+  .exp-radar {
+    width: 135px;
+  }
+  .exp-footer > span {
+    max-width: 50%;
+    line-height: 2;
+  }
+  .exp-beacon strong {
+    font-size: 10px;
+  }
+  .exp-beacon small {
+    font-size: 6px;
+  }
+}
+@media (max-width: 700px) {
+  .exp-header {
+    top: 22px;
+    left: 6%;
+    right: 6%;
+  }
+  .exp-brand {
+    font-size: 9px;
+    gap: 8px;
+    letter-spacing: 1.4px;
+  }
+  .exp-logo {
+    font-size: 27px;
+  }
+  .exp-brand small {
+    font-size: 6px;
+    letter-spacing: 1px;
+  }
+  .exp-header nav {
+    gap: 12px;
+    font-size: 10px;
+  }
+  .exp-header nav > a {
+    display: none;
+  }
+  .exp-header nav button {
+    padding: 10px 13px;
+  }
+  .exp-mission {
+    top: 100px;
+    left: 6%;
+    max-width: 230px;
+  }
+  .exp-mission h1 {
+    font-size: 31px;
+    margin: 14px 0;
+  }
+  .exp-mission > p:not(.exp-kicker) {
+    font-size: 11px;
+    max-width: 200px;
+  }
+  .exp-kicker {
+    font-size: 6px;
+    letter-spacing: 1px;
+  }
+  .exp-mission .exp-primary {
+    margin-top: 8px;
+  }
+  .has-launched .exp-mission h1 {
+    font-size: 21px;
+  }
+  .has-launched .exp-mission > p:not(.exp-kicker) {
+    display: none;
+  }
+  .exp-objective {
+    right: 6%;
+    top: auto;
+    bottom: 170px;
+    width: 110px;
+  }
+  .exp-objective span {
+    font-size: 6px;
+    letter-spacing: 0.8px;
+    max-width: 45px;
+    line-height: 1.7;
+  }
+  .exp-objective strong {
+    font-size: 22px;
+  }
+  .exp-objective p {
+    font-size: 8px;
+  }
+  .exp-objective strong small {
+    font-size: 8px;
+  }
+  .exp-radar {
+    bottom: 173px;
+    left: 6%;
+    width: 117px;
+    padding: 10px;
+  }
+  .exp-radar-field {
+    height: 72px;
+  }
+  .exp-radar > small {
+    font-size: 5px;
+  }
+  .exp-docking {
+    bottom: 94px;
+    max-width: 90%;
+    width: 90%;
+  }
+  .exp-docking .exp-primary {
+    font-size: 10px !important;
+    padding: 12px !important;
+    gap: 14px;
+  }
+  .exp-docking > strong {
+    font-size: 10px;
+  }
+  .exp-footer {
+    left: 6%;
+    right: 6%;
+    bottom: 25px;
+    justify-content: center;
+    padding-top: 16px;
+  }
+  .exp-footer > span {
+    display: none;
+  }
+  .exp-footer button {
+    font-size: 10px;
+  }
+  .exp-beacon {
+    padding: 7px !important;
+  }
+  .exp-beacon small {
+    font-size: 5px;
+    letter-spacing: 0.7px;
+  }
+  .exp-beacon strong {
+    font-size: 9px;
+  }
+  .exp-dialog {
+    padding: 20px 23px;
+    max-height: 88dvh;
+  }
+  .exp-dialog h2 {
+    font-size: 34px;
+  }
+  .exp-dialog h3 {
+    font-size: 21px;
+  }
+  .exp-dialog-top > span {
+    font-size: 7px;
+    letter-spacing: 1px;
+  }
+  .exp-contribution {
+    gap: 12px;
+  }
+  .exp-next {
+    gap: 10px;
+  }
+  .exp-next .exp-primary {
+    font-size: 9px !important;
+    padding: 12px !important;
+  }
+  .exp-log-list > div {
+    gap: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .expedition * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+.exp-atmosphere {
+  background:
+    radial-gradient(ellipse at 55% 35%, #244e6420, transparent 55%),
+    radial-gradient(ellipse at 25% 75%, #4c346222, transparent 45%),
+    linear-gradient(0deg, #050c18, transparent 24%, transparent 75%, #050c18);
+}
+.exp-mission h1 {
+  font-size: 39px;
+}
+@media (max-width: 700px) {
+  .exp-mission h1 {
+    font-size: 31px;
+  }
+}
+.exp-dialog {
+  margin: auto;
+}
+@media (max-width: 700px) {
+  .exp-radar > small {
+    display: block;
+    line-height: 1.6;
+    margin-top: 8px;
+  }
+  .exp-objective > a {
+    font-size: 9px;
+    line-height: 1.6;
+    display: block;
+  }
+  .exp-beacon small {
+    display: none;
+  }
+}

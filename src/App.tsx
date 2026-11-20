@@ -34,6 +34,20 @@ const RabbitWalk = lazy(() =>
     default: m.RabbitWalk,
   }))
 );
+const RoomPortfolio = lazy(() => import('./portfolio/room/RoomPortfolio'));
+const StoryPortfolio = lazy(() => import('./portfolio/story/StoryPortfolio'));
+const FilmPortfolio = lazy(() => import('./portfolio/film/FilmPortfolio'));
+const StudentPreview = lazy(
+  () => import('./portfolio/character/StudentPreview')
+);
+const ExpeditionPortfolio = lazy(
+  () => import('./portfolio/expedition/ExpeditionPortfolio')
+);
+const UniversePortfolio = lazy(
+  () => import('./portfolio/universe/UniversePortfolio')
+);
+const Portfolio = lazy(() => import('./portfolio/Portfolio'));
+
 function App() {
   return (
     <BrowserRouter>
@@ -46,6 +60,14 @@ function App() {
       >
         <Routes>
           <Route path="/" element={<SheemApp />} />
+          <Route path="/portfolio/7" element={<RoomPortfolio />} />
+          <Route path="/portfolio/6" element={<StoryPortfolio />} />
+          <Route path="/portfolio/4" element={<FilmPortfolio />} />
+          <Route path="/portfolio/character" element={<StudentPreview />} />
+          <Route path="/portfolio/5" element={<StudentPreview />} />
+          <Route path="/portfolio/3" element={<ExpeditionPortfolio />} />
+          <Route path="/portfolio/2" element={<UniversePortfolio />} />
+          <Route path="/portfolio" element={<Portfolio />} />
           <Route path="/vanilla" element={<Vanilla />} />
           <Route path="/playground/movement" element={<MovementPrototype />} />
           <Route path="/playground" element={<Playground />} />

@@ -32,6 +32,17 @@ public/sounds/_original/
 # Blender authoring scripts
 __pycache__/
 *.pyc
+*.blend1
 
 # Local delivery archives duplicate the tracked Shorts source folders
 /docs/content/assets/shorts/*.zip
+
+# Private family photo used only as the source for the room's family illustration.
+art/portfolio-room/prints/family-source.jpg
+
+# Large source recordings for the portfolio room audio (see art/portfolio-room/audio/*.py).
+art/portfolio-room/audio/source/
+
+# The user's own filmed motion (personal video), the source of the mocap clip
+# (art/characters/jongwoo-v2/mocap/backpack-tpose.fbx is what the build uses).
+art/characters/jongwoo-v2/mocap/*.mov

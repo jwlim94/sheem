@@ -8,6 +8,7 @@ import {
   Bone,
   Group,
   Mesh,
+  Object3D,
   Quaternion,
   Vector3,
 } from 'three';
@@ -33,17 +34,25 @@ export type RabbitDrive = {
 
 /** Y-up, facing +Z, feet at zero; about 1.45 m including ears. */
 export function RabbitModel({
+  modelUrl = RABBIT_MODEL_URL,
   playing = true,
   motion = 'Idle',
   drive,
   groundHeight,
+  pose,
+  prepare,
 }: {
+  modelUrl?: string;
   playing?: boolean;
   motion?: RabbitMotion;
   drive?: RefObject<RabbitDrive>;
   groundHeight?: (x: number, z: number) => number;
+  /** Optional owned post-animation pose; restored before the next mixer update. */
+  pose?: (model: Object3D, delta: number) => void;
+  /** Optional instance-only accessory setup with resource cleanup. */
+  prepare?: (model: Object3D) => () => void;
 }) {
-  const { scene, animations } = useGLTF(RABBIT_MODEL_URL);
+  const { scene, animations } = useGLTF(modelUrl);
   // Each instance owns its skeleton; immutable geometry/materials stay in the cache.
   const rabbit = useMemo(() => {
     const instance = clone(scene);
@@ -55,6 +64,7 @@ export function RabbitModel({
     });
     return instance;
   }, [scene]);
+  useEffect(() => prepare?.(rabbit), [prepare, rabbit]);
   const grounding = useMemo(() => createRabbitGrounding(rabbit), [rabbit]);
   const mixer = useRef<AnimationMixer | null>(null);
   const blink = useRef<ReturnType<typeof createRabbitBlink> | null>(null);
@@ -99,6 +109,18 @@ export function RabbitModel({
       axis: new Vector3(1, 0, 0),
     };
   }, [rabbit]);
+
+  const customApplied = useRef(false);
+  const customPose = useMemo(
+    () => ({
+      bones: transition.poses.map(({ bone }) => ({
+        bone,
+        position: bone.position.clone(),
+        rotation: bone.quaternion.clone(),
+      })),
+    }),
+    [transition]
+  );
 
   const timing = useRef({
     elapsed: 1,
@@ -151,6 +173,13 @@ export function RabbitModel({
   useFrame((_, delta) => {
     const ownedMixer = mixer.current;
     if (!ownedMixer || !playing) return;
+    if (customApplied.current) {
+      for (const p of customPose.bones) {
+        p.bone.position.copy(p.position);
+        p.bone.quaternion.copy(p.rotation);
+      }
+      customApplied.current = false;
+    }
     grounding.restore();
     if (support.current) support.current.position.y = 0;
     const dt = Math.min(delta, 0.05);
@@ -310,6 +339,14 @@ export function RabbitModel({
       dt,
       drive ? gait.current.runWeight : motion === 'Run' ? 1 : 0
     );
+    if (pose) {
+      for (const p of customPose.bones) {
+        p.position.copy(p.bone.position);
+        p.rotation.copy(p.bone.quaternion);
+      }
+      pose(rabbit, dt);
+      customApplied.current = true;
+    }
   });
   return (
     <group ref={support}>

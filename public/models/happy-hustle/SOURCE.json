@@ -1,0 +1,12 @@
+{
+  "title": "Happy Hustle Boy \u2014 subtle portfolio study",
+  "author": "Golden Bean",
+  "source": "https://sketchfab.com/3d-models/happy-hustle-boy-bdc75c61891d42058fc414d0560f0a48",
+  "license": "CC-BY-NC-SA-4.0",
+  "changes": "Original geometry and pose retained. Slightly muted spectacle frame; added small J badge on laptop. Presentation scale normalized. No rig or animation added.",
+  "student_variant": {
+    "file": "happy-student-rigged.glb",
+    "license": "CC-BY-NC-SA-4.0",
+    "changes": "Original head, glasses, hair, cap, backpack and sneakers retained with boundary repairs; torso and limbs reconstructed; laptop removed; 20-bone skin with Idle, Walk, Wave clips. No facial animation."
+  }
+}

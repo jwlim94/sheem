@@ -4,6 +4,13 @@ Planning baseline: **2026-09-28**. Proposed architecture and acceptance targets 
 
 | Document | Purpose |
 | --- | --- |
+| [Portfolio character study](portfolio-character.md) | Original/refined Happy Hustle Boy comparison, provenance and animation limits |
+| [Room opening](portfolio-room.md) | Cinematic opening at `/portfolio/7`: CC0 room, student types, turns and waves on scroll |
+| [Compiled story](portfolio-story.md) | Lusion-style scroll portfolio at `/portfolio/6`: CS education and work told through morphing particles |
+| [Cinematic career story](portfolio-film.md) | Scroll-driven résumé at `/portfolio/4`, chapter visuals and reversible camera journey |
+| [Career expedition](portfolio-expedition.md) | Playable résumé at `/portfolio/3`: ship navigation, career discoveries, flight log |
+| [Space portfolio](portfolio-universe.md) | Independent cosmic experience portfolio at `/portfolio/2`, interactions and validation |
+| [Portfolio island prototype](portfolio-island.md) | Separate personal portfolio experiment at `/portfolio`, controls, validation and extraction inventory |
 | [First start screen](start-screen.md) | Current local meadow preview, interaction, validation and first Short |
 | [Rabbit character](rabbit-character.md) | Selected rabbit concept, versioned Blender/GLB models, animation preview and playable meadow |
 | [Product vision and principles](product-vision.md) | Experience, priorities, guest entry, quiet presence |

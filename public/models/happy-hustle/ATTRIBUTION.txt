@@ -1,0 +1,17 @@
+Happy Hustle Boy
+Author: Golden Bean (https://sketchfab.com/2uanwander5)
+Source: https://sketchfab.com/3d-models/happy-hustle-boy-bdc75c61891d42058fc414d0560f0a48
+License: Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+happy-hustle-original.glb: Source model with presentation scale/origin normalized.
+happy-hustle-refined.glb: Same model with subtly muted spectacle-area color and
+a small J badge on the laptop, modified for Jongwoo's local portfolio study.
+The adaptation is offered under the same CC BY-NC-SA 4.0 license.
+Original geometry, UVs and PBR textures are retained. Neither file has a rig.
+
+happy-student-rigged.glb: Animated student adaptation under CC BY-NC-SA 4.0.
+Source head/face/hair/glasses/cap, backpack and sneakers retained with boundary
+repairs. Laptop removed. Torso, clothing deformation surfaces, arms, hands and
+legs reconstructed for a neutral posture. Added a 20-bone humanoid skin and
+Idle, Walk, Wave animation clips. Facial expression remains static.

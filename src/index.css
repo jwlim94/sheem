@@ -1,4 +1,6 @@
 @import 'tailwindcss';
+/* Authoring assets contain binary Blender scenes, never utility classes. */
+@source not '../art';
 
 :root {
   font-family: system-ui, -apple-system, sans-serif;
