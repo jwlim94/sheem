@@ -6,6 +6,7 @@ import { MathUtils, PCFSoftShadowMap } from 'three';
 import { RoomAudio } from './audio';
 import { RoomScene } from './RoomScene';
 import { FrameBudget } from './FrameBudget';
+import { barLight } from './barLight';
 import {
   HOLDS,
   mailBeats,
@@ -23,6 +24,46 @@ import {
   YEARS,
 } from './story';
 import './room.css';
+
+/** A job card's figures, before its points (2026-11-22, the user's pick of
+ *  three mock-ups: what a reader takes in at a glance). */
+function Figures({ items }: { items: [string, string][] }) {
+  return (
+    <ul className="room-figures">
+      {items.map(([n, label]) => (
+        <li key={label}>
+          <strong>{n}</strong>
+          <span>{label}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** A job card's link to the company (where "Next: …" was: the story goes
+ *  on by itself). */
+function Visit({ href, name }: { href: string; name: string }) {
+  return (
+    <a className="room-visit" href={href} target="_blank" rel="noreferrer">
+      <span>Visit</span>
+      {name}
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 12h13" />
+        <path d="m13 6 6 6-6 6" />
+      </svg>
+    </a>
+  );
+}
+
+/** The links' arrow out (they open in a new tab). */
+function OutArrow() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M8 16 16 8" />
+      <path d="M9.5 8H16v6.5" />
+    </svg>
+  );
+}
 
 class RoomBoundary extends Component<
   { children: ReactNode },
@@ -60,7 +101,6 @@ function Loader({ ready }: { ready: boolean }) {
 const SEARCH = 'profitable businesses in Utah County under $1.5M';
 const captions = [
   { id: 'intro', from: -1, to: 0.14 },
-  { id: 'work', from: 0.2, to: 0.4 },
   { id: 'welcome', from: 0.72, to: 2 },
 ] as const;
 
@@ -116,7 +156,12 @@ export default function RoomPortfolio() {
     search = useRef<HTMLDivElement>(null),
     searchText = useRef<HTMLSpanElement>(null),
     searchCount = useRef<HTMLDivElement>(null),
-    sky = useRef<HTMLDivElement>(null);
+    sky = useRef<HTMLDivElement>(null),
+    // The top bar's two ends (the name, the links).
+    barEnds = useRef<{ left: HTMLElement | null; right: HTMLElement | null }>({
+      left: null,
+      right: null,
+    });
   const [reduced, setReduced] = useState(
     () => matchMedia('(prefers-reduced-motion: reduce)').matches
   );
@@ -168,7 +213,11 @@ export default function RoomPortfolio() {
       lastLeafDesk = 0,
       lastFlipGrad = 0,
       lastLeafGrad = 0,
-      lastFlipFly = 0;
+      lastFlipFly = 0,
+      // Whether each end of the top bar is on a light scene (ink-dark), as
+      // it stands (a remount keeps the classes).
+      inkLeft = !!barEnds.current.left?.classList.contains('is-ink'),
+      inkRight = !!barEnds.current.right?.classList.contains('is-ink');
     const tick = (now: number) => {
       const e = scroll.current;
       if (e) {
@@ -375,6 +424,22 @@ export default function RoomPortfolio() {
               fb.flash * (1 - bb.reveal)
             )
           );
+        // The top bar's text: cream on the dark and busy scenes, ink-dark
+        // where it is light behind it (how light, from the table sampled
+        // off the story itself: barLight.ts), each end on its own, with a
+        // little hysteresis so it does not flicker on the edge.
+        {
+          const behind = barLight(page.current, innerWidth < innerHeight),
+            ink = (was: boolean, l: number) => (was ? l > 0.14 : l > 0.2),
+            l = ink(inkLeft, behind.left),
+            r = ink(inkRight, behind.right);
+          if (l !== inkLeft)
+            barEnds.current.left?.classList.toggle('is-ink', l);
+          if (r !== inkRight)
+            barEnds.current.right?.classList.toggle('is-ink', r);
+          inkLeft = l;
+          inkRight = r;
+        }
         show(caption.current.chapter2, mb.card * (1 - ob.reveal));
         show(caption.current.interview, fade(parts.office, 0.19, 0.42));
         // The interview ends on the offer; then, at his desk, Neighbor's card.
@@ -709,13 +774,29 @@ export default function RoomPortfolio() {
         <Loader ready={ready} />
       </div>
 
+      {/* One line of small caps, no boxes (2026-11-22, the user's pick of
+          three): his name and role at the left, the links at the right. */}
       <header className="room-header">
-        <span className="room-brand">Jongwoo Lim</span>
-        <nav aria-label="Profile">
+        <p
+          className="room-brand"
+          ref={(el) => {
+            barEnds.current.left = el;
+          }}
+        >
+          <span className="room-brand-name">Jongwoo Lim</span>
+          <span className="room-brand-rule" aria-hidden="true" />
+          <span className="room-brand-role">Software Engineer</span>
+        </p>
+        <nav
+          aria-label="Profile"
+          ref={(el) => {
+            barEnds.current.right = el;
+          }}
+        >
           <button
             ref={soundButton}
             type="button"
-            className="room-sound"
+            className="room-link room-sound"
             aria-pressed={sound}
             onClick={toggleSound}
           >
@@ -725,22 +806,27 @@ export default function RoomPortfolio() {
               <i />
             </span>
             <span className="room-sound-label">
-              {sound ? 'Sound on' : 'Sound off'}
+              Sound{' '}
+              <span className="room-sound-state">{sound ? 'On' : 'Off'}</span>
             </span>
           </button>
           <a
+            className="room-link"
             href="/portfolio/jongwoo-lim-resume.pdf"
             target="_blank"
             rel="noreferrer"
           >
             Résumé
+            <OutArrow />
           </a>
           <a
+            className="room-link"
             href="https://www.linkedin.com/in/jwlim94"
             target="_blank"
             rel="noreferrer"
           >
             LinkedIn
+            <OutArrow />
           </a>
         </nav>
       </header>
@@ -753,15 +839,14 @@ export default function RoomPortfolio() {
       >
         <div className="room-pin">
           <section ref={bind('intro')} className="room-caption room-intro">
-            <p className="room-kicker">A SOFTWARE ENGINEER’S STORY</p>
+            <p className="room-kicker">
+              <i />A software engineer’s story
+            </p>
             <h1>
               Every story
               <br />
               starts in a room.
             </h1>
-          </section>
-          <section ref={bind('work')} className="room-caption room-work">
-            <p>Usually this one — at a desk, building something.</p>
           </section>
           <section ref={bind('welcome')} className="room-caption room-welcome">
             <h2>Welcome!</h2>
@@ -816,7 +901,10 @@ export default function RoomPortfolio() {
             </p>
           </section>
           <section ref={bind('school')} className="room-caption room-school">
-            <p className="room-kicker">2019 · PROVO, UTAH</p>
+            <p className="room-kicker">
+              <i />
+              <b>2019</b> · Provo, Utah
+            </p>
             <h2>It started with CS 142.</h2>
             <p>
               Day one of a B.S. in Computer Science at Brigham Young University,
@@ -834,7 +922,10 @@ export default function RoomPortfolio() {
             ref={bind('interview')}
             className="room-caption room-school room-up"
           >
-            <p className="room-kicker">2022 · LEHI, UTAH</p>
+            <p className="room-kicker">
+              <i />
+              <b>2022</b> · Lehi, Utah
+            </p>
             <h2>The first onsite interview.</h2>
             <p>
               Two engineers, one whiteboard, and a queen on a chessboard: in how
@@ -845,7 +936,10 @@ export default function RoomPortfolio() {
             ref={bind('offer')}
             className="room-caption room-school room-up"
           >
-            <p className="room-kicker">NEIGHBOR · MAY 2022</p>
+            <p className="room-kicker">
+              <i />
+              <b>Neighbor</b> · May 2022
+            </p>
             <h2>Got the offer.</h2>
             <p>Full-stack engineer, on the Renter team.</p>
           </section>
@@ -853,8 +947,18 @@ export default function RoomPortfolio() {
             ref={bind('neighbor')}
             className="room-caption room-school room-neighbor"
           >
-            <p className="room-kicker">NEIGHBOR · MAY 2022 – JAN 2024</p>
+            <p className="room-kicker">
+              <i />
+              <b>Neighbor</b> · May 2022 – Jan 2024
+            </p>
             <h2>Full-stack engineer at Neighbor.</h2>
+            <Figures
+              items={[
+                ['+10%', 'reservation rate'],
+                ['+3%', 'search-to-request'],
+                ['+150%', 'boosted listings'],
+              ]}
+            />
             <ul>
               <li>
                 Retired listings left inactive with no host engagement: renters
@@ -872,7 +976,7 @@ export default function RoomPortfolio() {
                 Finished my B.S. in Computer Science along the way (Dec 2022).
               </li>
             </ul>
-            <p className="room-soon">Next: back to BYU for a master’s.</p>
+            <Visit href="https://www.neighbor.com" name="Neighbor" />
           </section>
           <section ref={bind('chapter3')} className="room-caption room-chapter">
             <p className="room-kicker">
@@ -886,7 +990,8 @@ export default function RoomPortfolio() {
             className="room-caption room-school room-neighbor room-up"
           >
             <p className="room-kicker">
-              BYU · MARRIOTT SCHOOL OF BUSINESS · SEP 2024 – SEP 2025
+              <i />
+              <b>BYU</b> · Marriott School of Business · Sep 2024 – Sep 2025
             </p>
             <h2>Master of Information Systems Management.</h2>
             <ul>
@@ -900,7 +1005,6 @@ export default function RoomPortfolio() {
                 takes away.
               </li>
             </ul>
-            <p className="room-soon">Next: Bridge, in Lehi.</p>
           </section>
           <section ref={bind('chapter4')} className="room-caption room-chapter">
             <p className="room-kicker">
@@ -913,8 +1017,18 @@ export default function RoomPortfolio() {
             ref={bind('bridge')}
             className="room-caption room-school room-neighbor room-up"
           >
-            <p className="room-kicker">BRIDGE · MAY 2025 – PRESENT</p>
+            <p className="room-kicker">
+              <i />
+              <b>Bridge</b> · May 2025 – Present
+            </p>
             <h2>Full-stack engineer at Bridge.</h2>
+            <Figures
+              items={[
+                ['~70%', 'faster extraction'],
+                ['9,500+', 'listings'],
+                ['1,400+', 'industries'],
+              ]}
+            />
             <ul>
               <li>
                 Built the AI document extraction behind its business valuations:
@@ -933,15 +1047,7 @@ export default function RoomPortfolio() {
                 workers, audited deletion, all in Terraform.
               </li>
             </ul>
-            <p className="room-soon">
-              <a
-                href="https://bridge.financial"
-                target="_blank"
-                rel="noreferrer"
-              >
-                bridge.financial
-              </a>
-            </p>
+            <Visit href="https://bridge.financial" name="Bridge" />
           </section>
         </div>
         <div className="room-track" />
