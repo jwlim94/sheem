@@ -8,9 +8,7 @@ import {
   BufferAttribute,
   BufferGeometry,
   Color,
-  EqualStencilFunc,
   Group,
-  KeepStencilOp,
   MathUtils,
   MirroredRepeatWrapping,
   PointsMaterial,
@@ -21,6 +19,7 @@ import {
   Vector3,
 } from 'three';
 import type { Texture } from 'three';
+import { masked } from './windowMask';
 
 // Window opening (three.js axes) from art/portfolio-room/build_room.py:
 // centre x -0.9, y 2.55; 2.2 x 1.5 m; the wall's outer face is at z -2.8.
@@ -52,18 +51,6 @@ const portal = {
   stencilFunc: AlwaysStencilFunc,
   stencilZPass: ReplaceStencilOp,
 } as const;
-const masked = {
-  stencilWrite: true,
-  stencilRef: 1,
-  stencilFunc: EqualStencilFunc,
-  stencilFail: KeepStencilOp,
-  stencilZFail: KeepStencilOp,
-  stencilZPass: KeepStencilOp,
-  toneMapped: false,
-  fog: false,
-  depthWrite: false,
-  transparent: true,
-} as const;
 
 const vertex = /* glsl */ `
 uniform vec2 uScale;
@@ -73,10 +60,12 @@ void main() {
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 }`;
 
-// uNight 0..1 moves the photo from sunset toward dusk as the story scrolls.
+// uNight 0..1 moves the photo from sunset toward dusk as the story scrolls;
+// uWinter 0..1, the ending's winter night: the sunset gone, a deep blue
+// overcast sky (it is snowing).
 const skyFragment = /* glsl */ `
 uniform sampler2D map;
-uniform float uNight, uTime;
+uniform float uNight, uTime, uWinter;
 varying vec2 vUv;
 void main() {
   vec3 c = texture2D(map, vUv).rgb;
@@ -86,7 +75,11 @@ void main() {
   // The sun's glow just behind the peak, breathing slowly.
   vec2 d = (vUv - vec2(0.5, 0.52)) * vec2(1.5, 1.0);
   float glow = exp(-dot(d, d) * 55.0);
-  c += vec3(1.0, 0.55, 0.22) * glow * (0.22 + 0.06 * sin(uTime * 0.7)) * (1.0 - 0.75 * uNight);
+  c += vec3(1.0, 0.55, 0.22) * glow * (0.22 + 0.06 * sin(uTime * 0.7)) * (1.0 - 0.75 * uNight) * (1.0 - uWinter);
+  // Winter: low cloud, faintly lit from the town below.
+  float l = dot(texture2D(map, vUv).rgb, vec3(0.3, 0.5, 0.2));
+  vec3 winter = mix(vec3(0.16, 0.15, 0.22), vec3(0.05, 0.06, 0.12), smoothstep(0.3, 1.0, vUv.y)) * (0.85 + 0.3 * l);
+  c = mix(c, winter, uWinter);
   gl_FragColor = vec4(c, 1.0);
   #include <colorspace_fragment>
 }`;
@@ -94,22 +87,23 @@ void main() {
 // Mountains and valley: darken and cool at dusk.
 const mountainFragment = /* glsl */ `
 uniform sampler2D map;
-uniform float uNight, uTime;
+uniform float uNight, uTime, uWinter;
 varying vec2 vUv;
 void main() {
   vec4 t = texture2D(map, vUv);
   vec3 c = t.rgb * mix(vec3(1.0), vec3(0.75, 0.8, 1.0), uNight);
+  c *= mix(vec3(1.0), vec3(0.55, 0.6, 0.78), uWinter);
   gl_FragColor = vec4(c, t.a);
   #include <colorspace_fragment>
 }`;
 
 const treeFragment = /* glsl */ `
 uniform sampler2D map;
-uniform float uNight;
+uniform float uNight, uWinter;
 varying vec2 vUv;
 void main() {
   vec4 t = texture2D(map, vUv);
-  gl_FragColor = vec4(t.rgb * (1.0 - 0.4 * uNight), t.a);
+  gl_FragColor = vec4(t.rgb * (1.0 - 0.4 * uNight) * (1.0 - 0.35 * uWinter), t.a);
   #include <colorspace_fragment>
 }`;
 
@@ -213,7 +207,14 @@ function Layer({
  * mountains and the trees; stars and lights come up as the sky darkens with
  * scroll. Only the window's pixels show it (stencil).
  */
-export function Outside({ progress }: { progress: RefObject<number> }) {
+export function Outside({
+  progress,
+  late,
+}: {
+  progress: RefObject<number>;
+  /** The ending: later on, a winter night (the sunset's last glow gone). */
+  late?: RefObject<boolean>;
+}) {
   const group = useRef<Group>(null),
     dots = useRef<PointsMaterial | null>(null);
   const [sky, mountains, trees] = useTexture(FILES);
@@ -229,6 +230,7 @@ export function Outside({ progress }: { progress: RefObject<number> }) {
         uniforms: {
           map: { value: map },
           uNight: { value: 0 },
+          uWinter: { value: 0 },
           uTime: { value: 0 },
           uScale: {
             value: new Vector2(PLANE[0] / PHOTO[0], PLANE[1] / PHOTO[1]),
@@ -487,9 +489,12 @@ export function Outside({ progress }: { progress: RefObject<number> }) {
       axis,
       MathUtils.lerp(0, Math.asin(dir.y) - 0.045, 0.85)
     );
-    const night = 0.12 + 0.6 * MathUtils.smoothstep(progress.current, 0, 1);
+    const night = late?.current
+      ? 1
+      : 0.12 + 0.6 * MathUtils.smoothstep(progress.current, 0, 1);
     for (const m of [materials.sky, materials.mountains, materials.trees]) {
       m.uniforms.uNight.value = night;
+      m.uniforms.uWinter.value = late?.current ? 1 : 0;
       m.uniforms.uTime.value = clock.elapsedTime;
     }
     const stars = dots.current;

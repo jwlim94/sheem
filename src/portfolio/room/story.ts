@@ -8,7 +8,8 @@ import { BRIDGE } from './daySky';
  * meeting room to his desk (380dvh), his leaving Neighbor into chapter 3
  * (460dvh), the master's: a security case in a business-school classroom
  * (520dvh), the way to Bridge, up out of the classroom and over Utah
- * Valley from Provo to Lehi (560dvh), and Bridge's office (520dvh). (The
+ * Valley from Provo to Lehi (560dvh), Bridge's office (520dvh), and the
+ * ending: back in his room, now, at Christmas (440dvh). (The
  * commencement in the Marriott Center, built first, is kept
  * out of the flow: ARENA_IN_FLOW; its part has no length.) See .room-track
  * in room.css.
@@ -27,6 +28,7 @@ const SEG = {
   arena: ARENA_IN_FLOW ? 440 : 0,
   fly: 560,
   bridge: 520,
+  end: 440,
 };
 const TOTAL = Object.values(SEG).reduce((a, b) => a + b, 0);
 const OFFICE_START = SEG.room + SEG.rewind + SEG.school + SEG.mail;
@@ -36,6 +38,7 @@ const MISM_START = GRAD_START + SEG.grad;
 const ARENA_START = MISM_START + SEG.mism;
 const FLY_START = ARENA_START + SEG.arena;
 const BRIDGE_START = FLY_START + SEG.fly;
+const END_START = BRIDGE_START + SEG.bridge;
 
 /** Where the room story ends (page 0..1): the welcome. */
 export const ROOM_END = SEG.room / TOTAL;
@@ -86,6 +89,7 @@ export const split = (page: number) => {
     arena: SEG.arena ? MathUtils.clamp((d - ARENA_START) / SEG.arena, 0, 1) : 0,
     fly: MathUtils.clamp((d - FLY_START) / SEG.fly, 0, 1),
     bridge: MathUtils.clamp((d - BRIDGE_START) / SEG.bridge, 0, 1),
+    end: MathUtils.clamp((d - END_START) / SEG.end, 0, 1),
   };
 };
 
@@ -398,6 +402,30 @@ export const BRIDGE_SWITCH = 0.97;
  * up to the room's north-west, high, over him and the CEO at their desks;
  * his Bridge card (held).
  */
+/**
+ * Beats of the ending (0..1; 2026-11-22, the user's call): Bridge's card
+ * goes, the white comes up over the office, the year rolls on from 2025 to
+ * now, and the white lifts off his room as it is now, at Christmas
+ * (Christmas.tsx): snow past the window, the tree lit, him at his desk
+ * building something, as the story began. The camera drifts in a little;
+ * his last card comes up: open to new opportunities.
+ */
+export function endBeats(e: number) {
+  return {
+    leave: ease(0, 0.05, e), // Bridge's card goes
+    flash: ease(0.02, 0.12, e), // the white over the office
+    counter: ease(0.08, 0.14, e), // 2025 shows on it
+    roll: smoother(0.12, 0.22, e), // 2025 rolls on to 2026
+    reveal: ease(0.26, 0.38, e), // the white lifts off his room
+    drift: smoother(0.26, 1, e), // the camera, in a little
+    card: ease(0.52, 0.64, e), // his last card
+  };
+}
+
+/** Ending progress where his room takes over from Bridge's office, while
+ *  the white covers the screen. */
+export const END_SWITCH = 0.2;
+
 export function bridgeBeats(b: number) {
   return {
     reveal: ease(0.02, 0.1, b), // the white lifts; 2025 and the card go

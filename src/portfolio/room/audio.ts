@@ -56,11 +56,25 @@ const OFFICE_MUSIC_URL = '/audio/portfolio-room/office-music.m4a',
   OFFICE_MUSIC = 0.17;
 // Chapter 4's song ("Lofi Study Session" by Alex Morgan, Pixabay; the
 // user's pick, 2026-11-22): it comes up as the flight comes out of the white
-// over BYU and plays on over the valley and through Bridge's office. Mastered 4.4 dB louder than
-// chapter 2's (RMS -12.8 dB against -17.2), so it is set that much lower
-// to sit as loud.
+// over BYU and plays on over the valley and through Bridge's office.
+// Mastered 4.4 dB louder than chapter 2's (RMS -12.8 dB against -17.2), so
+// it is set that much lower to sit as loud.
 const BRIDGE_MUSIC_URL = '/audio/portfolio-room/bridge-music.m4a',
   BRIDGE_MUSIC = 0.1;
+// The ending's ("Christmas Jazz" by AtlasAudio, Pixabay; the user's pick,
+// 2026-11-22): it comes up as the white lifts off his room at Christmas.
+// RMS -14.4 dB, so a little lower than chapter 2's too.
+const END_MUSIC_URL = '/audio/portfolio-room/end-music.m4a',
+  END_MUSIC = 0.124;
+
+/** A song of its own: its player, its level, whether it is wanted. */
+type Song = {
+  song: HTMLAudioElement;
+  out: GainNode;
+  in: number;
+  level: number;
+  silentSince: number;
+};
 
 export function soundPreferred() {
   try {
@@ -148,14 +162,9 @@ export class RoomAudio {
     level: number;
     silentSince: number;
   } | null = null;
-  // Chapter 4's song: its player and level.
-  private bridge: {
-    song: HTMLAudioElement;
-    out: GainNode;
-    in: number;
-    level: number;
-    silentSince: number;
-  } | null = null;
+  // Chapter 4's song, and the ending's.
+  private bridge: Song | null = null;
+  private end: Song | null = null;
   private silentSince = 0;
   private disposed = false;
   enabled = soundPreferred();
@@ -226,20 +235,18 @@ export class RoomAudio {
         level: -1,
         silentSince: 0,
       };
-      const bridgeOut = ctx.createGain();
-      bridgeOut.gain.value = 0;
-      bridgeOut.connect(this.master);
-      const bridgeSong = new Audio(BRIDGE_MUSIC_URL);
-      bridgeSong.loop = true;
-      bridgeSong.preload = 'auto';
-      ctx.createMediaElementSource(bridgeSong).connect(bridgeOut);
-      this.bridge = {
-        song: bridgeSong,
-        out: bridgeOut,
-        in: 0,
-        level: -1,
-        silentSince: 0,
+      const own = (url: string): Song => {
+        const out = ctx.createGain();
+        out.gain.value = 0;
+        out.connect(this.master!);
+        const song = new Audio(url);
+        song.loop = true;
+        song.preload = 'auto';
+        ctx.createMediaElementSource(song).connect(out);
+        return { song, out, in: 0, level: -1, silentSince: 0 };
       };
+      this.bridge = own(BRIDGE_MUSIC_URL);
+      this.end = own(END_MUSIC_URL);
       // The clock: tick → a touch of weight around 700 Hz → low-pass (closes
       // in the dive) → dry, plus a small room.
       this.clock = ctx.createGain();
@@ -288,15 +295,15 @@ export class RoomAudio {
           if (office.in <= 0) office.song.pause();
         })
         .catch(() => undefined);
-    // And chapter 4's.
-    const bridge = this.bridge;
-    if (bridge && bridge.song.paused)
-      bridge.song
-        .play()
-        .then(() => {
-          if (bridge.in <= 0) bridge.song.pause();
-        })
-        .catch(() => undefined);
+    // And chapter 4's, and the ending's.
+    for (const own of [this.bridge, this.end])
+      if (own && own.song.paused)
+        own.song
+          .play()
+          .then(() => {
+            if (own.in <= 0) own.song.pause();
+          })
+          .catch(() => undefined);
     this.lastMusic = this.musicLevel();
     this.music?.gain.setTargetAtTime(this.lastMusic, this.ctx.currentTime, 1.2);
   }
@@ -669,22 +676,36 @@ export class RoomAudio {
    * silent a moment), and it plays on through Bridge's office.
    */
   setBridgeMusic(amount: number) {
-    const ctx = this.ctx,
-      b = this.bridge;
-    if (!ctx || !b) return;
+    this.drive(this.bridge, amount, BRIDGE_MUSIC);
+  }
+
+  /** Per frame, the ending's song: up as the white lifts off his room at
+   *  Christmas (from its start, coming up from silence). */
+  setEndMusic(amount: number) {
+    this.drive(this.end, amount, END_MUSIC);
+  }
+
+  /** A song of its own, at `amount` of its `full` level: from its start
+   *  when it comes up from silence; paused once silent a moment. */
+  private drive(own: Song | null, amount: number, full: number) {
+    const ctx = this.ctx;
+    if (!ctx || !own) return;
     const now = ctx.currentTime,
-      el = b.song;
-    if (b.in <= 0 && amount > 0 && el.paused) el.currentTime = 0;
-    b.in = amount;
-    const level = BRIDGE_MUSIC * amount;
-    if (Math.abs(level - b.level) > 0.001 || (amount === 0 && b.level !== 0)) {
-      b.level = level;
-      b.out.gain.setTargetAtTime(level, now, 0.25);
+      el = own.song;
+    if (own.in <= 0 && amount > 0 && el.paused) el.currentTime = 0;
+    own.in = amount;
+    const level = full * amount;
+    if (
+      Math.abs(level - own.level) > 0.001 ||
+      (amount === 0 && own.level !== 0)
+    ) {
+      own.level = level;
+      own.out.gain.setTargetAtTime(level, now, 0.25);
     }
     if (amount > 0) {
-      b.silentSince = now;
+      own.silentSince = now;
       if (el.paused && this.playing) el.play().catch(() => undefined);
-    } else if (now - b.silentSince > 1.5 && !el.paused) el.pause();
+    } else if (now - own.silentSince > 1.5 && !el.paused) el.pause();
   }
 
   setEnabled(on: boolean) {
@@ -696,6 +717,7 @@ export class RoomAudio {
       this.schoolSong?.pause();
       this.office?.song.pause();
       this.bridge?.song.pause();
+      this.end?.song.pause();
       void this.ctx?.suspend();
     }
     this.onChange?.(this.playing);
@@ -710,13 +732,14 @@ export class RoomAudio {
       if (this.schoolIn > 0) this.schoolSong?.play().catch(() => undefined);
       const o = this.office;
       if (o && o.in > 0) o.song.play().catch(() => undefined);
-      const b = this.bridge;
-      if (b && b.in > 0) b.song.play().catch(() => undefined);
+      for (const own of [this.bridge, this.end])
+        if (own && own.in > 0) own.song.play().catch(() => undefined);
     } else {
       this.song?.pause();
       this.schoolSong?.pause();
       this.office?.song.pause();
       this.bridge?.song.pause();
+      this.end?.song.pause();
       void this.ctx.suspend();
     }
   }
@@ -758,6 +781,7 @@ export class RoomAudio {
       this.schoolSong,
       this.office?.song,
       this.bridge?.song,
+      this.end?.song,
     ]) {
       if (!el) continue;
       el.pause();
@@ -774,6 +798,6 @@ export class RoomAudio {
     this.song = this.schoolSong = null;
     this.schoolMusic = null;
     this.office = null;
-    this.bridge = null;
+    this.bridge = this.end = null;
   }
 }

@@ -40,6 +40,8 @@ import {
   VALLEY_ORIGIN,
   bridgeBeats,
   BRIDGE_SWITCH,
+  endBeats,
+  END_SWITCH,
 } from './story';
 import {
   BOARD as BRIDGE_BOARD,
@@ -53,6 +55,8 @@ import { BridgeScene } from './BridgeScene';
 import { ArenaScene } from './ArenaScene';
 import { MismScene } from './MismScene';
 import { ValleyScene } from './ValleyScene';
+import { Christmas } from './Christmas';
+import { TREE_STAR } from './xmasLights';
 import { OFFICE_CUT_X, OFFICE_K } from './hisOffice';
 import type { HisOffice } from './hisOffice';
 import {
@@ -173,7 +177,8 @@ type Place =
   | 'arena'
   | 'mism'
   | 'fly'
-  | 'bridge';
+  | 'bridge'
+  | 'end';
 /** The places drawn once behind the loader (see the warm-up), his room last
  *  (where the story starts). The desk is in the office's group, under the
  *  same lights. */
@@ -240,6 +245,14 @@ const REWIND_LOOK = new CatmullRomCurve3(
   'centripetal'
 );
 const FOV = 36;
+// The ending: the opening's wide view, turned a little left for the tree by
+// the left wall, drifting in.
+// (Turned further, the room's open front-left corner, and the night past
+// it, came into the frame's top-left, under his name in the top bar.)
+const E_FROM = new Vector3(5.5, 4.45, 6.5),
+  E_TO = new Vector3(4.6, 3.85, 5.6),
+  E_LOOK = new Vector3(-0.95, 1.15, -0.95),
+  E_LOOK_TO = new Vector3(-1.05, 1.25, -0.85);
 
 // Chapter 1: the lecture hall (local positions from build_school.py, offset to
 // SCHOOL_ORIGIN). The shot opens where the rewind ended: 0.12 m from a clock
@@ -769,6 +782,7 @@ export function RoomScene({
   mism,
   fly,
   bridge,
+  end,
   pointer,
   reduced,
   audio,
@@ -796,6 +810,8 @@ export function RoomScene({
   fly: RefObject<number>;
   /** 0..1 through chapter 4, Bridge's office. */
   bridge: RefObject<number>;
+  /** 0..1 through the ending: his room again, now, at Christmas. */
+  end: RefObject<number>;
   /** Pointer position over the page, -1..1 each way, for a gentle parallax. */
   pointer: RefObject<{ x: number; y: number }>;
   audio: RefObject<RoomAudio | null>;
@@ -944,6 +960,9 @@ export function RoomScene({
     hisOffice = useRef<HisOffice | null>(null),
     // Bridge's office (chapter 4).
     bridgeGroup = useRef<Group>(null),
+    // His room's Christmas, shown in the ending (Christmas.tsx).
+    xmasGroup = useRef<Group>(null),
+    inEndRef = useRef(false),
     spineBone = useRef<Object3D | null>(null),
     // His hips (leaving: where they land, and the camera's aim).
     hipsBone = useRef<Object3D | null>(null);
@@ -972,6 +991,7 @@ export function RoomScene({
       mism: false, // ... in the classroom
       fly: false, // ... over the valley
       bridge: false, // ... in Bridge's office
+      end: false, // ... in his room at the end
       // Leaving: the camera's aim on him, and turned away (the pan).
       e: new Vector3(),
       f: new Vector3(),
@@ -1290,10 +1310,15 @@ export function RoomScene({
     // intensity is 0), so a stale map never shows. Both lights keep
     // castShadow, so the light setup, and every shader program, stays the
     // same.
-    shadowOn(lamp.current, place === 'room' || place === 'arena');
+    shadowOn(
+      lamp.current,
+      place === 'room' || place === 'end' || place === 'arena'
+    );
     shadowOn(
       sun.current,
-      place !== 'room' && (sun.current?.intensity ?? 0) > 0.01
+      place !== 'room' &&
+        place !== 'end' &&
+        (sun.current?.intensity ?? 0) > 0.01
     );
   };
   /** Where the lights stand, per place (positions and colours). */
@@ -1373,6 +1398,9 @@ export function RoomScene({
     if (monitor.current) {
       const m = monitor.current;
       m.intensity = inSchool || inOffice ? 0 : 3.5;
+      // (The ending makes it the tree's glow: back to his screen's.)
+      m.color.set('#a8b8ff');
+      m.distance = 3;
       // At his desk: his monitor's glow on his face and hands.
       if (atDesk) m.position.copy(OO).add(new Vector3(33.57, 1.4, 9.99));
       else if (inSchool) m.position.copy(S_GLOW);
@@ -1397,7 +1425,7 @@ export function RoomScene({
     // office: the ceiling's LED panels, a broad soft light from above.
     const sg = screenGlow.current;
     if (sg) {
-      sg.visible = place !== 'room';
+      sg.visible = place !== 'room' && place !== 'end';
       sg.intensity = inOffice ? 2.6 : inSchool ? 2.2 : 0;
       if (atDesk) {
         sg.position
@@ -1424,12 +1452,34 @@ export function RoomScene({
     if (place === 'arena') arenaLights();
     if (place === 'mism') mismLights();
     if (place === 'bridge') bridgeLights();
+    if (place === 'end') endLights();
   };
   /** Bridge's office by day, its LED panels on: bright and even (the
    *  hemisphere, the ambient, a broad rect light from the ceiling), the
    *  corridors' light through the north glass, a soft key from high over
    *  the room with soft shadows under the desks and chairs, his screens'
    *  light on his face. */
+  /** His room at the end, at Christmas: the room's evening lights, but the
+   *  window's glow the cool of a snowy night, and his screen's point light
+   *  (its glow on his face hardly shows from here) the tree's warm light on
+   *  the wall and floor round it. (Colours and places only: the light setup,
+   *  and so every program, stays the room's.) */
+  const endLights = () => {
+    const wg = windowGlow.current;
+    if (wg) {
+      wg.color.set('#a9bcff');
+      wg.intensity = 2.6;
+    }
+    const m = monitor.current;
+    if (m) {
+      // In front of the tree, toward the room (inside it, it lit the
+      // branches from within, a green blaze).
+      m.position.set(TREE_STAR[0] + 0.9, 1.3, TREE_STAR[2] + 0.95);
+      m.color.set('#ffb361');
+      m.intensity = 3;
+      m.distance = 4;
+    }
+  };
   const bridgeLights = () => {
     if (hemi.current) {
       hemi.current.color.set('#f6f4ef');
@@ -2002,6 +2052,35 @@ export function RoomScene({
   /** Chapter 4's camera in Bridge's office: in from the corridor through
    *  the open door to the whiteboard, round to over his shoulder, back to
    *  the corner for the team. */
+  /** The ending's camera: the opening's wide view of his room (a little
+   *  more to the left, for the tree), drifting in. */
+  const endCamera = (
+    camera: Camera,
+    eb: ReturnType<typeof endBeats>,
+    tall: boolean,
+    step: number
+  ) => {
+    const { pos, look } = tmp;
+    pos.copy(E_FROM).lerp(E_TO, eb.drift);
+    look.copy(E_LOOK).lerp(E_LOOK_TO, eb.drift);
+    if (tall) {
+      // Aim between him and the tree, and stand further off, so both fit.
+      look.setX(-1.65);
+      pos.sub(look).multiplyScalar(1.6).add(look);
+    }
+    if (reduced || !tmp.end) camera.position.copy(pos);
+    else camera.position.lerp(pos, 1 - Math.exp(-step * 6));
+    tmp.end = true;
+    tmp.bridge = tmp.mism = tmp.fly = false;
+    tmp.office = tmp.school = tmp.arena = false;
+    camera.lookAt(look);
+    const cam = camera as PerspectiveCamera;
+    if (Math.abs(cam.fov - FOV) > 0.01) {
+      cam.fov = FOV;
+      cam.updateProjectionMatrix();
+    }
+  };
+
   const bridgeCamera = (
     camera: Camera,
     bb: ReturnType<typeof bridgeBeats>,
@@ -2464,11 +2543,15 @@ export function RoomScene({
       flb = flyBeats(fl),
       br = bridge.current ?? 0,
       bb = bridgeBeats(br),
+      en = end.current ?? 0,
+      eb = endBeats(en),
+      // Back in his room once the white over Bridge covers the screen.
+      inEnd = en >= END_SWITCH,
       // In Bridge's office once the white at his window covers the screen.
-      inBridge = fl >= BRIDGE_SWITCH,
+      inBridge = fl >= BRIDGE_SWITCH && !inEnd,
       // Over the valley once the punch through the classroom's ceiling is
       // white.
-      inFly = fl >= FLY_SWITCH && !inBridge,
+      inFly = fl >= FLY_SWITCH && !inBridge && !inEnd,
       // Chapter 3: in the classroom (or the arena, if it's in the flow)
       // once the leaving's white is over.
       inArena = ARENA_IN_FLOW && gr >= GRAD_SWITCH,
@@ -2479,21 +2562,23 @@ export function RoomScene({
       db = deskBeats(dk),
       // Hired: at his desk once the camera is out of the meeting room.
       atDesk = inOffice && dk >= DESK_SWITCH,
-      place: Place = inBridge
-        ? 'bridge'
-        : inFly
-          ? 'fly'
-          : inArena
-            ? 'arena'
-            : inMism
-              ? 'mism'
-              : atDesk
-                ? 'desk'
-                : inOffice
-                  ? 'office'
-                  : inSchool
-                    ? 'hall'
-                    : 'room',
+      place: Place = inEnd
+        ? 'end'
+        : inBridge
+          ? 'bridge'
+          : inFly
+            ? 'fly'
+            : inArena
+              ? 'arena'
+              : inMism
+                ? 'mism'
+                : atDesk
+                  ? 'desk'
+                  : inOffice
+                    ? 'office'
+                    : inSchool
+                      ? 'hall'
+                      : 'room',
       sb = schoolBeats(sc),
       mb = mailBeats(ml),
       ob = officeBeats(of),
@@ -2520,7 +2605,7 @@ export function RoomScene({
     if (ARENA_IN_FLOW && !arenaOn && (dk > 0.3 || gr > 0 || ar > 0))
       setArenaOn(true);
     if (mismGroup.current)
-      mismGroup.current.visible = inMism && !inFly && !inBridge;
+      mismGroup.current.visible = inMism && !inFly && !inBridge && !inEnd;
     if (valleyGroup.current) valleyGroup.current.visible = inFly;
     if (bridgeGroup.current) bridgeGroup.current.visible = inBridge;
     {
@@ -2535,16 +2620,20 @@ export function RoomScene({
     }
     if (arenaGroup.current) arenaGroup.current.visible = inArena;
     clips.walk?.setEffectiveWeight(0);
-    if (roomGroup.current) roomGroup.current.visible = place === 'room';
+    if (roomGroup.current)
+      roomGroup.current.visible = place === 'room' || place === 'end';
+    if (xmasGroup.current) xmasGroup.current.visible = place === 'end';
+    inEndRef.current = inEnd;
     if (officeGroup.current) officeGroup.current.visible = inOffice;
     // The hall only in the hall. It was also shown in his room (never seen
     // there), and its speaker's light then made four point lights there and
     // three everywhere else: every material seen in both (his, the bag's)
     // compiled twice. Now every place has the same lights.
     if (schoolGroup.current) schoolGroup.current.visible = place === 'hall';
-    if (inBridge) {
+    if (inBridge || inEnd) {
       // Chapter 4: at his desk at Bridge, the whole Typing clip (as at
       // Neighbor's): typing, now and then reaching for the trackpad and back.
+      // (And at the end, at his own desk, as the story began.)
       clips.type.setEffectiveWeight(1);
       clips.type.timeScale = 1;
       clips.keys.setEffectiveWeight(0);
@@ -2682,8 +2771,9 @@ export function RoomScene({
     if (part) {
       // Socks and slippers at home, sneakers out (swapped inside the clock's
       // dive).
-      part.sneakers.visible = place !== 'room';
-      part.socks.visible = part.slippers.visible = place === 'room';
+      const home = place === 'room' || place === 'end';
+      part.sneakers.visible = !home;
+      part.socks.visible = part.slippers.visible = home;
       part.wornBag.visible = false; // (placeBag shows it once it's on him)
       // A blink every 2.5-6 s (now and then a double one): the lids half
       // shut for 50 ms, shut for 80, half again for 60.
@@ -2711,6 +2801,24 @@ export function RoomScene({
     if (!s) return;
     // Not seen over the valley (he is at his window's desk).
     s.visible = !inFly;
+    if (inEnd) {
+      // The ending: at his desk, typing, as the story began.
+      s.position.set(SEAT.x, SEAT_LIFT, SEAT.z);
+      s.rotation.y = Math.PI;
+      if (chair.current) {
+        chair.current.rotation.y = Math.PI;
+        chair.current.position.z = SEAT.z;
+      }
+      s.updateMatrixWorld(true);
+      if (rightHand.current) {
+        rightHand.current.getWorldPosition(desk.current.hand);
+        desk.current.mouse = desk.current.hand.x > -0.7;
+      }
+      desk.current.keys.copy(ROOM_KEYS);
+      endCamera(camera, eb, size.width < size.height, step);
+      return;
+    }
+    tmp.end = false;
     if (inFly) {
       flyCamera(camera, flb, size.width < size.height, step);
       officeThroughWindow(gl, scene, camera as PerspectiveCamera, size, toIdle);
@@ -3078,9 +3186,10 @@ export function RoomScene({
       {/* His room: hidden while the camera is in another chapter. */}
       <group ref={roomGroup}>
         <primitive object={room.scene} />
-        <Outside progress={progress} />
+        <Outside progress={progress} late={inEndRef} />
         <Screen desk={desk} reduced={reduced} audio={audio} />
         <Clock reduced={reduced} rewind={rewind} />
+        <Christmas group={xmasGroup} />
         <SpeakerViz room={room.scene} audio={audio} reduced={reduced} />
         <LightSwitch />
       </group>

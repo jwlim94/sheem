@@ -17,6 +17,7 @@ import {
   mismBeats,
   flyBeats,
   bridgeBeats,
+  endBeats,
   rewindBeats,
   schoolBeats,
   split,
@@ -131,6 +132,7 @@ export default function RoomPortfolio() {
     mism = useRef(0), // chapter 3, the MISM's classroom, 0..1
     fly = useRef(0), // the way to Bridge, over Utah Valley, 0..1
     bridge = useRef(0), // chapter 4, Bridge's office, 0..1
+    end = useRef(0), // the ending, back in his room, 0..1
     pointer = useRef({ x: 0, y: 0 }),
     caption = useRef<Record<string, HTMLElement | null>>({}),
     hint = useRef<HTMLDivElement>(null),
@@ -214,6 +216,7 @@ export default function RoomPortfolio() {
       lastFlipGrad = 0,
       lastLeafGrad = 0,
       lastFlipFly = 0,
+      lastFlipEnd = 0,
       // Whether each end of the top bar is on a light scene (ink-dark), as
       // it stands (a remount keeps the classes).
       inkLeft = !!barEnds.current.left?.classList.contains('is-ink'),
@@ -238,6 +241,7 @@ export default function RoomPortfolio() {
           ib = mismBeats(parts.mism),
           fb = flyBeats(parts.fly),
           bb = bridgeBeats(parts.bridge),
+          eb = endBeats(parts.end),
           // Chapter 3's opening: the arena's or the classroom's (one is
           // out of the flow; its beats stay at 0).
           reveal3 = Math.max(ab.reveal, ib.reveal);
@@ -252,6 +256,7 @@ export default function RoomPortfolio() {
         mism.current = parts.mism;
         fly.current = parts.fly;
         bridge.current = parts.bridge;
+        end.current = parts.end;
         const show = (el: HTMLElement | null | undefined, o: number) => {
           if (!el) return;
           el.style.opacity = String(o);
@@ -276,58 +281,69 @@ export default function RoomPortfolio() {
             // Into chapter 3: 2024 rolls on to 2025 on the admission's
             // white, as into chapter 2.
             // Into chapter 4: 2024 rolls on to 2025 on his window's white.
-            fm = parts.fly > 0,
-            gm = !fm && parts.grad > 0,
-            desk = !fm && !gm && parts.desk > 0,
-            on = fm || gm || (!desk && parts.mail > 0),
+            // The ending: 2025 rolls on to now on the white over Bridge.
+            em = parts.end > 0,
+            fm = !em && parts.fly > 0,
+            gm = !em && !fm && parts.grad > 0,
+            desk = !em && !fm && !gm && parts.desk > 0,
+            on = em || fm || gm || (!desk && parts.mail > 0),
             // Mechanical counter: each year rests, then flips quickly to the next.
-            steps = fm
-              ? fb.roll
-              : gm
-                ? gb.roll
-                : desk
-                  ? db.roll * 2
-                  : on
-                    ? mb.roll * 3
-                    : rb.spin * last,
+            steps = em
+              ? eb.roll
+              : fm
+                ? fb.roll
+                : gm
+                  ? gb.roll
+                  : desk
+                    ? db.roll * 2
+                    : on
+                      ? mb.roll * 3
+                      : rb.spin * last,
             whole = Math.floor(steps),
             stepped = whole + MathUtils.smoothstep(steps - whole, 0.55, 1),
-            roll =
-              fm || gm
+            roll = em
+              ? YEARS.indexOf(2025) - stepped
+              : fm || gm
                 ? YEARS.indexOf(2024) - stepped
                 : desk
                   ? YEARS.indexOf(2022) - stepped
                   : on
                     ? last - stepped
                     : stepped,
-            wash = fm
-              ? fb.flash
-              : gm
-                ? gb.flash
-                : desk
-                  ? 0
-                  : on
-                    ? mb.flash
-                    : rb.flash,
-            card = fm
-              ? fb.card
-              : gm
-                ? gb.card
-                : desk
-                  ? 0
-                  : on
-                    ? mb.card
-                    : rb.card;
+            wash = em
+              ? eb.flash
+              : fm
+                ? fb.flash
+                : gm
+                  ? gb.flash
+                  : desk
+                    ? 0
+                    : on
+                      ? mb.flash
+                      : rb.flash,
+            card = em
+              ? 0
+              : fm
+                ? fb.card
+                : gm
+                  ? gb.card
+                  : desk
+                    ? 0
+                    : on
+                      ? mb.card
+                      : rb.card;
           y.style.opacity = String(
-            fm
-              ? fb.counter * (1 - bb.reveal)
-              : gm
-                ? gb.counter * (1 - reveal3)
-                : desk
-                  ? db.counter
-                  : on
-                    ? mb.counter * (1 - ob.reveal)
-                    : rb.counter * (1 - sb.reveal)
+            em
+              ? eb.counter * (1 - eb.reveal)
+              : fm
+                ? fb.counter * (1 - bb.reveal)
+                : gm
+                  ? gb.counter * (1 - reveal3)
+                  : desk
+                    ? db.counter
+                    : on
+                      ? mb.counter * (1 - ob.reveal)
+                      : rb.counter * (1 - sb.reveal)
           );
           y.style.color = mix(on ? 1 : wash);
           y.style.textShadow = on
@@ -338,7 +354,7 @@ export default function RoomPortfolio() {
           const tall = innerWidth < innerHeight,
             off = 1 - wash;
           y.style.transform =
-            fm || gm
+            em || fm || gm
               ? `translate(-50%, calc(-50% - ${card * 9}vh))`
               : desk
                 ? `translate(-50%, calc(-50% - ${tall ? 30 : 26}vh))`
@@ -348,7 +364,11 @@ export default function RoomPortfolio() {
           yearStrip.current.style.transform = `translateY(${-roll}em)`;
           // A page turn each time a year starts to flip over (forward only).
           const flip = Math.floor(steps + 0.45);
-          if (fm) {
+          if (em) {
+            if (flip > lastFlipEnd && eb.counter > 0.5)
+              audio.current?.flipPage(true, eb.counter);
+            lastFlipEnd = flip;
+          } else if (fm) {
             if (flip > lastFlipFly && fb.counter > 0.5)
               audio.current?.flipPage(true, fb.counter);
             lastFlipFly = flip;
@@ -421,7 +441,9 @@ export default function RoomPortfolio() {
               // Up through the classroom's ceiling, and at his window (it
               // lifts off Bridge's office).
               fb.punch,
-              fb.flash * (1 - bb.reveal)
+              fb.flash * (1 - bb.reveal),
+              // The ending: over Bridge's office, lifting off his room.
+              eb.flash * (1 - eb.reveal)
             )
           );
         // The top bar's text: cream on the dark and busy scenes, ink-dark
@@ -457,7 +479,9 @@ export default function RoomPortfolio() {
         // Chapter 4: its title on his window's white, lifting off Bridge's
         // office; and his Bridge card.
         show(caption.current.chapter4, fb.card * (1 - bb.reveal));
-        show(caption.current.bridge, bb.card);
+        show(caption.current.bridge, bb.card * (1 - eb.leave));
+        // The ending: his last card, in his room.
+        show(caption.current.end, eb.card);
         // Over the valley, the marketplace's search: the query typed, then
         // what it finds.
         if (search.current && searchText.current && searchCount.current) {
@@ -505,7 +529,10 @@ export default function RoomPortfolio() {
         // Chapter 4's own song (it had brought chapter 2's back) comes up as
         // the flight comes out of the white over BYU, and plays on over the
         // valley and through Bridge's office.
-        audio.current?.setBridgeMusic(fb.music);
+        audio.current?.setBridgeMusic(fb.music * (1 - eb.flash));
+        // The ending's own (a Christmas song): chapter 4's fades into the
+        // white over Bridge; this comes up as it lifts off his room.
+        audio.current?.setEndMusic(eb.reveal);
         // The wall clock comes up as he turns to it, runs back with the
         // hands, and goes dull and away into the dial.
         audio.current?.setClock(rb.look * (1 - rb.flash), rb.dive, rb.spin);
@@ -762,6 +789,7 @@ export default function RoomPortfolio() {
                 mism={mism}
                 fly={fly}
                 bridge={bridge}
+                end={end}
                 pointer={pointer}
                 reduced={reduced}
                 audio={audio}
@@ -1049,16 +1077,30 @@ export default function RoomPortfolio() {
             </ul>
             <Visit href="https://bridge.financial" name="Bridge" />
           </section>
+          {/* The ending, in his room now, at Christmas (2026-11-22, the
+              user's words): open to new opportunities. */}
+          <section ref={bind('end')} className="room-caption room-school">
+            <p className="room-kicker">
+              <i />
+              <b>Now</b> · Home for the holidays
+            </p>
+            <h2>Open to new opportunities.</h2>
+            <p>
+              Still building at Bridge, and open to what comes next. Thanks for
+              scrolling, and happy holidays.
+            </p>
+          </section>
         </div>
         <div className="room-track" />
       </div>
 
       <p className="room-credit">
         Character & backpack: Meshy AI (CC BY 4.0), character rigged and
-        animated with Mixamo · Furniture: Kenney, Poly Haven (CC0) · Photos:
-        James Thompson, Ryoo Geon Uk, WS Chae on Unsplash · Music: Alex Morgan,
-        ZephiraMusic (Pixabay) · Typing: stu556, Page turn: Flem0527, Whoosh:
-        skyernaklea (Freesound, CC0) · Clock tick: mab (Freesound, CC BY 3.0)
+        animated with Mixamo · Furniture &amp; Christmas: Kenney, Poly Haven
+        (CC0) · Photos: James Thompson, Ryoo Geon Uk, WS Chae on Unsplash ·
+        Music: Alex Morgan, AtlasAudio, ZephiraMusic (Pixabay) · Typing: stu556,
+        Page turn: Flem0527, Whoosh: skyernaklea (Freesound, CC0) · Clock tick:
+        mab (Freesound, CC BY 3.0)
       </p>
 
       <div ref={hint} className="room-hint" aria-hidden="true">

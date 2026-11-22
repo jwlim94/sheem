@@ -56,7 +56,7 @@ await send('Runtime.enable');
 await send('Page.enable');
 
 // The story's sections (story.ts SEG, in dvh) and a spot inside one.
-const SEG = { room: 400, rewind: 280, school: 360, mail: 240, office: 520, desk: 380, grad: 460, mism: 520, fly: 560, bridge: 520 };
+const SEG = { room: 400, rewind: 280, school: 360, mail: 240, office: 520, desk: 380, grad: 460, mism: 520, fly: 560, bridge: 520, end: 440 };
 const TOTAL = Object.values(SEG).reduce((a, b) => a + b, 0);
 const startOf = (k) => Object.keys(SEG).slice(0, Object.keys(SEG).indexOf(k)).reduce((a, b) => a + SEG[b], 0);
 const at = (k, p) => (startOf(k) + SEG[k] * p) / TOTAL;
@@ -122,7 +122,7 @@ await evaluate(`(()=>{
 })()`);
 
 console.log('2. Shadow maps redrawn, and the picture against both maps on');
-const spots = 'room:0.3,rewind:0.7,school:0.3,school:0.85,mail:0.8,office:0.5,desk:0.2,desk:0.8,mism:0.3,mism:0.8,bridge:0.3,bridge:0.7,office:0.5,room:0.3';
+const spots = 'room:0.3,rewind:0.7,school:0.3,school:0.85,mail:0.8,office:0.5,desk:0.2,desk:0.8,mism:0.3,mism:0.8,bridge:0.3,bridge:0.7,end:0.5,office:0.5,room:0.3';
 for (const [k, p] of spots.split(',').map((s) => s.split(':'))) {
   await go(at(k, +p), 3000);
   const r = await evaluate('shadowAudit()');
