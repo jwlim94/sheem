@@ -93,10 +93,12 @@ void main() {
 // how much of a pane is glass), its floors counted from the ground; its
 // roof by its kind, a capped parapet round it. Lengths in uUnit (the
 // campus's 1; Lehi, drawn larger, more). His window, on Bridge's building:
-// a lamp-lit room, his monitor's cool light.
+// its glass cut away onto his office behind it.
 const fragment = /* glsl */ `
 uniform float uFloor, uHaze, uOn, uUnit;
-uniform vec4 uHis; // his window (the valley's frame); w: 1 where it is
+// His window (the valley's frame: its middle pane's centre); w, how far
+// up its floor its glass is cut away (0: no window).
+uniform vec4 uHis;
 // 1: its glass dark, the sky and the ground in it unlit by the sun (Lehi's;
 // lit as the walls are, it read as tan); 0, the campus's as it was.
 uniform float uDark;
@@ -228,20 +230,21 @@ void main() {
       emit += room * lit * (1.0 - fres) * glassA;
       spec *= glassA * (1.0 - 0.6 * lit);
       c = mix(wall * 0.86, glass, glassA);
-      if (skin == 5 && uHis.w > 0.5) {
+      if (skin == 5 && uHis.w > 0.0) {
         // His window: three panes on the third floor, uHis in the middle
-        // one's centre. Their glass is cut away: behind it is his office,
-        // a room of its own (hisOffice.ts), white, lit (2026-11-20, the
-        // user's call: a flat lamp-lit picture with a phone-like monitor
-        // read as nothing; the office the story goes into next is white).
-        // Its light on the wall round it.
+        // one's centre. Their glass is cut away from the sill up to uHis.w
+        // (the office's ceiling; above it the dark glass in front of the
+        // void over it): behind it is Bridge's office itself (hisOffice.ts;
+        // 2026-11-20, the user's call: a flat lamp-lit picture with a
+        // phone-like monitor read as nothing; 2026-11-22, a miniature of
+        // boxes read as low quality). Its light on the wall round it.
         float hp = floor(uHis.z / pw), hf = floor((uHis.y - ground) / uFloor);
         bool face = n.x < -0.5;
         float near_ = face ? 1.0 - smoothstep(0.0, 1.6, length(vec2(along - (hp + 0.5) * pw, vP.y - ground - (hf + 0.55) * uFloor) / vec2(pw * 1.8, uFloor * 0.6))) : 0.0;
         emit += vec3(1.0, 0.86, 0.68) * 0.1 * near_ * near_;
         // One wide pane, no mullions across it (they cut the whiteboard's
         // writing); its frame round it.
-        if (face && cell.y == hf && band > 0.5 && abs(along - (hp + 0.5) * pw) < (1.5 - (0.5 - half_)) * pw) discard;
+        if (face && cell.y == hf && band > 0.5 && row < uHis.w && abs(along - (hp + 0.5) * pw) < (1.5 - (0.5 - half_)) * pw) discard;
       }
     }
     // Its cap along the top; a little darker toward the ground.
@@ -426,6 +429,7 @@ export function buildingsMesh(
     area,
     haze,
     his,
+    hisTop = 0,
     dark = false,
   }: {
     floor: number;
@@ -434,6 +438,8 @@ export function buildingsMesh(
     area: Area;
     haze: number;
     his?: [number, number, number];
+    /** How far up its floor his window is cut (hisOffice.ts). */
+    hisTop?: number;
     dark?: boolean;
   }
 ) {
@@ -464,7 +470,7 @@ export function buildingsMesh(
         uUnit: { value: unit },
         uHaze: { value: haze },
         uOn: { value: 0 },
-        uHis: { value: his ? new Vector4(...his, 1) : new Vector4() },
+        uHis: { value: his ? new Vector4(...his, hisTop) : new Vector4() },
         uDark: { value: dark ? 1 : 0 },
       },
     }),

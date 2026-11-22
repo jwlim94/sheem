@@ -783,7 +783,10 @@ export const PATH: [number, number, number][] = [
   [-196, 22, -484],
   [HIS_WINDOW[0] - 11, HIS_WINDOW[1] + 3.5, HIS_WINDOW[2] + 2.5],
   [HIS_WINDOW[0] - 4.2, HIS_WINDOW[1] + 0.5, HIS_WINDOW[2] + 0.4],
-  [HIS_WINDOW[0] - 0.95, HIS_WINDOW[1] + 0.02, HIS_WINDOW[2]],
+  // Up to the glass, at chapter 4's eye height (the office behind it has
+  // its floor at the sill: hisOffice.ts), so the white opens onto the
+  // office as the window showed it.
+  [HIS_WINDOW[0] - 0.22, HIS_WINDOW[1], HIS_WINDOW[2]],
 ];
 
 /** Where the camera looks at first, straight down from the start: BYU's

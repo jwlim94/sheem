@@ -217,9 +217,10 @@
 .room-track {
   /* Room story 400dvh + rewind 280dvh + school 360dvh + mail 240dvh +
      office 520dvh + desk 380dvh + grad 460dvh + the MISM classroom 520dvh
-     + the way to Bridge 560dvh (story.ts; the arena's part has no length
-     while it's out of the flow), plus the first screen. */
-  height: 3820dvh;
+     + the way to Bridge 560dvh + Bridge's office 520dvh (story.ts; the
+     arena's part has no length while it's out of the flow), plus the
+     first screen. */
+  height: 4340dvh;
   margin-top: -100dvh;
 }
 /* The rewind: the dial's cream washing over the screen. */
@@ -425,6 +426,11 @@
 .room-soon {
   font-size: 13px !important;
   color: var(--muted) !important;
+}
+.room-soon a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .room-credit {
   position: absolute;

@@ -38,10 +38,23 @@ import {
   flyBeats,
   FLY_SWITCH,
   VALLEY_ORIGIN,
+  bridgeBeats,
+  BRIDGE_SWITCH,
 } from './story';
+import {
+  BOARD as BRIDGE_BOARD,
+  BRIDGE_ORIGIN,
+  HERO as BRIDGE_HERO,
+  KEYS as BRIDGE_KEYS,
+  LAPTOP as BRIDGE_LAPTOP,
+  MONITOR as BRIDGE_MONITOR,
+} from './bridge';
+import { BridgeScene } from './BridgeScene';
 import { ArenaScene } from './ArenaScene';
 import { MismScene } from './MismScene';
 import { ValleyScene } from './ValleyScene';
+import { OFFICE_CUT_X, OFFICE_K } from './hisOffice';
+import type { HisOffice } from './hisOffice';
 import {
   BRIDGE_AT,
   BRIDGE_BOX,
@@ -109,12 +122,22 @@ import {
   Mesh,
   Object3D,
   PerspectiveCamera,
+  Plane,
   Quaternion,
   Vector3,
+  Vector4,
   Color,
   Matrix4,
 } from 'three';
-import type { Camera, Light, Skeleton, SkinnedMesh } from 'three';
+import type {
+  Camera,
+  Light,
+  Scene,
+  ShaderMaterial,
+  Skeleton,
+  SkinnedMesh,
+  WebGLRenderer,
+} from 'three';
 
 const ROOM = '/models/portfolio-room/room.glb';
 const HERO = '/models/jongwoo/jongwoo-v2.glb';
@@ -142,13 +165,21 @@ const PULL_BACK = 0.6;
 const ease = (a: number, b: number, p: number) => MathUtils.smoothstep(p, a, b);
 
 /** Which scene the camera is in. */
-type Place = 'room' | 'hall' | 'office' | 'desk' | 'arena' | 'mism' | 'fly';
+type Place =
+  | 'room'
+  | 'hall'
+  | 'office'
+  | 'desk'
+  | 'arena'
+  | 'mism'
+  | 'fly'
+  | 'bridge';
 /** The places drawn once behind the loader (see the warm-up), his room last
  *  (where the story starts). The desk is in the office's group, under the
  *  same lights. */
 const WARM_UP: Place[] = ARENA_IN_FLOW
   ? ['hall', 'office', 'room']
-  : ['hall', 'office', 'mism', 'fly', 'room'];
+  : ['hall', 'office', 'mism', 'fly', 'bridge', 'room'];
 /** How long the warm-up waits for its programs to compile, at most (ms);
  *  past it, drawing the places finishes them. */
 const WARM_WAIT = 8000;
@@ -367,6 +398,44 @@ function flyNear(p: Vector3) {
     1
   );
 }
+// Chapter 4, Bridge's office (bridge.ts, at BRIDGE_ORIGIN). The white lifts
+// off the office seen through its west glass from the corridor, the
+// whiteboard on its far wall (as through his window, from outside); the
+// camera comes in through the open door and across to the whiteboard; turns
+// round to him at his desk against the south wall, over his right shoulder
+// onto his monitor and laptop; then up to the room's north-west, high,
+// looking over him and the CEO at their desks.
+const BO = new Vector3(...BRIDGE_ORIGIN);
+const bat = (x: number, y: number, z: number) => new Vector3(x, y, z).add(BO);
+const B_HERO = bat(...BRIDGE_HERO),
+  B_KEYS = bat(...BRIDGE_KEYS),
+  B_ENTER = new CatmullRomCurve3(
+    [
+      bat(-6.4, 2.05, 0.15),
+      bat(-5.4, 2.0, 1.3),
+      bat(-4.4, 1.98, 1.65), // the doorway
+      bat(-3.1, 1.97, 1.4),
+      bat(-0.6, 1.96, 0.6),
+      bat(1.6, 1.95, 0.1),
+    ],
+    false,
+    'centripetal'
+  ),
+  B_BOARD = bat(BRIDGE_BOARD.x, (BRIDGE_BOARD.y0 + BRIDGE_BOARD.y1) / 2, 0),
+  // Over his right shoulder (he faces +z, his right is -x), a little above
+  // his head: his monitor and his laptop.
+  B_SHOULDER = bat(BRIDGE_HERO[0] - 0.78, 2.4, BRIDGE_HERO[2] - 0.62),
+  B_SCREENS = bat(
+    (BRIDGE_MONITOR.at[0] + BRIDGE_LAPTOP.at[0]) / 2,
+    1.5,
+    BRIDGE_MONITOR.at[2] - 0.05
+  ),
+  // The room's north-west, high, looking over him and the CEO at their
+  // desks (their screens toward it), the whiteboard at the left; his card
+  // on the right, over the door's corner.
+  B_WIDE = bat(-3.6, 3.25, -1.8),
+  B_WIDE_LOOK = bat(1.6, 1.0, 3.0),
+  BRIDGE_FOV = 46;
 const MO = new Vector3(...MISM_ORIGIN);
 const mat_ = (x: number, y: number, z: number) => new Vector3(x, y, z).add(MO);
 const M_SEAT = mat_(...MISM_SEAT),
@@ -699,6 +768,7 @@ export function RoomScene({
   arena,
   mism,
   fly,
+  bridge,
   pointer,
   reduced,
   audio,
@@ -724,6 +794,8 @@ export function RoomScene({
   /** 0..1 through the way to Bridge: up out of the classroom, over Utah
    *  Valley to Lehi (into chapter 4). */
   fly: RefObject<number>;
+  /** 0..1 through chapter 4, Bridge's office. */
+  bridge: RefObject<number>;
   /** Pointer position over the page, -1..1 each way, for a gentle parallax. */
   pointer: RefObject<{ x: number; y: number }>;
   audio: RefObject<RoomAudio | null>;
@@ -868,6 +940,10 @@ export function RoomScene({
     mismGroup = useRef<Group>(null),
     // Utah Valley, the way to Bridge (chapter 4's way in).
     valleyGroup = useRef<Group>(null),
+    // His window there, and the office's place behind it (hisOffice.ts).
+    hisOffice = useRef<HisOffice | null>(null),
+    // Bridge's office (chapter 4).
+    bridgeGroup = useRef<Group>(null),
     spineBone = useRef<Object3D | null>(null),
     // His hips (leaving: where they land, and the camera's aim).
     hipsBone = useRef<Object3D | null>(null);
@@ -895,6 +971,7 @@ export function RoomScene({
       arena: false, // the camera was in the arena last frame
       mism: false, // ... in the classroom
       fly: false, // ... over the valley
+      bridge: false, // ... in Bridge's office
       // Leaving: the camera's aim on him, and turned away (the pan).
       e: new Vector3(),
       f: new Vector3(),
@@ -1127,6 +1204,11 @@ export function RoomScene({
     t.position.copy(MO).add(new Vector3(-4, 1, 0));
     return t;
   }, []);
+  const bridgeTarget = useMemo(() => {
+    const t = new Object3D();
+    t.position.copy(BO).add(new Vector3(0, 0.5, 0));
+    return t;
+  }, []);
   const deskFillTarget = useMemo(() => {
     const t = new Object3D();
     t.position.copy(DESK_AIM);
@@ -1341,6 +1423,60 @@ export function RoomScene({
     }
     if (place === 'arena') arenaLights();
     if (place === 'mism') mismLights();
+    if (place === 'bridge') bridgeLights();
+  };
+  /** Bridge's office by day, its LED panels on: bright and even (the
+   *  hemisphere, the ambient, a broad rect light from the ceiling), the
+   *  corridors' light through the north glass, a soft key from high over
+   *  the room with soft shadows under the desks and chairs, his screens'
+   *  light on his face. */
+  const bridgeLights = () => {
+    if (hemi.current) {
+      hemi.current.color.set('#f6f4ef');
+      hemi.current.groundColor.set('#74716a');
+      hemi.current.intensity = 1.05;
+    }
+    if (ambient.current) {
+      ambient.current.color.set('#eeeae2');
+      ambient.current.intensity = 0.3;
+    }
+    const sg = screenGlow.current;
+    if (sg) {
+      sg.position.copy(BO).add(new Vector3(0, 3.75, 0));
+      sg.rotation.set(-Math.PI / 2, 0, 0);
+      sg.width = 8;
+      sg.height = 8;
+      sg.color.set('#fffaf2');
+      sg.intensity = 2.3;
+    }
+    const wg = windowGlow.current;
+    if (wg) {
+      // The corridor's light, in through the north glass.
+      wg.position.copy(BO).add(new Vector3(0, 1.9, -4.3));
+      wg.rotation.set(0, Math.PI, 0); // (it shines along its -z)
+      wg.width = 8.4;
+      wg.height = 3.2;
+      wg.color.set('#f1f4fb');
+      wg.intensity = 0.9;
+    }
+    const sn = sun.current;
+    if (sn) {
+      sn.position.copy(BO).add(new Vector3(-3, 12, -2));
+      sn.target = bridgeTarget;
+      sn.color.set('#fff7ec');
+      sn.intensity = 0.9;
+    }
+    const f = fill.current;
+    if (f) {
+      f.position.copy(BO).add(new Vector3(2, 3.5, 7));
+      f.target = bridgeTarget;
+    }
+    if (lamp.current) lamp.current.intensity = 0;
+    if (monitor.current) {
+      const m = monitor.current;
+      m.position.copy(B_HERO).add(new Vector3(0, 1.45, 0.75));
+      m.intensity = 0.5;
+    }
   };
   /** The classroom by day: its LED panels on, bright and even (the
    *  hemisphere, the ambient, a broad rect light from the ceiling over the
@@ -1863,6 +1999,42 @@ export function RoomScene({
     headBone.current?.getWorldPosition(headLocal.current);
   };
 
+  /** Chapter 4's camera in Bridge's office: in from the corridor through
+   *  the open door to the whiteboard, round to over his shoulder, back to
+   *  the corner for the team. */
+  const bridgeCamera = (
+    camera: Camera,
+    bb: ReturnType<typeof bridgeBeats>,
+    tall: boolean,
+    step: number
+  ) => {
+    const { pos, look } = tmp;
+    B_ENTER.getPointAt(bb.enter, pos);
+    // On a tall screen it stops further back, so the whole board fits
+    // across it.
+    if (tall) pos.x -= 2.6 * MathUtils.smoothstep(bb.enter, 0.55, 1);
+    look.copy(B_BOARD);
+    pos.lerp(B_SHOULDER, bb.toHim);
+    look.lerp(B_SCREENS, bb.toHim);
+    pos.lerp(B_WIDE, bb.wide);
+    // (Up over his head on the way, not past his ear.)
+    pos.y += 0.7 * Math.sin(Math.PI * bb.wide);
+    look.lerp(B_WIDE_LOOK, bb.wide);
+    if (reduced || !tmp.bridge) camera.position.copy(pos);
+    else camera.position.lerp(pos, 1 - Math.exp(-step * 8));
+    tmp.bridge = true;
+    tmp.mism = tmp.fly = tmp.office = tmp.school = tmp.arena = false;
+    camera.lookAt(look);
+    const cam = camera as PerspectiveCamera,
+      fov =
+        (BRIDGE_FOV - 6 * bb.toHim * (1 - bb.wide) + 6 * bb.wide) *
+        (tall ? 1.5 : 1);
+    if (Math.abs(cam.fov - fov) > 0.01) {
+      cam.fov = fov;
+      cam.updateProjectionMatrix();
+    }
+  };
+
   /** Chapter 3's camera in the classroom: the establishing glide from its
    *  back-left corner, down over the tiers to over his shoulder, then up
    *  behind him to the screens. */
@@ -2127,9 +2299,155 @@ export function RoomScene({
     }
   };
 
-  useFrame(({ camera, size, gl, clock }, dt) => {
+  /** The flight's last shot: his window on Bridge's building looks into
+   *  Bridge's office itself (chapter 4's room, its lights and shadows; no
+   *  one at the desks, and the door's open leaf, edge on from there a stray
+   *  pole, left out: the user's calls, 2026-11-22). It is drawn first,
+   *  into where the window is on screen, from where the camera would stand
+   *  at the office's own scale, and only what is past the office's west
+   *  glass (the camera's near plane laid along it); the valley is then
+   *  drawn over it without clearing, the window's room keeping its depth
+   *  only (hisOffice.ts). The office's own shader programs (the screen's
+   *  target, its lights), so nothing new compiles. Its sun's shadows once
+   *  as it comes into view (nothing in it moves). Whether it was drawn. */
+  const through = useMemo(
+    () => ({
+      cam: new PerspectiveCamera(),
+      plane: new Plane(),
+      clip: new Vector4(),
+      q: new Vector4(),
+      v: new Vector3(),
+      origin: new Vector3(),
+      // What the window leaves out: the people, the door's open leaf.
+      hidden: [] as Object3D[],
+      drawn: false,
+      was: false,
+    }),
+    []
+  );
+  const officeThroughWindow = (
+    gl: WebGLRenderer,
+    scene: Scene,
+    camera: PerspectiveCamera,
+    size: { width: number; height: number },
+    toIdle: number
+  ) => {
+    const w = hisOffice.current,
+      room = bridgeGroup.current,
+      valley = valleyGroup.current,
+      mask = w?.room.material as ShaderMaterial | undefined;
+    if (!w || !mask || !room?.children.length || !valley) return false;
+    mask.colorWrite = true;
+    // Where the window is on screen (a pixel or two over).
+    camera.updateMatrixWorld();
+    const { v } = through,
+      frame = w.room.matrixWorld;
+    let x0 = Infinity,
+      y0 = Infinity,
+      x1 = -Infinity,
+      y1 = -Infinity;
+    for (const c of w.corners) {
+      v.copy(c).applyMatrix4(frame).applyMatrix4(camera.matrixWorldInverse);
+      if (v.z > -camera.near) {
+        // A corner behind the camera: all of the screen.
+        [x0, y0, x1, y1] = [-1, -1, 1, 1];
+        break;
+      }
+      v.applyMatrix4(camera.projectionMatrix);
+      x0 = Math.min(x0, v.x);
+      y0 = Math.min(y0, v.y);
+      x1 = Math.max(x1, v.x);
+      y1 = Math.max(y1, v.y);
+    }
+    const px = (n: number, span: number) =>
+      MathUtils.clamp(((n + 1) / 2) * span, 0, span);
+    const sx0 = Math.floor(px(x0, size.width)) - 2,
+      sy0 = Math.floor(px(y0, size.height)) - 2,
+      sx1 = Math.ceil(px(x1, size.width)) + 2,
+      sy1 = Math.ceil(px(y1, size.height)) + 2;
+    if (x1 < -1 || x0 > 1 || y1 < -1 || y0 > 1) return false;
+    // The camera, at the office's scale: the valley's frame of chapter 4's
+    // room (its middle on its floor at w.origin, OFFICE_K a unit) to
+    // Bridge's own (at BRIDGE_ORIGIN).
+    const pc = through.cam,
+      origin = through.origin.copy(w.origin).applyMatrix4(frame);
+    pc.fov = camera.fov;
+    pc.aspect = camera.aspect;
+    pc.zoom = camera.zoom;
+    pc.near = camera.near / OFFICE_K;
+    pc.far = camera.far / OFFICE_K;
+    pc.updateProjectionMatrix();
+    pc.position
+      .copy(camera.position)
+      .sub(origin)
+      .divideScalar(OFFICE_K)
+      .add(BO);
+    pc.quaternion.copy(camera.quaternion);
+    pc.updateMatrixWorld();
+    const cut = BO.x + OFFICE_CUT_X;
+    if (pc.position.x > cut - 0.05) return false;
+    // Its near plane along the cut (an oblique near plane, as three's
+    // Reflector does it): the corridor, the west glass and its door are
+    // left out, and culled.
+    const { plane, clip, q } = through;
+    plane.normal.set(1, 0, 0);
+    plane.constant = -cut;
+    plane.applyMatrix4(pc.matrixWorldInverse);
+    clip.set(plane.normal.x, plane.normal.y, plane.normal.z, plane.constant);
+    const e = pc.projectionMatrix.elements;
+    q.set(
+      (Math.sign(clip.x) + e[8]) / e[0],
+      (Math.sign(clip.y) + e[9]) / e[5],
+      -1,
+      (1 + e[10]) / e[14]
+    );
+    clip.multiplyScalar(2 / clip.dot(q));
+    e[2] = clip.x;
+    e[6] = clip.y;
+    e[10] = clip.z + 1;
+    e[14] = clip.w;
+    pc.projectionMatrixInverse.copy(pc.projectionMatrix).invert();
+
+    // The office's lights (its sun's shadows drawn only as it comes into
+    // view), the office alone, no one at the desks.
+    lights('bridge', toIdle, 0);
+    const sn = sun.current;
+    if (sn) {
+      sn.shadow.autoUpdate = false;
+      sn.shadow.needsUpdate = !through.was;
+    }
+    if (!through.hidden.length || through.hidden.some((o) => !o.parent)) {
+      through.hidden = [];
+      room.traverse((o) => {
+        if (o.name === 'coworkers' || /^Bridge[ _]door/.test(o.name))
+          through.hidden.push(o);
+      });
+    }
+    valley.visible = false;
+    room.visible = true;
+    for (const o of through.hidden) o.visible = false;
+    gl.setScissor(sx0, sy0, sx1 - sx0, sy1 - sy0);
+    gl.setScissorTest(true);
+    gl.render(scene, pc);
+    gl.setScissorTest(false);
+    valley.visible = true;
+    room.visible = false;
+    for (const o of through.hidden) o.visible = true;
+    lights('fly', toIdle, 0);
+    // The valley over it, its colour kept; the window's room, depth only.
+    mask.colorWrite = false;
+    gl.autoClearColor = false;
+    through.drawn = true;
+    return true;
+  };
+
+  useFrame(({ camera, size, gl, clock, scene }, dt) => {
     const clips = actions.current;
     if (!clips) return;
+    // (The office through his window sets these again where it is drawn.)
+    gl.autoClearColor = true;
+    through.was = through.drawn;
+    through.drawn = false;
     restoreBones();
     const p = progress.current,
       r = rewind.current,
@@ -2144,9 +2462,13 @@ export function RoomScene({
       mib = mismBeats(mi),
       fl = fly.current ?? 0,
       flb = flyBeats(fl),
+      br = bridge.current ?? 0,
+      bb = bridgeBeats(br),
+      // In Bridge's office once the white at his window covers the screen.
+      inBridge = fl >= BRIDGE_SWITCH,
       // Over the valley once the punch through the classroom's ceiling is
       // white.
-      inFly = fl >= FLY_SWITCH,
+      inFly = fl >= FLY_SWITCH && !inBridge,
       // Chapter 3: in the classroom (or the arena, if it's in the flow)
       // once the leaving's white is over.
       inArena = ARENA_IN_FLOW && gr >= GRAD_SWITCH,
@@ -2157,19 +2479,21 @@ export function RoomScene({
       db = deskBeats(dk),
       // Hired: at his desk once the camera is out of the meeting room.
       atDesk = inOffice && dk >= DESK_SWITCH,
-      place: Place = inFly
-        ? 'fly'
-        : inArena
-        ? 'arena'
-        : inMism
-          ? 'mism'
-          : atDesk
-          ? 'desk'
-          : inOffice
-            ? 'office'
-            : inSchool
-              ? 'hall'
-              : 'room',
+      place: Place = inBridge
+        ? 'bridge'
+        : inFly
+          ? 'fly'
+          : inArena
+            ? 'arena'
+            : inMism
+              ? 'mism'
+              : atDesk
+                ? 'desk'
+                : inOffice
+                  ? 'office'
+                  : inSchool
+                    ? 'hall'
+                    : 'room',
       sb = schoolBeats(sc),
       mb = mailBeats(ml),
       ob = officeBeats(of),
@@ -2195,8 +2519,10 @@ export function RoomScene({
     clips.talk?.setEffectiveWeight(0);
     if (ARENA_IN_FLOW && !arenaOn && (dk > 0.3 || gr > 0 || ar > 0))
       setArenaOn(true);
-    if (mismGroup.current) mismGroup.current.visible = inMism && !inFly;
+    if (mismGroup.current)
+      mismGroup.current.visible = inMism && !inFly && !inBridge;
     if (valleyGroup.current) valleyGroup.current.visible = inFly;
+    if (bridgeGroup.current) bridgeGroup.current.visible = inBridge;
     {
       // Over the valley, a near plane by how close the camera is to anything
       // (flyNear); elsewhere the rooms'.
@@ -2216,7 +2542,19 @@ export function RoomScene({
     // three everywhere else: every material seen in both (his, the bag's)
     // compiled twice. Now every place has the same lights.
     if (schoolGroup.current) schoolGroup.current.visible = place === 'hall';
-    if (inArena) {
+    if (inBridge) {
+      // Chapter 4: at his desk at Bridge, the whole Typing clip (as at
+      // Neighbor's): typing, now and then reaching for the trackpad and back.
+      clips.type.setEffectiveWeight(1);
+      clips.type.timeScale = 1;
+      clips.keys.setEffectiveWeight(0);
+      clips.rise.setEffectiveWeight(0);
+      clips.idle.setEffectiveWeight(0);
+      clips.wave.setEffectiveWeight(0);
+      clips.calm?.setEffectiveWeight(0);
+      desk.current.active = 1;
+      mixer.update(reduced ? 0 : step);
+    } else if (inArena) {
       // Chapter 3: standing in the line (his breathing idle), walking up and
       // across the stage (Walking, if downloaded), standing with his diploma.
       clips.type.setEffectiveWeight(0);
@@ -2375,9 +2713,24 @@ export function RoomScene({
     s.visible = !inFly;
     if (inFly) {
       flyCamera(camera, flb, size.width < size.height, step);
+      officeThroughWindow(gl, scene, camera as PerspectiveCamera, size, toIdle);
       return;
     }
     tmp.fly = false;
+    if (inBridge) {
+      s.position.copy(B_HERO);
+      s.rotation.y = 0; // facing +z, the wall
+      s.updateMatrixWorld(true);
+      if (rightHand.current)
+        rightHand.current.getWorldPosition(desk.current.hand);
+      // On the trackpad once his right hand (-x) is well to the keyboard's
+      // right.
+      desk.current.mouse = B_KEYS.x - desk.current.hand.x > MOUSE_RIGHT;
+      desk.current.keys.copy(B_KEYS);
+      bridgeCamera(camera, bb, size.width < size.height, step);
+      return;
+    }
+    tmp.bridge = false;
     if (inMism) {
       s.position.copy(M_SEAT);
       s.rotation.y = MISM_YAW + Math.PI / 2; // facing the front floor
@@ -2534,6 +2887,7 @@ export function RoomScene({
       office: officeGroup.current,
       mism: ARENA_IN_FLOW ? null : mismGroup.current,
       fly: valleyGroup.current,
+      bridge: bridgeGroup.current,
     };
     // Every place in (the hall's group stands from the start; its scene
     // inside comes with its model).
@@ -2648,6 +3002,12 @@ export function RoomScene({
     // The shadow maps as the place has them (lights() above): his room the
     // lamp's, the others the sun's. (Both, the hall's crowd went six times
     // into the lamp's cube for nothing: 40 M triangles in a frame.)
+    // Twice: three draws the shadow maps before it sets up the frame's
+    // lights, so the first pass's depth programs are made for the lights
+    // the last frame had (2026-11-22: Bridge's office, two point lights,
+    // after the classroom's three: its shadows' programs compiled on the
+    // way in). The second draws them under the place's own.
+    gl.render(scene, camera);
     gl.render(scene, camera);
     for (const [o, visible, culled] of shown) {
       o.visible = visible;
@@ -2785,7 +3145,13 @@ export function RoomScene({
       )}
       <group ref={valleyGroup} visible={false} position={VALLEY_ORIGIN}>
         <Suspense fallback={null}>
-          <ValleyScene fly={fly} reduced={reduced} />
+          <ValleyScene fly={fly} reduced={reduced} officeRef={hisOffice} />
+        </Suspense>
+      </group>
+      <primitive object={bridgeTarget} />
+      <group ref={bridgeGroup} visible={false} position={BRIDGE_ORIGIN}>
+        <Suspense fallback={null}>
+          <BridgeScene work={desk} reduced={reduced} />
         </Suspense>
       </group>
       {arenaOn && (

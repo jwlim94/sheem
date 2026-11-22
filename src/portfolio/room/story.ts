@@ -7,8 +7,9 @@ import { BRIDGE } from './daySky';
  * (240dvh), the interview at Neighbor (520dvh), hired, the way out of the
  * meeting room to his desk (380dvh), his leaving Neighbor into chapter 3
  * (460dvh), the master's: a security case in a business-school classroom
- * (520dvh), and the way to Bridge, up out of the classroom and over Utah
- * Valley from Provo to Lehi (560dvh). (The commencement in the Marriott Center, built first, is kept
+ * (520dvh), the way to Bridge, up out of the classroom and over Utah
+ * Valley from Provo to Lehi (560dvh), and Bridge's office (520dvh). (The
+ * commencement in the Marriott Center, built first, is kept
  * out of the flow: ARENA_IN_FLOW; its part has no length.) See .room-track
  * in room.css.
  */
@@ -25,6 +26,7 @@ const SEG = {
   mism: ARENA_IN_FLOW ? 0 : 520,
   arena: ARENA_IN_FLOW ? 440 : 0,
   fly: 560,
+  bridge: 520,
 };
 const TOTAL = Object.values(SEG).reduce((a, b) => a + b, 0);
 const OFFICE_START = SEG.room + SEG.rewind + SEG.school + SEG.mail;
@@ -33,6 +35,7 @@ const GRAD_START = DESK_START + SEG.desk;
 const MISM_START = GRAD_START + SEG.grad;
 const ARENA_START = MISM_START + SEG.mism;
 const FLY_START = ARENA_START + SEG.arena;
+const BRIDGE_START = FLY_START + SEG.fly;
 
 /** Where the room story ends (page 0..1): the welcome. */
 export const ROOM_END = SEG.room / TOTAL;
@@ -52,6 +55,8 @@ export const DESK_HOLD = 0.86;
 export const ARENA_HOLD = 0.93;
 /** Chapter 3's progress (the classroom) where its closing card is up (held). */
 export const MISM_HOLD = 0.94;
+/** Chapter 4's progress (Bridge's office) where his Bridge card is up (held). */
+export const BRIDGE_HOLD = 0.93;
 export const HOLDS = [
   ROOM_END,
   (SEG.room + SEG.rewind + SCHOOL_HOLD * SEG.school) / TOTAL,
@@ -60,6 +65,7 @@ export const HOLDS = [
   ARENA_IN_FLOW
     ? (ARENA_START + ARENA_HOLD * SEG.arena) / TOTAL
     : (MISM_START + MISM_HOLD * SEG.mism) / TOTAL,
+  (BRIDGE_START + BRIDGE_HOLD * SEG.bridge) / TOTAL,
 ];
 
 export const split = (page: number) => {
@@ -79,6 +85,7 @@ export const split = (page: number) => {
     mism: SEG.mism ? MathUtils.clamp((d - MISM_START) / SEG.mism, 0, 1) : 0,
     arena: SEG.arena ? MathUtils.clamp((d - ARENA_START) / SEG.arena, 0, 1) : 0,
     fly: MathUtils.clamp((d - FLY_START) / SEG.fly, 0, 1),
+    bridge: MathUtils.clamp((d - BRIDGE_START) / SEG.bridge, 0, 1),
   };
 };
 
@@ -359,7 +366,13 @@ export function flyBeats(f: number) {
     roll: smoother(0.93, 0.96, f),
     card: ease(0.95, 0.99, f), // chapter 4's title
     muffle: ease(0.88, 0.95, f) * (1 - ease(0.98, 1, f)),
-    musicOut: ease(0.78, 0.95, f), // chapter 3's song fades away
+    // Chapter 3's song fades away up through the classroom's ceiling, under
+    // the whoosh; chapter 4's comes up as the white lifts off BYU, and plays
+    // on over the valley, into his window and through Bridge's office (the
+    // user's call, 2026-11-22: it had come in only with the card at his
+    // window).
+    musicOut: ease(0.04, 0.19, f),
+    music: ease(0.19, 0.27, f),
   };
 }
 
@@ -368,3 +381,29 @@ export const FLY_SWITCH = 0.19;
 
 /** Where the valley is (far from every other set; hidden elsewhere). */
 export const VALLEY_ORIGIN: [number, number, number] = [0, 0, 3000];
+
+/** Fly progress where Bridge's office takes over, while the white at his
+ *  window covers the screen. */
+export const BRIDGE_SWITCH = 0.97;
+
+/**
+ * Beats of chapter 4 (0..1), Bridge's office (bridge.ts, after the user's
+ * floor plan, 2026-11-22): the white lifts (2025 and the card go) off the
+ * office seen through its west glass from the corridor, the whiteboard on
+ * its far wall, as through his window from outside; the camera comes in
+ * through the open door and across the room to the whiteboard (Bridge, what
+ * it is for, his valuation pipeline, the marketplace); it turns round to
+ * him at his desk against the south wall, over his right shoulder: his
+ * monitor (the marketplace), his laptop on its stand (the pipeline's code);
+ * up to the room's north-west, high, over him and the CEO at their desks;
+ * his Bridge card (held).
+ */
+export function bridgeBeats(b: number) {
+  return {
+    reveal: ease(0.02, 0.1, b), // the white lifts; 2025 and the card go
+    enter: smoother(0.0, 0.36, b), // in through the door, to the whiteboard
+    toHim: smoother(0.46, 0.62, b), // round to him, over his shoulder
+    wide: smoother(0.76, 0.88, b), // up over him and the CEO
+    card: ease(0.86, 0.92, b), // his Bridge card
+  };
+}

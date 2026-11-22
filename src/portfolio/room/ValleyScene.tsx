@@ -56,8 +56,8 @@ import {
 } from './valleyBuildings';
 import { drawCampusGround, drawLehiGround } from './valleyGround';
 import { parkedCarsMesh } from './valleyCars';
-import { buildHisOffice } from './hisOffice';
-import { loadKalam } from './officeDesk';
+import { buildHisOffice, OFFICE_TOP } from './hisOffice';
+import type { HisOffice } from './hisOffice';
 
 /**
  * Chapter 4's way in: Utah Valley from the air at the end of a day (valley.ts
@@ -861,6 +861,7 @@ function build() {
     area: LEHI_AREA,
     haze: HAZE,
     his: HIS_WINDOW,
+    hisTop: OFFICE_TOP,
     dark: true,
   });
   const campus = buildingsMesh(boxes, {
@@ -880,7 +881,8 @@ function build() {
     group.add(m);
     disposables.push(m.geometry, m.material as ShaderMaterial);
   }
-  // His office, behind his window (the offices' shader cuts its glass).
+  // His office, behind his window (the offices' shader cuts its glass;
+  // RoomScene draws Bridge's office into it).
   const office = buildHisOffice(lehi.find((b) => b.building === 0)!.ground);
   group.add(office.group);
   disposables.push(...office.disposables);
@@ -1061,23 +1063,23 @@ function update(
 export function ValleyScene({
   fly,
   reduced,
+  officeRef,
 }: {
   /** 0..1 through the way into chapter 4. */
   fly: RefObject<number>;
   reduced: boolean;
+  /** His window and the office's place behind it, for RoomScene to draw
+   *  Bridge's office into (hisOffice.ts). */
+  officeRef: RefObject<HisOffice | null>;
 }) {
   const parts = useMemo(() => build(), []);
   useEffect(() => () => parts.disposables.forEach((d) => d.dispose()), [parts]);
-  // His whiteboard's marker hand once its font is in.
   useEffect(() => {
-    let alive = true;
-    loadKalam().then(() => {
-      if (alive) parts.office.redraw();
-    });
+    officeRef.current = parts.office;
     return () => {
-      alive = false;
+      officeRef.current = null;
     };
-  }, [parts]);
+  }, [parts, officeRef]);
   const root = useRef<Group>(null),
     time = useRef(0),
     inv = useMemo(() => new Matrix4(), []),

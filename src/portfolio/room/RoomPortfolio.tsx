@@ -15,6 +15,7 @@ import {
   arenaBeats,
   mismBeats,
   flyBeats,
+  bridgeBeats,
   rewindBeats,
   schoolBeats,
   split,
@@ -89,6 +90,7 @@ export default function RoomPortfolio() {
     arena = useRef(0), // chapter 3, the commencement (out of the flow), 0..1
     mism = useRef(0), // chapter 3, the MISM's classroom, 0..1
     fly = useRef(0), // the way to Bridge, over Utah Valley, 0..1
+    bridge = useRef(0), // chapter 4, Bridge's office, 0..1
     pointer = useRef({ x: 0, y: 0 }),
     caption = useRef<Record<string, HTMLElement | null>>({}),
     hint = useRef<HTMLDivElement>(null),
@@ -186,6 +188,7 @@ export default function RoomPortfolio() {
           ab = arenaBeats(parts.arena),
           ib = mismBeats(parts.mism),
           fb = flyBeats(parts.fly),
+          bb = bridgeBeats(parts.bridge),
           // Chapter 3's opening: the arena's or the classroom's (one is
           // out of the flow; its beats stay at 0).
           reveal3 = Math.max(ab.reveal, ib.reveal);
@@ -199,6 +202,7 @@ export default function RoomPortfolio() {
         arena.current = parts.arena;
         mism.current = parts.mism;
         fly.current = parts.fly;
+        bridge.current = parts.bridge;
         const show = (el: HTMLElement | null | undefined, o: number) => {
           if (!el) return;
           el.style.opacity = String(o);
@@ -267,7 +271,7 @@ export default function RoomPortfolio() {
                     : rb.card;
           y.style.opacity = String(
             fm
-              ? fb.counter
+              ? fb.counter * (1 - bb.reveal)
               : gm
                 ? gb.counter * (1 - reveal3)
                 : desk
@@ -365,9 +369,10 @@ export default function RoomPortfolio() {
             Math.max(
               mb.flash * (1 - ob.reveal),
               gb.flash * (1 - reveal3),
-              // Up through the classroom's ceiling, and at his window.
+              // Up through the classroom's ceiling, and at his window (it
+              // lifts off Bridge's office).
               fb.punch,
-              fb.flash
+              fb.flash * (1 - bb.reveal)
             )
           );
         show(caption.current.chapter2, mb.card * (1 - ob.reveal));
@@ -384,8 +389,10 @@ export default function RoomPortfolio() {
           caption.current.masters,
           Math.max(ab.card, ib.card) * (1 - fb.leave)
         );
-        // Chapter 4: its title on his window's white.
-        show(caption.current.chapter4, fb.card);
+        // Chapter 4: its title on his window's white, lifting off Bridge's
+        // office; and his Bridge card.
+        show(caption.current.chapter4, fb.card * (1 - bb.reveal));
+        show(caption.current.bridge, bb.card);
         // Over the valley, the marketplace's search: the query typed, then
         // what it finds.
         if (search.current && searchText.current && searchCount.current) {
@@ -426,7 +433,14 @@ export default function RoomPortfolio() {
         );
         // Chapter 2's song comes up with its card; muffled while he thinks,
         // opening as he writes; its big hit as he finishes the solution.
-        audio.current?.setOfficeMusic(mb.card * (1 - gb.musicOut), ob.write);
+        audio.current?.setOfficeMusic(
+          mb.card * (1 - gb.musicOut),
+          parts.fly > 0 ? 1 : ob.write
+        );
+        // Chapter 4's own song (it had brought chapter 2's back) comes up as
+        // the flight comes out of the white over BYU, and plays on over the
+        // valley and through Bridge's office.
+        audio.current?.setBridgeMusic(fb.music);
         // The wall clock comes up as he turns to it, runs back with the
         // hands, and goes dull and away into the dial.
         audio.current?.setClock(rb.look * (1 - rb.flash), rb.dive, rb.spin);
@@ -682,6 +696,7 @@ export default function RoomPortfolio() {
                 arena={arena}
                 mism={mism}
                 fly={fly}
+                bridge={bridge}
                 pointer={pointer}
                 reduced={reduced}
                 audio={audio}
@@ -893,6 +908,40 @@ export default function RoomPortfolio() {
             </p>
             <h2>Bridge</h2>
             <p>Lehi, Utah · Full-Stack Engineer</p>
+          </section>
+          <section
+            ref={bind('bridge')}
+            className="room-caption room-school room-neighbor room-up"
+          >
+            <p className="room-kicker">BRIDGE · MAY 2025 – PRESENT</p>
+            <h2>Full-stack engineer at Bridge.</h2>
+            <ul>
+              <li>
+                Built the AI document extraction behind its business valuations:
+                tax returns and P&amp;Ls into structured financials, valuation
+                models and PDF reports. In-house, it cut extraction time by
+                about 70%.
+              </li>
+              <li>
+                Designed and built the marketplace: natural-language search, a
+                map view, filters and saved listings. 9,500+ listings across
+                1,400+ industries.
+              </li>
+              <li>
+                Led the GCP infrastructure and security that passed a credit
+                union’s vendor risk review: US-only data, isolated extraction
+                workers, audited deletion, all in Terraform.
+              </li>
+            </ul>
+            <p className="room-soon">
+              <a
+                href="https://bridge.financial"
+                target="_blank"
+                rel="noreferrer"
+              >
+                bridge.financial
+              </a>
+            </p>
           </section>
         </div>
         <div className="room-track" />
