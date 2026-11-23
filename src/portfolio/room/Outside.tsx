@@ -8,10 +8,13 @@ import {
   BufferAttribute,
   BufferGeometry,
   Color,
+  DataTexture,
   Group,
+  LinearFilter,
   MathUtils,
   MirroredRepeatWrapping,
   PointsMaterial,
+  RedFormat,
   ReplaceStencilOp,
   SRGBColorSpace,
   ShaderMaterial,
@@ -85,14 +88,40 @@ void main() {
 }`;
 
 // Mountains and valley: darken and cool at dusk.
+// Winter: snow on the peaks' upper slopes (the ending; the user's call,
+// 2026-11-23: only near the tops, a light cover). How far below the ridge a
+// point is, from the ridge's height along the photo (uRidge, read once off
+// its alpha: searched for per pixel, the tree line on the ridge made the
+// cover's edge flicker in dashes); its lower edge ragged, further down the
+// gullies, and only on the high ridges.
 const mountainFragment = /* glsl */ `
-uniform sampler2D map;
+uniform sampler2D map, uRidge;
+uniform vec2 uRidgeRange;
 uniform float uNight, uTime, uWinter;
 varying vec2 vUv;
+float hash(float n) { return fract(sin(n * 127.1) * 43758.5453); }
+float noise(float x) {
+  float i = floor(x), f = fract(x);
+  return mix(hash(i), hash(i + 1.0), f * f * (3.0 - 2.0 * f));
+}
 void main() {
   vec4 t = texture2D(map, vUv);
   vec3 c = t.rgb * mix(vec3(1.0), vec3(0.75, 0.8, 1.0), uNight);
   c *= mix(vec3(1.0), vec3(0.55, 0.6, 0.78), uWinter);
+  if (uWinter > 0.0) {
+    float ridge = mix(uRidgeRange.x, uRidgeRange.y, texture2D(uRidge, vec2(vUv.x, 0.5)).r);
+    float depth = max(0.0, ridge - vUv.y);
+    float x = vUv.x;
+    float reach = 0.02 + 0.026 * noise(x * 34.0) + 0.01 * noise(x * 140.0);
+    float high = smoothstep(0.475, 0.515, ridge);
+    // Gullies: the cover runs down further along some, less on the ribs.
+    float gully = 0.6 * noise(x * 90.0 + 7.0) + 0.4 * noise(x * 210.0 + 3.0);
+    reach *= 0.8 + 0.45 * gully;
+    float snow = (1.0 - smoothstep(reach * 0.6, reach, depth)) * high;
+    float lum = dot(t.rgb, vec3(0.3, 0.55, 0.15));
+    vec3 white = vec3(0.52, 0.56, 0.68) * (0.8 + 0.4 * lum);
+    c = mix(c, white, snow * (0.75 + 0.25 * gully) * uWinter);
+  }
   gl_FragColor = vec4(c, t.a);
   #include <colorspace_fragment>
 }`;
@@ -218,6 +247,47 @@ export function Outside({
   const group = useRef<Group>(null),
     dots = useRef<PointsMaterial | null>(null);
   const [sky, mountains, trees] = useTexture(FILES);
+  // The mountains' ridge: its height (v) along the photo, a column at a
+  // time from its alpha, smoothed a little; for the winter's snow on it.
+  const ridge = useMemo(() => {
+    const img = mountains.image as CanvasImageSource & {
+        width: number;
+        height: number;
+      },
+      W = 1024,
+      H = Math.round((img.height / img.width) * W),
+      lo = 0.35,
+      hi = 0.65;
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const v = new Float32Array(W).fill(0.5);
+    if (ctx) {
+      ctx.drawImage(img, 0, 0, W, H);
+      const a = ctx.getImageData(0, 0, W, H).data;
+      for (let x = 0; x < W; x++) {
+        let y = 0;
+        while (y < H && a[(y * W + x) * 4 + 3] < 128) y++;
+        v[x] = 1 - (y + 0.5) / H;
+      }
+    }
+    const data = new Uint8Array(W);
+    for (let x = 0; x < W; x++) {
+      let sum = 0;
+      for (let k = -3; k <= 3; k++)
+        sum += v[Math.min(W - 1, Math.max(0, x + k))];
+      data[x] = Math.round(
+        MathUtils.clamp((sum / 7 - lo) / (hi - lo), 0, 1) * 255
+      );
+    }
+    const tex = new DataTexture(data, W, 1, RedFormat);
+    tex.wrapS = MirroredRepeatWrapping;
+    tex.magFilter = tex.minFilter = LinearFilter;
+    tex.needsUpdate = true;
+    return { tex, range: new Vector2(lo, hi) };
+  }, [mountains]);
+  useEffect(() => () => ridge.tex.dispose(), [ridge]);
   const materials = useMemo(() => {
     const make = (map: Texture, fragmentShader: string) => {
       map.colorSpace = SRGBColorSpace;
@@ -232,6 +302,8 @@ export function Outside({
           uNight: { value: 0 },
           uWinter: { value: 0 },
           uTime: { value: 0 },
+          uRidge: { value: ridge.tex },
+          uRidgeRange: { value: ridge.range },
           uScale: {
             value: new Vector2(PLANE[0] / PHOTO[0], PLANE[1] / PHOTO[1]),
           },
@@ -274,7 +346,7 @@ export function Outside({
         blending: AdditiveBlending,
       }),
     };
-  }, [sky, mountains, trees]);
+  }, [sky, mountains, trees, ridge]);
 
   const points = useMemo(() => {
     const geo = (p: number[]) => {

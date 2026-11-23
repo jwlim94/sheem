@@ -830,12 +830,37 @@ export function RoomScene({
   );
   // His bookcase (210 small meshes) drawn a material at a time, before any
   // frame (mergeByMaterial). Its speaker stays as built: SpeakerViz finds
-  // it by name.
+  // it by name. The things on its top (the pill and vitamin bottles, the
+  // supplement jar, the candy jar) are a group of their own, merged apart:
+  // the ending clears them for its snowman (the user's call, 2026-11-22),
+  // and hides his two prints, a wreath in their place (Christmas.tsx).
+  const endHidden = useMemo(() => ({ list: [] as Object3D[], on: false }), []);
   useLayoutEffect(() => {
     shadows(room.scene);
     const shelf = room.scene.getObjectByName('Bookcase');
+    if (shelf && !shelf.userData.topApart) {
+      shelf.userData.topApart = true;
+      const top = new Group();
+      top.name = 'Bookcase top';
+      top.position.copy(shelf.position);
+      top.quaternion.copy(shelf.quaternion);
+      top.scale.copy(shelf.scale);
+      shelf.parent?.add(top);
+      room.scene.updateMatrixWorld(true);
+      for (const o of [...shelf.children])
+        // (The loader turns the names' spaces to underscores.)
+        if (/^(Pill|Supplement|Vitamin|Candy)[ _]/.test(o.name))
+          top.attach(o);
+      mergeByMaterial(top);
+    }
     if (shelf) mergeByMaterial(shelf, (o) => o.name.startsWith('Speaker'));
-  }, [room.scene]);
+    const list: Object3D[] = [];
+    room.scene.traverse((o) => {
+      if (/^((Frame|Print)[ _][01]|Bookcase top)$/.test(o.name)) list.push(o);
+    });
+    endHidden.list = list;
+    endHidden.on = false;
+  }, [room.scene, endHidden]);
   const bagGltf = useGLTF(BAG, DRACO);
   const bagObjects = useMemo(() => {
     const find = (re: RegExp) => {
@@ -2623,6 +2648,10 @@ export function RoomScene({
     if (roomGroup.current)
       roomGroup.current.visible = place === 'room' || place === 'end';
     if (xmasGroup.current) xmasGroup.current.visible = place === 'end';
+    if (endHidden.on !== (place === 'end')) {
+      endHidden.on = place === 'end';
+      for (const o of endHidden.list) o.visible = !endHidden.on;
+    }
     inEndRef.current = inEnd;
     if (officeGroup.current) officeGroup.current.visible = inOffice;
     // The hall only in the hall. It was also shown in his room (never seen

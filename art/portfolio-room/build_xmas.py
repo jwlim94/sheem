@@ -7,7 +7,9 @@ room of build_room.py, in its style:
   (its fairy lights are live on the page: Christmas.tsx, at the points this
   writes to src/portfolio/room/xmasLights.ts);
 - presents under it; two stockings hung from the bookcase's top; a wreath
-  on the back wall; a small snowman on the bookcase.
+  over the bookcase in his prints' place, its bow red; a small snowman on
+  the bookcase (its top cleared for it: RoomScene hides the prints and the
+  bookcase's bottles and candy jar).
 Run: Blender -b --factory-startup --python art/portfolio-room/build_xmas.py
 Writes public/models/portfolio-room/xmas.glb (Draco).
 
@@ -207,8 +209,35 @@ for x, name in ((BC_X - 0.33, 'sock-red'), (BC_X + 0.25, 'sock-green')):
     piece(name, (x, BC_H - 0.42, BC_FRONT + 0.06), height=0.46, yaw=0.0)
 piece('snowman', (BC_X + 0.38, BC_H, WALL_Z + 0.24), height=0.36, yaw=-0.35)
 
-# The wreath on the back wall, right of the window.
-piece('wreath', (0.62, 2.62, WALL_Z + 0.07), height=0.62, yaw=0.0)
+# A wreath over the bookcase, where his two prints hang the rest of the
+# story (the page hides them here), plain green, its bow red (the user's
+# calls, 2026-11-22: the kit's decorated one's spots read as a rash, and
+# the small one by the window went).
+wreath = piece('wreath', (BC_X, 2.62, WALL_Z + 0.08), height=0.86, yaw=0.0)
+
+
+def colormap_at(o, poly):
+    """The kit's colormap's colour under a face (its UVs' middle)."""
+    img = o.active_material.node_tree.nodes['Image Texture'].image if o.active_material and 'Image Texture' in o.active_material.node_tree.nodes else None
+    if img is None:
+        img = next(n.image for n in o.active_material.node_tree.nodes if n.type == 'TEX_IMAGE')
+    uv = o.data.uv_layers.active.data
+    u = sum(uv[i].uv[0] for i in poly.loop_indices) / poly.loop_total
+    v = sum(uv[i].uv[1] for i in poly.loop_indices) / poly.loop_total
+    w, h = img.size
+    x, y = min(w - 1, max(0, int(u * w))), min(h - 1, max(0, int(v * h)))
+    i = (y * w + x) * 4
+    return img.pixels[i:i + 3]
+
+
+red = material('Wreath bow', '#a32329', 0.45)
+for o in wreath:
+    o.data.materials.append(red)
+    slot = len(o.data.materials) - 1
+    for poly in o.data.polygons:
+        r, g, b = colormap_at(o, poly)
+        if not (g > r and g > b):  # not the green: the bow
+            poly.material_index = slot
 
 # ------------------------------------------------------------------ export
 bpy.ops.object.select_all(action='DESELECT')

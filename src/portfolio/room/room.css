@@ -505,6 +505,14 @@
   text-transform: uppercase;
   color: var(--muted);
 }
+/* A card's quiet last line (the ending's thanks). */
+.room-school p.room-card-note {
+  margin: 10px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 13.5px;
+  color: var(--muted);
+}
 /* "Visit Neighbor →" (where "Next: …" was: the story goes on by itself). */
 .room-visit {
   display: flex;

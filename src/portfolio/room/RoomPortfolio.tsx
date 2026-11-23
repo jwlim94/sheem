@@ -1086,8 +1086,12 @@ export default function RoomPortfolio() {
             </p>
             <h2>Open to new opportunities.</h2>
             <p>
-              Still building at Bridge, and open to what comes next. Thanks for
-              scrolling, and happy holidays.
+              I’m a software engineer looking for what’s next. If you know of an
+              open role, or a team I might be a good fit for, I’d love to hear
+              about it.
+            </p>
+            <p className="room-card-note">
+              Thanks for scrolling, and happy holidays.
             </p>
           </section>
         </div>
