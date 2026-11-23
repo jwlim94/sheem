@@ -70,6 +70,62 @@ export const HOLDS = [
     : (MISM_START + MISM_HOLD * SEG.mism) / TOTAL,
   (BRIDGE_START + BRIDGE_HOLD * SEG.bridge) / TOTAL,
 ];
+/** When the story plays by itself (the chapter rail's Play), how long it
+ *  waits on each hold (s), in HOLDS' order: the welcome, chapter 1's card,
+ *  the offer, and longer on the cards with a job's or a degree's points. */
+export const HOLD_PLAY = [3, 3, 2.5, 6, 5, 6];
+
+/** Where `p` (0..1) of the way through part `seg` is, as the page's
+ *  progress (0..1). */
+export const pageAt = (seg: keyof typeof SEG, p: number) => {
+  let d = 0;
+  for (const k of Object.keys(SEG) as (keyof typeof SEG)[]) {
+    if (k === seg) return (d + SEG[k] * p) / TOTAL;
+    d += SEG[k];
+  }
+  return 0;
+};
+
+/**
+ * The chapters, for the chapter rail (ChapterRail.tsx). Each begins (`from`)
+ * where its way in does, once the last chapter's card has gone: the clock
+ * running back, the mail, his walk out of Neighbor, the flight over the
+ * valley, the white over Bridge's office. A jump to one (`go`) lands on its
+ * title card, after its way in (the ending: on his last card).
+ */
+export const CHAPTERS = [
+  { year: 'Intro', name: 'Welcome', from: 0, go: 0 },
+  {
+    year: '2019',
+    name: 'School',
+    from: pageAt('rewind', 0.05),
+    go: pageAt('rewind', 0.97),
+  },
+  {
+    year: '2022',
+    name: 'Neighbor',
+    from: pageAt('mail', 0),
+    go: pageAt('mail', 0.8),
+  },
+  {
+    year: '2024',
+    name: 'Back to BYU',
+    from: pageAt('grad', 0.03),
+    go: pageAt('grad', 0.995),
+  },
+  {
+    year: '2025',
+    name: 'Bridge',
+    from: pageAt('fly', 0.03),
+    go: pageAt('fly', 0.99),
+  },
+  {
+    year: 'Now',
+    name: 'Open to work',
+    from: pageAt('end', 0.05),
+    go: pageAt('end', 0.66),
+  },
+] as const;
 
 export const split = (page: number) => {
   const d = page * TOTAL;

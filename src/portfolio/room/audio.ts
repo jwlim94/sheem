@@ -416,6 +416,17 @@ export class RoomAudio {
     w.v = v;
   }
 
+  /** After a jump (the chapter rail): no whoosh for the ground skipped. Each
+   *  re-arms once the scroll is back before its window, as usual. */
+  jumped() {
+    for (const w of Object.values(this.whooshes)) {
+      this.stopWhoosh(w);
+      w.armed = false;
+      w.speed = 0;
+      w.at = 0;
+    }
+  }
+
   private stopWhoosh(w: ReturnType<RoomAudio['whooshState']>) {
     const v = w.v;
     if (!v || !this.ctx) return;

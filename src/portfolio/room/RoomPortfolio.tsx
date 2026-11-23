@@ -7,8 +7,12 @@ import { RoomAudio } from './audio';
 import { RoomScene } from './RoomScene';
 import { FrameBudget } from './FrameBudget';
 import { barLight } from './barLight';
+import { ChapterRail } from './ChapterRail';
+import type { RailApi } from './ChapterRail';
 import {
+  CHAPTERS,
   HOLDS,
+  HOLD_PLAY,
   mailBeats,
   officeBeats,
   deskBeats,
@@ -108,6 +112,13 @@ const captions = [
 // The hold ring's circumference (r 20 in a 46 px box).
 const HOLD_RING = 2 * Math.PI * 20;
 
+// The story playing by itself (the chapter rail's Play): how fast the scroll
+// moves on (dvh a second), and slower while a card or caption is up to read;
+// it eases between them (per second), and waits on each hold (HOLD_PLAY).
+const PLAY_FAST = 80,
+  PLAY_READ = 24,
+  PLAY_EASE = 2.5;
+
 const fade = (p: number, from: number, to: number) =>
   Math.min(1, Math.max(0, Math.min((p - from) / 0.06, (to - p) / 0.06)));
 
@@ -163,7 +174,19 @@ export default function RoomPortfolio() {
     barEnds = useRef<{ left: HTMLElement | null; right: HTMLElement | null }>({
       left: null,
       right: null,
-    });
+    }),
+    // The chapter rail (ChapterRail.tsx), the shade it opens over, and the
+    // dip to dark a jump cuts through.
+    rail = useRef<RailApi>(null),
+    railShade = useRef<HTMLDivElement>(null),
+    dip = useRef<HTMLDivElement>(null),
+    // Set by a jump: the next frame lands where the scroll is, uneased.
+    snap = useRef(false),
+    // A jump under way: where to (page), and its timer.
+    jump = useRef({ to: -1, timer: 0 }),
+    // The story playing by itself: on, where the scroll is (px, unrounded),
+    // how fast (dvh a second), and whether it played to the end.
+    auto = useRef({ on: false, top: 0, speed: 0, ended: false });
   const [reduced, setReduced] = useState(
     () => matchMedia('(prefers-reduced-motion: reduce)').matches
   );
@@ -218,18 +241,67 @@ export default function RoomPortfolio() {
       lastFlipFly = 0,
       lastFlipEnd = 0,
       // Whether each end of the top bar is on a light scene (ink-dark), as
-      // it stands (a remount keeps the classes).
+      // it stands (a remount keeps the classes); and the chapter rail.
       inkLeft = !!barEnds.current.left?.classList.contains('is-ink'),
-      inkRight = !!barEnds.current.right?.classList.contains('is-ink');
+      inkRight = !!barEnds.current.right?.classList.contains('is-ink'),
+      inkRail = false,
+      // How much there was to read last frame (the captions' and cards'
+      // opacity, at most): the story playing by itself slows for it.
+      reading = 0;
+    // Playing by itself: the scroll moves on, slower while there is a card
+    // to read, and waits on each hold, its ring filling, before going on.
+    const play = (e: HTMLDivElement, dt: number) => {
+      const a = auto.current,
+        span = Math.max(1, e.scrollHeight - e.clientHeight);
+      if (Math.abs(e.scrollTop - a.top) > 2) a.top = e.scrollTop;
+      const stops = brake.current,
+        k = stops.findIndex((s) => !s.released && s.page * span > a.top - 1),
+        b = stops[k];
+      if (b && a.top >= b.page * span - 1) {
+        a.speed = 0;
+        b.fill = Math.min(1, b.fill + dt / HOLD_PLAY[k]);
+        if (b.fill >= 1) b.released = true;
+        return;
+      }
+      const want = MathUtils.lerp(
+        PLAY_FAST,
+        PLAY_READ,
+        MathUtils.smoothstep(reading, 0.2, 0.9)
+      );
+      a.speed += (want - a.speed) * (1 - Math.exp(-dt * PLAY_EASE));
+      let top = a.top + ((a.speed * e.clientHeight) / 100) * dt;
+      if (b) top = Math.min(top, b.page * span);
+      if (top >= span - 1) {
+        top = span;
+        a.on = false;
+        a.ended = true;
+        rail.current?.setState('ended');
+      }
+      a.top = top;
+      e.scrollTop = top;
+    };
     const tick = (now: number) => {
       const e = scroll.current;
       if (e) {
+        const dt = Math.min(0.05, (now - last) / 1000);
+        if (auto.current.on) play(e, dt);
         const target =
             e.scrollTop / Math.max(1, e.scrollHeight - e.clientHeight),
-          dt = Math.min(0.05, (now - last) / 1000);
-        page.current = reduced
-          ? target
-          : page.current + (target - page.current) * (1 - Math.exp(-dt * 4));
+          // A jump lands with no easing, and with no page turns or whoosh
+          // for the ground it skipped.
+          snapped = snap.current;
+        snap.current = false;
+        if (snapped) audio.current?.jumped();
+        const sfx = snapped ? null : audio.current;
+        page.current =
+          reduced || snapped
+            ? target
+            : page.current + (target - page.current) * (1 - Math.exp(-dt * 4));
+        if (auto.current.ended && target < 0.995) {
+          auto.current.ended = false;
+          rail.current?.setState('idle');
+        }
+        let read = 0;
         const parts = split(page.current),
           rb = rewindBeats(parts.rewind),
           sb = schoolBeats(parts.school),
@@ -259,6 +331,7 @@ export default function RoomPortfolio() {
         end.current = parts.end;
         const show = (el: HTMLElement | null | undefined, o: number) => {
           if (!el) return;
+          read = Math.max(read, o);
           el.style.opacity = String(o);
           el.style.transform = `translateY(${(1 - o) * 24}px)`;
           el.toggleAttribute('inert', o < 0.5);
@@ -366,23 +439,23 @@ export default function RoomPortfolio() {
           const flip = Math.floor(steps + 0.45);
           if (em) {
             if (flip > lastFlipEnd && eb.counter > 0.5)
-              audio.current?.flipPage(true, eb.counter);
+              sfx?.flipPage(true, eb.counter);
             lastFlipEnd = flip;
           } else if (fm) {
             if (flip > lastFlipFly && fb.counter > 0.5)
-              audio.current?.flipPage(true, fb.counter);
+              sfx?.flipPage(true, fb.counter);
             lastFlipFly = flip;
           } else if (gm) {
             if (flip > lastFlipGrad && gb.counter > 0.5)
-              audio.current?.flipPage(true, gb.counter);
+              sfx?.flipPage(true, gb.counter);
             lastFlipGrad = flip;
             const leaf = Math.floor(steps * 4);
             if (leaf > lastLeafGrad && leaf < 3 && gb.counter > 0.5)
-              audio.current?.flipPage(false, gb.counter, true);
+              sfx?.flipPage(false, gb.counter, true);
             lastLeafGrad = leaf;
           } else if (desk) {
             if (flip > lastFlipDesk && db.counter > 0.5)
-              audio.current?.flipPage(flip >= 2, db.counter);
+              sfx?.flipPage(flip >= 2, db.counter);
             lastFlipDesk = flip;
             // Lighter pages riffle by between the years, as through a
             // calendar, the year's own turn the firmer one.
@@ -393,11 +466,11 @@ export default function RoomPortfolio() {
               leaf < 7 &&
               db.counter > 0.5
             )
-              audio.current?.flipPage(false, db.counter, true);
+              sfx?.flipPage(false, db.counter, true);
             lastLeafDesk = leaf;
           } else if (on) {
             if (flip > lastFlipOn && mb.counter > 0.5)
-              audio.current?.flipPage(flip >= 3, mb.counter);
+              sfx?.flipPage(flip >= 3, mb.counter);
             lastFlipOn = flip;
             // Between the years, lighter pages riffle by (a quarter year
             // each, as through a calendar), the year's own turn the firmer
@@ -409,11 +482,11 @@ export default function RoomPortfolio() {
               leaf < 11 &&
               mb.counter > 0.5
             )
-              audio.current?.flipPage(false, mb.counter, true);
+              sfx?.flipPage(false, mb.counter, true);
             lastLeaf = leaf;
           } else {
             if (flip > lastFlip && rb.counter > 0.5)
-              audio.current?.flipPage(flip >= last);
+              sfx?.flipPage(flip >= last);
             lastFlip = flip;
           }
           // Blur the digits a little while they flip.
@@ -461,6 +534,27 @@ export default function RoomPortfolio() {
             barEnds.current.right?.classList.toggle('is-ink', r);
           inkLeft = l;
           inkRight = r;
+          // (The rail turns ink only where it is plainly light: on mixed
+          // ground, half dark, the cream with its shadow holds up better.)
+          inkRail = inkRail ? behind.rail > 0.22 : behind.rail > 0.3;
+        }
+        // The chapter rail: the chapter the story is in, and the line filled
+        // to there (a dot each, evenly spaced), as the scene shows it.
+        {
+          const p = page.current,
+            n = CHAPTERS.length;
+          let i = n - 1;
+          while (i > 0 && p < CHAPTERS[i].from) i--;
+          const t =
+            i < n - 1
+              ? MathUtils.clamp(
+                  (p - CHAPTERS[i].from) /
+                    (CHAPTERS[i + 1].from - CHAPTERS[i].from),
+                  0,
+                  1
+                )
+              : 0;
+          rail.current?.paint(i, Math.min(1, (i + t) / (n - 1)), inkRail);
         }
         show(caption.current.chapter2, mb.card * (1 - ob.reveal));
         show(caption.current.interview, fade(parts.office, 0.19, 0.42));
@@ -562,6 +656,7 @@ export default function RoomPortfolio() {
             HOLD_RING * (1 - shown)
           );
         }
+        reading = read;
       }
       last = now;
       frame = requestAnimationFrame(tick);
@@ -712,6 +807,8 @@ export default function RoomPortfolio() {
       }
     };
     const onKey = (e: KeyboardEvent) => {
+      // (Keys on the chapter rail's buttons are theirs.)
+      if ((e.target as Element | null)?.closest?.('.room-rail')) return;
       touch(e);
       const b = holding();
       if (!b) return;
@@ -733,6 +830,103 @@ export default function RoomPortfolio() {
       el.removeEventListener('keydown', onKey);
     };
   }, []);
+
+  // The story playing by itself pauses as soon as the viewer scrolls (the
+  // wheel, a touch or click on the story, the scroll keys): it is theirs
+  // again. (The chapter rail's own buttons and the top bar's don't count.)
+  useEffect(() => {
+    const el = scroll.current,
+      j = jump.current;
+    if (!el) return;
+    const KEYS = [
+      'ArrowDown',
+      'ArrowUp',
+      'PageDown',
+      'PageUp',
+      ' ',
+      'Home',
+      'End',
+    ];
+    const stop = () => {
+      const a = auto.current;
+      if (!a.on) return;
+      a.on = false;
+      rail.current?.setState('idle');
+    };
+    const ours = (e: Event) =>
+      !!(e.target as Element | null)?.closest?.('.room-rail, .room-header');
+    const down = (e: Event) => {
+      if (!ours(e)) stop();
+    };
+    const key = (e: KeyboardEvent) => {
+      if (KEYS.includes(e.key) && !ours(e)) stop();
+    };
+    window.addEventListener('wheel', stop, { passive: true });
+    el.addEventListener('pointerdown', down);
+    window.addEventListener('keydown', key);
+    return () => {
+      window.removeEventListener('wheel', stop);
+      el.removeEventListener('pointerdown', down);
+      window.removeEventListener('keydown', key);
+      clearTimeout(j.timer);
+    };
+  }, []);
+
+  // A jump to a chapter (the rail): a quick dip to dark; under it the scroll
+  // is set straight there (the brakes before it let go, those after armed
+  // again) and the scene lands with no easing; then the dip lifts. Another
+  // pick while it dips lands on that one instead.
+  const goTo = (chapter: number, then?: () => void) => {
+    const j = jump.current,
+      first = j.to < 0;
+    j.to = CHAPTERS[chapter].go;
+    if (!first) return;
+    dip.current?.classList.add('is-on');
+    j.timer = window.setTimeout(() => {
+      const el = scroll.current;
+      if (el) {
+        const span = el.scrollHeight - el.clientHeight,
+          top = Math.round(j.to * span);
+        for (const b of brake.current) {
+          const past = b.page * span < top - 1;
+          b.released = past;
+          b.fill = b.shown = past ? 1 : 0;
+        }
+        el.scrollTop = top;
+        const a = auto.current;
+        a.top = top;
+        a.speed = 0;
+        a.ended = false;
+        rail.current?.setState(a.on ? 'playing' : 'idle');
+        snap.current = true;
+      }
+      j.to = -1;
+      j.timer = window.setTimeout(() => {
+        dip.current?.classList.remove('is-on');
+        then?.();
+      }, 180);
+    }, 260);
+  };
+  // Play, or pause; at the end, from the start again.
+  const togglePlay = () => {
+    const a = auto.current,
+      el = scroll.current;
+    if (!el) return;
+    if (a.on) {
+      a.on = false;
+      rail.current?.setState('idle');
+      return;
+    }
+    const start = () => {
+      a.on = true;
+      a.ended = false;
+      a.top = el.scrollTop;
+      a.speed = 0;
+      rail.current?.setState('playing');
+    };
+    if (el.scrollTop >= el.scrollHeight - el.clientHeight - 2) goTo(0, start);
+    else start();
+  };
 
   // Pointer position for the camera's gentle parallax (mouse and pen only).
   useEffect(() => {
@@ -866,6 +1060,17 @@ export default function RoomPortfolio() {
         aria-label="Scroll to meet Jongwoo"
       >
         <div className="room-pin">
+          <ChapterRail
+            ref={rail}
+            shadeRef={railShade}
+            ready={ready}
+            onGo={(i) => goTo(i)}
+            onPlay={togglePlay}
+          />
+          {/* (In the pinned layer with the rail, a layer of its own: over
+              the scene and the cards, under the rail.) */}
+          <div ref={railShade} className="room-rail-shade" aria-hidden="true" />
+          <div ref={dip} className="room-dip" aria-hidden="true" />
           <section ref={bind('intro')} className="room-caption room-intro">
             <p className="room-kicker">
               <i />A software engineer’s story
