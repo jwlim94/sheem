@@ -2,6 +2,8 @@
 
 **Address (2026-11-24, the user's call):** the room story is the portfolio, at `/portfolio`; it was `/portfolio/7`, and the island prototype that had `/portfolio` moved there (`/portfolio/7`). Where this document says `/portfolio/7` of the room story's past, it is now `/portfolio`.
 
+**Its own page for sharing (2026-11-24):** `sheem.ai/portfolio` is served `portfolio.html` (vercel.json; `vite.config.ts` builds it beside `index.html`), the same app with its own `<title>` ("Jongwoo Lim — Software Engineer"), description, canonical URL and Open Graph / Twitter card, for link previews in LinkedIn, Slack, KakaoTalk and the like. The image (`public/portfolio/og.jpg`, 1200 × 630) is the opening frame: his room at dusk, the name and role at the top left, "Every story starts in a room."; the bar's links, the chapter rail, the hint and the credits are hidden in it. The page sets its tab title to "Jongwoo Lim — Welcome" once it runs. See `deployment-workflow.md`.
+
 Feasibility test for a Lusion-style cinematic portfolio built from existing/open-source parts (user's "option A", 2026-10-10). First scene only: a sheem-coloured study room, the student at his desk typing; scrolling swivels the chair, he stands, faces the viewer and waves — "Welcome! I'm Jongwoo". Fully reversible by scrolling back. Later chapters are not built.
 
 ## Story plan (agreed 2026-10-11)

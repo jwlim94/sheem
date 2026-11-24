@@ -1,6 +1,15 @@
 # Deployment workflow: local → preview → main → sheem.ai
 
-**Planning only.** The user owns `sheem.ai`. No DNS, hosting account, Git integration, secrets, CI, production deployment or other external infrastructure was configured in this pass. Existing repository files do not prove that any external deployment is currently connected.
+**Current state (checked 2026-11-24).** `sheem.ai` is served by Vercel: its DNS is at Porkbun and points to Vercel, and a Vercel project is connected to this GitHub repository (set up by the user). Production deploys from `main`: the last production deploy was `d365fa3` on 2026-10-04, the meadow app. Every push to another branch gets a preview deployment, behind Vercel's login (the `portfolio` branch has had one per push since 2026-11-20). No CI, room service or secrets exist.
+
+`vercel.json` (2026-11-24) adds the rewrites the app's BrowserRouter needs; before it, a direct load of any path but `/` returned 404:
+- `/portfolio` and its sub-paths are served `portfolio.html`: the same app with the portfolio's own title, description and link preview (`public/portfolio/og.jpg`, 1200 × 630), which link unfurlers read without running the app. Files under `public/portfolio/` (the résumés, the image) are still served as files.
+- `/playground…` and `/vanilla` are served `index.html`.
+- Anything else is a file or a 404, so a missing asset isn't answered with HTML.
+
+The routes are listed rather than caught by one `/(.*)`, for that last reason: add new top-level routes to it. The rest of this document is the plan written before any of this; it still applies to the room service, CI and branch protection.
+
+**Planning (2026-10).** The user owns `sheem.ai`. No DNS, hosting account, Git integration, secrets, CI, production deployment or other external infrastructure was configured in that pass.
 
 ## Recommended topology
 
