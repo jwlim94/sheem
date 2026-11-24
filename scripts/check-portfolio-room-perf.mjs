@@ -1,4 +1,4 @@
-// /portfolio/7 frame-rate audit (docs/portfolio-room.md, "Performance").
+// /portfolio (the room story) frame-rate audit (docs/portfolio-room.md, "Performance").
 // Requires the Vite dev server and a dedicated Chrome on the GPU, without
 // vsync or a frame cap (so frame rates show the headroom past 60 fps):
 //   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new \
@@ -72,7 +72,7 @@ await send('Page.addScriptToEvaluateOnNewDocument', {
   source: `window.programsMade=0;const P=WebGL2RenderingContext.prototype,cp=P.createProgram;P.createProgram=function(){programsMade++;return cp.apply(this,arguments)}`,
 });
 const t0 = Date.now();
-await send('Page.navigate', { url: origin + '/portfolio/7' });
+await send('Page.navigate', { url: origin + '/portfolio' });
 for (let i = 0; i < 1200; i++) {
   if ((await evaluate(`document.querySelector('.room-loader')?.dataset.done ?? ''`).catch(() => '')) === 'true') break;
   await delay(50);

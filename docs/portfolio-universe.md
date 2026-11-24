@@ -1,6 +1,6 @@
 # A universe of work — `/portfolio/2`
 
-Independent English portfolio direction for Jongwoo Lim. The original island at `/portfolio` is preserved. No production deployment was performed.
+Independent English portfolio direction for Jongwoo Lim. The original island, at `/portfolio` then (`/portfolio/7` since 2026-11-24), is preserved. No production deployment was performed.
 
 ## Experience
 

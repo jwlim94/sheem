@@ -1,5 +1,8 @@
 # Portfolio island prototype
 
+Moved to `/portfolio/7` on 2026-11-24: the room story (`portfolio-room.md`) took
+`/portfolio`. Below, `/portfolio` means this island as it was then.
+
 Implemented locally on 2026-10-08 at `/portfolio`. This is a personal portfolio
 experiment, separate from Sheem's social ASMR product. The intended temporary
 hosted address is `sheem.ai/portfolio`; no publication, hosting or DNS changes

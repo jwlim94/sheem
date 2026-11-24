@@ -223,7 +223,7 @@ export default function Portfolio() {
       <header className="portfolio-header">
         <a
           className="portfolio-brand"
-          href="/portfolio"
+          href="/portfolio/7"
           aria-label="Little Island home"
         >
           <span className="portfolio-mark">li.</span>

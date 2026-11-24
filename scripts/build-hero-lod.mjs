@@ -3,7 +3,7 @@
  *
  * His body is 482 k triangles (the source mesh, skinned whole so his face
  * keeps its detail: art/characters/jongwoo-v2/build_web_glb.py), and on
- * /portfolio/7 it was the costliest thing in every frame: skinned in the
+ * /portfolio it was the costliest thing in every frame: skinned in the
  * frame itself and in each shadow pass (three of the lamp's cube faces in
  * his room). This writes simplified index buffers over the same vertices
  * (index-only, like scripts/trees/build-broadleaf-lod.mjs, so skin weights,

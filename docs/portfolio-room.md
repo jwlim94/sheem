@@ -1,4 +1,6 @@
-# Room opening — `/portfolio/7`
+# Room opening — `/portfolio`
+
+**Address (2026-11-24, the user's call):** the room story is the portfolio, at `/portfolio`; it was `/portfolio/7`, and the island prototype that had `/portfolio` moved there (`/portfolio/7`). Where this document says `/portfolio/7` of the room story's past, it is now `/portfolio`.
 
 Feasibility test for a Lusion-style cinematic portfolio built from existing/open-source parts (user's "option A", 2026-10-10). First scene only: a sheem-coloured study room, the student at his desk typing; scrolling swivels the chair, he stands, faces the viewer and waves — "Welcome! I'm Jongwoo". Fully reversible by scrolling back. Later chapters are not built.
 

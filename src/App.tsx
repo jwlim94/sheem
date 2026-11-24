@@ -60,14 +60,16 @@ function App() {
       >
         <Routes>
           <Route path="/" element={<SheemApp />} />
-          <Route path="/portfolio/7" element={<RoomPortfolio />} />
+          {/* The room story is the portfolio (2026-11-24, the user's call);
+              the island prototype that had /portfolio moved to /7. */}
+          <Route path="/portfolio" element={<RoomPortfolio />} />
+          <Route path="/portfolio/7" element={<Portfolio />} />
           <Route path="/portfolio/6" element={<StoryPortfolio />} />
           <Route path="/portfolio/4" element={<FilmPortfolio />} />
           <Route path="/portfolio/character" element={<StudentPreview />} />
           <Route path="/portfolio/5" element={<StudentPreview />} />
           <Route path="/portfolio/3" element={<ExpeditionPortfolio />} />
           <Route path="/portfolio/2" element={<UniversePortfolio />} />
-          <Route path="/portfolio" element={<Portfolio />} />
           <Route path="/vanilla" element={<Vanilla />} />
           <Route path="/playground/movement" element={<MovementPrototype />} />
           <Route path="/playground" element={<Playground />} />

@@ -1,5 +1,5 @@
 /**
- * Sound for /portfolio/7: a real mechanical-keyboard typing loop that is
+ * Sound for /portfolio (the room story): a real mechanical-keyboard typing loop that is
  * audible only while the hero's hands are on the keys, over quiet background
  * music that dips a little while he types and fades away as the story leaves
  * the room, and a riser that the scroll steers into the dive through the clock.
