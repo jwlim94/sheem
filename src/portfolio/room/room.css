@@ -384,6 +384,10 @@
   top: 14vh;
   bottom: auto;
 }
+/* A job told in words: a line on the role before its points. */
+.room .room-school p.room-card-lead {
+  margin: 0 0 12px;
+}
 /* The points: short amber dashes, a step quieter than the figures. */
 .room-neighbor ul:not(.room-figures) {
   margin: 0 0 14px;
@@ -821,9 +825,12 @@
   }
 }
 
-/* A phone: a job card keeps its figures, not its points. */
+/* A phone: a job card keeps its figures (Neighbor's, told in words, its
+   line on the role), not its points: all of them ran up under the chapter
+   rail. */
 @media (max-width: 560px) {
-  .room-neighbor .room-figures + ul {
+  .room-neighbor .room-figures + ul,
+  .room-neighbor .room-card-lead + ul {
     display: none;
   }
 }

@@ -1034,7 +1034,7 @@ export default function RoomPortfolio() {
           </button>
           <a
             className="room-link"
-            href="/portfolio/jongwoo-lim-resume.pdf"
+            href="/portfolio/jongwoo-lim-resume-revised.pdf"
             target="_blank"
             rel="noreferrer"
           >
@@ -1185,25 +1185,26 @@ export default function RoomPortfolio() {
               <b>Neighbor</b> · May 2022 – Jan 2024
             </p>
             <h2>Full-stack engineer at Neighbor.</h2>
-            <Figures
-              items={[
-                ['+10%', 'reservation rate'],
-                ['+3%', 'search-to-request'],
-                ['+150%', 'boosted listings'],
-              ]}
-            />
+            {/* Told in words, no figures (2026-11-24, the user's call). */}
+            <p className="room-card-lead">
+              On the Renter team, working on what renters see: search, the map,
+              and the listings they reserve.
+            </p>
             <ul>
               <li>
-                Retired listings left inactive with no host engagement: renters
-                hit fewer dead ends, and the reservation rate rose 10%.
+                Built an automated system that finds listings left inactive with
+                no host engagement and takes them off the marketplace, so
+                renters run into far fewer unresponsive or outdated listings.
               </li>
               <li>
-                Tied search results more closely to the map: search-to-request
-                up 3%.
+                Reworked search and the map so renters can browse and compare
+                nearby listings more easily, with results tied more closely to
+                the map.
               </li>
               <li>
-                Built listing boosts for enterprise hosts: 150% more listing
-                volume and reservations.
+                Built listing boosts that give enterprise hosts higher placement
+                in search, opening a way for the platform to serve its largest
+                host.
               </li>
               <li>
                 Finished my B.S. in Computer Science along the way (Dec 2022).
