@@ -7,7 +7,7 @@ import { RoomScene } from './RoomScene';
 import { FrameBudget } from './FrameBudget';
 import { barLight } from './barLight';
 import { ChapterRail } from './ChapterRail';
-import { loaded } from './loadProgress';
+import { loaded, releaseDecoders } from './loadProgress';
 import type { RailApi } from './ChapterRail';
 import {
   CHAPTERS,
@@ -1058,6 +1058,11 @@ export default function RoomPortfolio() {
                 far: 900,
               }}
               gl={{ stencil: true }}
+              // Measured by its box, not as drawn: the scene settles from a
+              // touch larger as the loader lifts (.room-scene), and measured
+              // then, the canvas had kept that size, 2.5 % too big and cut
+              // off at the right and bottom (2026-11-25).
+              resize={{ offsetSize: true }}
               onCreated={({ gl }) => {
                 gl.toneMappingExposure = 1.05;
               }}
@@ -1079,7 +1084,11 @@ export default function RoomPortfolio() {
                   pointer={pointer}
                   reduced={reduced}
                   audio={audio}
-                  onReady={() => setReady(true)}
+                  onReady={() => {
+                    setReady(true);
+                    // (Every model is in: the decoders' memory goes.)
+                    releaseDecoders();
+                  }}
                   warmUp={warmUp}
                 />
                 <FrameBudget active={ready} onLower={setMaxDpr} />

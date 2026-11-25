@@ -34,7 +34,20 @@ const RabbitWalk = lazy(() =>
     default: m.RabbitWalk,
   }))
 );
-const RoomPortfolio = lazy(() => import('./portfolio/room/RoomPortfolio'));
+// On a touch screen (phones, tablets), /portfolio is a video of the desktop
+// page instead of the 3D scene (PhoneVideo.tsx). ?3d keeps the scene there,
+// ?video shows the video anywhere.
+const onTouch = () => {
+  const q = new URLSearchParams(location.search);
+  if (q.has('video')) return true;
+  if (q.has('3d')) return false;
+  return matchMedia('(pointer: coarse)').matches;
+};
+const RoomPortfolio = lazy(() =>
+  onTouch()
+    ? import('./portfolio/room/PhoneVideo')
+    : import('./portfolio/room/RoomPortfolio')
+);
 const StoryPortfolio = lazy(() => import('./portfolio/story/StoryPortfolio'));
 const FilmPortfolio = lazy(() => import('./portfolio/film/FilmPortfolio'));
 const StudentPreview = lazy(
