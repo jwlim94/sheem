@@ -217,42 +217,21 @@ const mix = (t: number) =>
  * How /portfolio shows on a phone held upright, while the user compares two
  * ways (2026-11-25; without ?fit, as before):
  * - ?fit=1: the desktop page itself, 1440x900 in a frame, shrunk to the
- *   screen (FitDesktop). Nothing on it changes.
+ *   screen (FitDesktop.tsx, loaded instead of this page: App.tsx). This page
+ *   is what the frame shows.
  * - ?fit=2: the scene as on a desktop, in a 16:10 band under the top bar,
  *   and the words below it at a phone's size, so nothing covers the scene
  *   (room.css, [data-fit='2']).
  */
 export default function RoomPortfolio() {
-  const [fit] = useState(() => new URLSearchParams(location.search).get('fit'));
-  return fit === '1' ? <FitDesktop /> : <RoomPage band={fit === '2'} />;
-}
-
-/** The desktop page's size, which ?fit=1 shrinks to the screen. */
-const DESKTOP = { w: 1440, h: 900 };
-const fitScale = () =>
-  Math.min(innerWidth / DESKTOP.w, innerHeight / DESKTOP.h);
-
-function FitDesktop() {
-  const [scale, setScale] = useState(fitScale);
-  useEffect(() => {
-    const resize = () => setScale(fitScale());
-    addEventListener('resize', resize);
-    return () => removeEventListener('resize', resize);
-  }, []);
-  return (
-    <div className="room-fit">
-      <iframe
-        src="/portfolio?embed"
-        title="Jongwoo Lim, Software Engineer"
-        style={{
-          width: DESKTOP.w,
-          height: DESKTOP.h,
-          transform: `translate(-50%, -50%) scale(${scale})`,
-        }}
-      />
-    </div>
+  const [band] = useState(
+    () => new URLSearchParams(location.search).get('fit') === '2'
   );
+  return <RoomPage band={band} />;
 }
+
+/** ?fit=1's frame: the desktop page's size (FitDesktop.tsx). */
+const DESKTOP = { w: 1440, h: 900 };
 
 /** The canvas's starting pixel ratio: in ?fit=1's frame, no sharper than
  *  the frame is shown (shrunk to the screen). */

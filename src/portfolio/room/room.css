@@ -1389,22 +1389,6 @@
   }
 }
 
-/* ?fit=1 (RoomPortfolio's FitDesktop, to compare, 2026-11-25): the desktop
-   page itself in a 1440x900 frame, shrunk to the screen, dark around it. */
-.room-fit {
-  position: fixed;
-  inset: 0;
-  overflow: hidden;
-  background: #0c101c;
-}
-.room-fit iframe {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  border: 0;
-  transform-origin: center;
-}
-
 /* ?fit=2 on a screen taller than wide (to compare, 2026-11-25): the scene as
    on a desktop, in a 16:10 band under the top bar (RoomScene frames it as a
    wide screen), and the words below it at a phone's size, so nothing covers

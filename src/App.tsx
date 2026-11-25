@@ -34,7 +34,13 @@ const RabbitWalk = lazy(() =>
     default: m.RabbitWalk,
   }))
 );
-const RoomPortfolio = lazy(() => import('./portfolio/room/RoomPortfolio'));
+// (?fit=1: the desktop page shrunk to a phone, in a frame of its own, to
+// compare layouts; FitDesktop.tsx.)
+const RoomPortfolio = lazy(() =>
+  new URLSearchParams(location.search).get('fit') === '1'
+    ? import('./portfolio/room/FitDesktop')
+    : import('./portfolio/room/RoomPortfolio')
+);
 const StoryPortfolio = lazy(() => import('./portfolio/story/StoryPortfolio'));
 const FilmPortfolio = lazy(() => import('./portfolio/film/FilmPortfolio'));
 const StudentPreview = lazy(
