@@ -34,11 +34,18 @@ const RabbitWalk = lazy(() =>
     default: m.RabbitWalk,
   }))
 );
-// (?fit=1: the desktop page shrunk to a phone, in a frame of its own, to
-// compare layouts; FitDesktop.tsx.)
+// On a touch screen (phones, tablets), /portfolio is a video of the desktop
+// page instead of the 3D scene (PhoneVideo.tsx). ?3d keeps the scene there,
+// ?video shows the video anywhere.
+const onTouch = () => {
+  const q = new URLSearchParams(location.search);
+  if (q.has('video')) return true;
+  if (q.has('3d')) return false;
+  return matchMedia('(pointer: coarse)').matches;
+};
 const RoomPortfolio = lazy(() =>
-  new URLSearchParams(location.search).get('fit') === '1'
-    ? import('./portfolio/room/FitDesktop')
+  onTouch()
+    ? import('./portfolio/room/PhoneVideo')
     : import('./portfolio/room/RoomPortfolio')
 );
 const StoryPortfolio = lazy(() => import('./portfolio/story/StoryPortfolio'));

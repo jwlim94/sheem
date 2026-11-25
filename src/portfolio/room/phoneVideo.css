@@ -1,0 +1,211 @@
+/* /portfolio on a phone: the story's video, fitted whole (PhoneVideo.tsx).
+   The page's dark and small caps, as on the desktop page. */
+.phone-story {
+  --cream: #f7f2e4;
+  --muted: #b5ae9f;
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(ellipse 90% 45% at 50% 0%, #3d304566 0%, transparent 70%),
+    #0c101c;
+  color: var(--cream);
+  font-family:
+    ui-rounded, 'SF Pro Rounded', 'Nunito', 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.phone-story-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 22px 20px 0;
+  font-size: 10.5px;
+  font-weight: 750;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.phone-story-top b {
+  font-size: 11.5px;
+  font-weight: 800;
+}
+.phone-story-top span {
+  opacity: 0.6;
+}
+/* (Room for the sound button on a narrow phone: the name alone.) */
+@media (max-width: 420px) {
+  .phone-story-top span {
+    display: none;
+  }
+}
+/* The sound, off at first: at the top right, as on the desktop page; on its
+   side, over the corner. */
+.phone-story-sound {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 13px);
+  right: calc(env(safe-area-inset-right) + 10px);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--cream);
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 750;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.phone-story-sound em {
+  font-style: normal;
+  opacity: 0.6;
+}
+.phone-story-sound[aria-pressed='true'] em {
+  opacity: 1;
+}
+.phone-story-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+}
+.phone-story-bars i {
+  width: 2px;
+  height: 4px;
+  border-radius: 1px;
+  background: currentColor;
+}
+.phone-story-bars i:nth-child(2) {
+  height: 7px;
+}
+.phone-story-sound[aria-pressed='true'] .phone-story-bars i {
+  animation: phone-story-level 0.9s ease-in-out infinite alternate;
+}
+.phone-story-sound[aria-pressed='true'] .phone-story-bars i:nth-child(2) {
+  animation-duration: 0.7s;
+  animation-delay: -0.3s;
+}
+.phone-story-sound[aria-pressed='true'] .phone-story-bars i:nth-child(3) {
+  animation-duration: 1.1s;
+  animation-delay: -0.6s;
+}
+@keyframes phone-story-level {
+  from {
+    height: 3px;
+  }
+  to {
+    height: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .phone-story-sound[aria-pressed='true'] .phone-story-bars i {
+    animation: none;
+    height: 8px;
+  }
+}
+/* The video, whole: as wide as it can be, or as tall (contain). */
+.phone-story-frame {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.phone-story-frame video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.phone-story-play {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 56px;
+  height: 56px;
+  translate: -50% -50%;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(15, 18, 30, 0.6);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14) inset;
+  opacity: 0;
+  transition: opacity 0.25s;
+  pointer-events: none;
+}
+.phone-story-play[data-on='true'] {
+  opacity: 1;
+}
+.phone-story-play svg {
+  width: 20px;
+  height: 20px;
+  margin-left: 3px;
+  fill: var(--cream);
+}
+.phone-story-foot {
+  display: grid;
+  gap: 14px;
+  padding: 0 20px 26px;
+}
+.phone-story-foot nav {
+  display: flex;
+  gap: 10px;
+}
+.phone-story-foot a {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 44px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
+  color: var(--cream);
+  text-decoration: none;
+  font-size: 11.5px;
+  font-weight: 750;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.phone-story-foot a i {
+  font-style: normal;
+  opacity: 0.7;
+}
+.phone-story-foot p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+  text-align: center;
+}
+/* On its side: the video alone, as tall as the screen; the sound button
+   over its corner, on a dark round. */
+@media (orientation: landscape) {
+  .phone-story-top,
+  .phone-story-foot {
+    display: none;
+  }
+  .phone-story-sound {
+    top: calc(env(safe-area-inset-top) + 8px);
+    background: rgba(15, 18, 30, 0.6);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+  }
+}

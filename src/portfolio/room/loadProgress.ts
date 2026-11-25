@@ -24,6 +24,7 @@ const tracked = new WeakSet<object>();
 export function trackLoads(loader: Loader) {
   if (tracked.has(loader)) return;
   tracked.add(loader);
+  if ('dracoLoader' in loader) modelLoader = loader as typeof modelLoader;
   const load = loader.load.bind(loader);
   loader.load = (url, onLoad, onProgress, onError) => {
     const file = files.get(url) ?? { bytes: 0, read: false };
@@ -41,6 +42,18 @@ export function trackLoads(loader: Loader) {
       onError
     );
   };
+}
+
+/** The model loader (its Draco decoder's workers are let go once ready). */
+let modelLoader: { dracoLoader?: { dispose(): unknown } | null } | null = null;
+
+/**
+ * Once every model is in: the Draco decoder's workers are stopped. Each kept
+ * the memory its biggest model needed (his figure, 547k triangles) for as
+ * long as the page was open. A model asked for later starts them again.
+ */
+export function releaseDecoders() {
+  modelLoader?.dracoLoader?.dispose();
 }
 
 /** 0..1: of every file asked for (with a known size). */

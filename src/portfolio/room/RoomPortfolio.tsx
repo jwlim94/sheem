@@ -7,7 +7,7 @@ import { RoomScene } from './RoomScene';
 import { FrameBudget } from './FrameBudget';
 import { barLight } from './barLight';
 import { ChapterRail } from './ChapterRail';
-import { loaded } from './loadProgress';
+import { loaded, releaseDecoders } from './loadProgress';
 import type { RailApi } from './ChapterRail';
 import {
   CHAPTERS,
@@ -213,48 +213,7 @@ const CREAM = [244, 234, 214],
 const mix = (t: number) =>
   `rgb(${CREAM.map((c, i) => Math.round(c + (INK[i] - c) * t)).join(',')})`;
 
-/**
- * How /portfolio shows on a phone held upright, while the user compares two
- * ways (2026-11-25; without ?fit, as before):
- * - ?fit=1: the desktop page itself, 1440x900 in a frame, shrunk to the
- *   screen (FitDesktop.tsx, loaded instead of this page: App.tsx). This page
- *   is what the frame shows.
- * - ?fit=2: the scene as on a desktop, in a 16:10 band under the top bar,
- *   and the words below it at a phone's size, so nothing covers the scene
- *   (room.css, [data-fit='2']).
- */
 export default function RoomPortfolio() {
-  const [band] = useState(
-    () => new URLSearchParams(location.search).get('fit') === '2'
-  );
-  return <RoomPage band={band} />;
-}
-
-/** ?fit=1's frame: the desktop page's size (FitDesktop.tsx). */
-const DESKTOP = { w: 1440, h: 900 };
-
-/** The canvas's starting pixel ratio: in ?fit=1's frame, no sharper than
- *  the frame is shown (shrunk to the screen). */
-function startDpr() {
-  try {
-    if (window.parent !== window)
-      return Math.min(
-        1.75,
-        Math.max(
-          1,
-          Math.min(
-            window.parent.innerWidth / DESKTOP.w,
-            window.parent.innerHeight / DESKTOP.h
-          ) * devicePixelRatio
-        )
-      );
-  } catch {
-    // (Framed elsewhere: as usual.)
-  }
-  return 1.75;
-}
-
-function RoomPage({ band }: { band: boolean }) {
   const scroll = useRef<HTMLDivElement>(null),
     page = useRef(0), // eased scroll over the whole page
     progress = useRef(0), // the room story, 0..1
@@ -320,7 +279,7 @@ function RoomPage({ band }: { band: boolean }) {
   const [sound, setSound] = useState(false);
   // The canvas's highest pixel ratio, lowered by FrameBudget a step at a time
   // if frames keep missing their budget.
-  const [maxDpr, setMaxDpr] = useState(startDpr);
+  const [maxDpr, setMaxDpr] = useState(1.75);
   // Every place in and drawn once (RoomScene's warm-up): the loader lifts.
   const [ready, setReady] = useState(false);
   // 0..1 through that warm-up, for the loader's percentage.
@@ -628,37 +587,30 @@ function RoomPage({ band }: { band: boolean }) {
           parts.rewind >= SWITCH ? '1' : '0'
         );
         // The cream lifts off the lecture hall's clock, taking the card with it.
-        const cream = rb.flash * (1 - sb.reveal);
-        if (flash.current) flash.current.style.opacity = String(cream);
+        if (flash.current)
+          flash.current.style.opacity = String(rb.flash * (1 - sb.reveal));
         show(caption.current.chapter, rb.card * (1 - sb.reveal));
         show(caption.current.school, fade(parts.school, 0.32, 0.66));
         // The mail's white lifts off the meeting room's whiteboard.
-        const white = Math.max(
-          mb.flash * (1 - ob.reveal),
-          gb.flash * (1 - reveal3),
-          // Up through the classroom's ceiling, and at his window (it
-          // lifts off Bridge's office).
-          fb.punch,
-          fb.flash * (1 - bb.reveal),
-          // The ending: over Bridge's office, lifting off his room.
-          eb.flash * (1 - eb.reveal)
-        );
         if (flashWhite.current)
-          flashWhite.current.style.opacity = String(white);
+          flashWhite.current.style.opacity = String(
+            Math.max(
+              mb.flash * (1 - ob.reveal),
+              gb.flash * (1 - reveal3),
+              // Up through the classroom's ceiling, and at his window (it
+              // lifts off Bridge's office).
+              fb.punch,
+              fb.flash * (1 - bb.reveal),
+              // The ending: over Bridge's office, lifting off his room.
+              eb.flash * (1 - eb.reveal)
+            )
+          );
         // The top bar's text: cream on the dark and busy scenes, ink-dark
         // where it is light behind it (how light, from the table sampled
         // off the story itself: barLight.ts), each end on its own, with a
         // little hysteresis so it does not flicker on the edge.
         {
-          // (In ?fit=2's band the scene is framed as on a wide screen, and
-          // the top bar is over the dark above it, light only under a wash.)
-          const tall = innerWidth < innerHeight,
-            light = barLight(page.current, tall && !band),
-            wash = Math.max(cream, white),
-            behind =
-              band && tall
-                ? { left: wash, right: wash, rail: light.rail }
-                : light,
+          const behind = barLight(page.current, innerWidth < innerHeight),
             ink = (was: boolean, l: number) => (was ? l > 0.14 : l > 0.2),
             l = ink(inkLeft, behind.left),
             r = ink(inkRight, behind.right);
@@ -797,7 +749,7 @@ function RoomPage({ band }: { band: boolean }) {
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [reduced, band]);
+  }, [reduced]);
 
   // The brakes (story.ts HOLDS: the welcome, chapter 1's card). Scrolling
   // down onto one stops dead there, however fast: the scroll is held on it,
@@ -1090,7 +1042,7 @@ function RoomPage({ band }: { band: boolean }) {
   };
 
   return (
-    <main className="room" data-ready={ready} data-fit={band ? 2 : undefined}>
+    <main className="room" data-ready={ready}>
       {/* Behind the canvas: a morning sky replaces the night page in school. */}
       <div ref={sky} className="room-sky" aria-hidden="true" />
       <div className="room-stage" aria-hidden="true">
@@ -1106,6 +1058,11 @@ function RoomPage({ band }: { band: boolean }) {
                 far: 900,
               }}
               gl={{ stencil: true }}
+              // Measured by its box, not as drawn: the scene settles from a
+              // touch larger as the loader lifts (.room-scene), and measured
+              // then, the canvas had kept that size, 2.5 % too big and cut
+              // off at the right and bottom (2026-11-25).
+              resize={{ offsetSize: true }}
               onCreated={({ gl }) => {
                 gl.toneMappingExposure = 1.05;
               }}
@@ -1127,7 +1084,11 @@ function RoomPage({ band }: { band: boolean }) {
                   pointer={pointer}
                   reduced={reduced}
                   audio={audio}
-                  onReady={() => setReady(true)}
+                  onReady={() => {
+                    setReady(true);
+                    // (Every model is in: the decoders' memory goes.)
+                    releaseDecoders();
+                  }}
                   warmUp={warmUp}
                 />
                 <FrameBudget active={ready} onLower={setMaxDpr} />
