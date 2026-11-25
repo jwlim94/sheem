@@ -17,6 +17,7 @@ import type { Group, Mesh } from 'three';
 import { masked } from './windowMask';
 import { shown } from './shown';
 import { TREE_BULBS, TREE_STAR } from './xmasLights';
+import { trackLoads } from './loadProgress';
 
 const XMAS = '/models/portfolio-room/xmas.glb';
 const DRACO = '/draco/';
@@ -289,4 +290,4 @@ export function Christmas({ group }: { group: RefObject<Group | null> }) {
   );
 }
 
-useGLTF.preload(XMAS, DRACO);
+useGLTF.preload(XMAS, DRACO, true, trackLoads);

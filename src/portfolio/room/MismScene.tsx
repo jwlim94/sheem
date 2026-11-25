@@ -34,6 +34,7 @@ import { drawKeyboard } from './schoolLaptop';
 import type { RoomAudio } from './audio';
 import { Soundbar } from './Soundbar';
 import { barOffWall } from './soundbarLayout';
+import { trackLoads } from './loadProgress';
 
 // The classroom's soundbar: small and out of the way, high on the right
 // side wall near the front, over its maple rail and short of its acoustic
@@ -283,4 +284,4 @@ export function MismScene({
   );
 }
 
-useGLTF.preload(CLASS, DRACO);
+useGLTF.preload(CLASS, DRACO, true, trackLoads);

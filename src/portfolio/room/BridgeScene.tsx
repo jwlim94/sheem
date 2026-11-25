@@ -9,6 +9,7 @@ import { BridgeDesk, TeamLaptops } from './BridgeDesk';
 import { Coworkers } from './Coworkers';
 import { loadKalam } from './officeDesk';
 import type { Desk } from './Screen';
+import { trackLoads } from './loadProgress';
 
 const BRIDGE = '/models/portfolio-bridge/bridge.glb';
 const DRACO = '/draco/';
@@ -108,4 +109,4 @@ export function BridgeScene({
   );
 }
 
-useGLTF.preload(BRIDGE, DRACO);
+useGLTF.preload(BRIDGE, DRACO, true, trackLoads);

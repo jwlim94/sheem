@@ -28,7 +28,12 @@ import {
 } from './schoolLaptop';
 import { AcousticWalls, Ceiling } from './AcousticWalls';
 
+// Draco compressed (2026-11-25; 2.4 MB as exported, 0.7 MB now: positions
+// and UVs at 16 bits, normals at 12); the decoder is in public/draco/. Not
+// preloaded: asked for as RoomScene mounts, it comes in while the scene is
+// built (asked for with the others, the loader lifted 0.3 s later at 20 Mbps).
 const SCHOOL = '/models/portfolio-school/school.glb';
+const DRACO = '/draco/';
 
 // From art/portfolio-school/build_school.py (local axes: +X to the front wall).
 // Just in front of the frame (its face is at x 5.36).
@@ -165,7 +170,7 @@ export function SchoolScene({
   mail: RefObject<number>;
   audio: RefObject<RoomAudio | null>;
 }) {
-  const hall = useGLTF(SCHOOL);
+  const hall = useGLTF(SCHOOL, DRACO);
 
   const tex = useMemo(() => {
     const slide = canvas(1600, 1149),

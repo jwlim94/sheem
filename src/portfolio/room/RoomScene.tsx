@@ -106,6 +106,7 @@ import { LightSwitch } from './LightSwitch';
 import { Screen } from './Screen';
 import { HeroLodLoader, applyHeroLod } from './heroLod';
 import { mergeByMaterial } from './mergeByMaterial';
+import { trackLoads } from './loadProgress';
 import type { Desk } from './Screen';
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 
@@ -143,6 +144,9 @@ import type {
   WebGLRenderer,
 } from 'three';
 
+// Draco compressed (2026-11-25; it was 6.6 MB as exported, 3.0 MB now):
+// positions and UVs at 16 bits, normals at 12, so nothing moves by more than
+// 0.05 mm or a 50th of a texel.
 const ROOM = '/models/portfolio-room/room.glb';
 const HERO = '/models/jongwoo/jongwoo-v2.glb';
 // His body simplified, for the frame and for the shadow passes
@@ -787,6 +791,7 @@ export function RoomScene({
   reduced,
   audio,
   onReady,
+  warmUp,
 }: {
   progress: RefObject<number>;
   /** 0..1 through the rewind into the next chapter (see story.ts). */
@@ -819,8 +824,10 @@ export function RoomScene({
   /** Called once every place is in and has been drawn once (the warm-up,
    *  behind the loader). */
   onReady?: () => void;
+  /** 0..1 through the warm-up, for the loader's percentage. */
+  warmUp?: RefObject<number>;
 }) {
-  const room = useGLTF(ROOM);
+  const room = useGLTF(ROOM, DRACO);
   const hero = useGLTF(HERO, DRACO);
   const heroLod = useLoader(HeroLodLoader, HERO_LOD);
   // Before any frame draws him (or uploads his full index for nothing).
@@ -2996,7 +3003,12 @@ export function RoomScene({
     }
   });
 
-  // The warm-up, behind the loader. Once every place is in:
+  // The warm-up, behind the loader. From its first frame, before anything
+  // is drawn, every program of what is in is sent to compile (as in 1.): his
+  // room's first frame had compiled its own as it drew with each, waiting
+  // for each in turn (about 1 s of a 1.4 s frame). Sent first, the loader
+  // lifts about 0.2 s sooner: the GPU process still compiles them mostly in
+  // turn (2026-11-25). Once every place is in:
   // 1. Every material's program is sent to compile at once (gl.compile),
   //    under both light setups (one area light or two, see placeLights).
   //    The browser compiles them in parallel, and the frames go on, cheap,
@@ -3011,13 +3023,51 @@ export function RoomScene({
   const warm = useRef({
     step: 0,
     settled: 0,
+    sent: false,
     compiling: null as Set<{ isReady?: () => boolean }> | null,
+    programs: 0,
     since: 0,
     fence: null as WebGLSync | null,
   });
   useFrame(({ gl, scene, camera }) => {
     const w = warm.current;
     if (w.step > WARM_UP.length) return;
+    // (The loader's percentage goes on through it: compiling to 50 %, the
+    // places drawn to 90, then the GPU's finish.)
+    const report = (f: number) => {
+      if (warmUp) warmUp.current = f;
+    };
+    // Every place has the same lights (see the hall's group above) but for
+    // the area lights: his room and the hall show one, the others two
+    // (placeLights). So every material is compiled under the room's setup,
+    // then with both shown. (A material keeps a program per light setup, so
+    // going between them later compiles nothing.) Returns their programs.
+    const compileAll = () => {
+      const programs = new Set<{ isReady?: () => boolean }>();
+      const compile = () => {
+        for (const m of gl.compile(scene, camera)) {
+          const program = (
+            gl.properties.get(m) as {
+              currentProgram?: { isReady?: () => boolean };
+            }
+          ).currentProgram;
+          if (program) programs.add(program);
+        }
+      };
+      compile();
+      const glows = [windowGlow.current, screenGlow.current],
+        was = glows.map((g) => g?.visible);
+      for (const g of glows) if (g) g.visible = true;
+      compile();
+      glows.forEach((g, i) => {
+        if (g) g.visible = !!was[i];
+      });
+      return programs;
+    };
+    if (!w.sent) {
+      w.sent = true;
+      compileAll();
+    }
     const groups: Partial<Record<Place, Group | null>> = {
       room: roomGroup.current,
       hall: schoolGroup.current,
@@ -3040,32 +3090,12 @@ export function RoomScene({
     // crowds, the city).
     if (w.settled++ < 4) return;
     if (!w.compiling) {
-      // Every place has the same lights (see the hall's group above) but
-      // for the area lights: his room and the hall show one, the others two
-      // (placeLights). So every material is compiled under the room's
-      // setup, then with both shown. (A material keeps a program per light
-      // setup, so going between them later compiles nothing.)
+      // Again, for what has come in or been built since (the programs sent
+      // already are only collected, to wait on).
       shareBagTextures(scene, bagGltf.scene);
-      const programs = new Set<{ isReady?: () => boolean }>();
-      const compile = () => {
-        for (const m of gl.compile(scene, camera)) {
-          const program = (
-            gl.properties.get(m) as {
-              currentProgram?: { isReady?: () => boolean };
-            }
-          ).currentProgram;
-          if (program) programs.add(program);
-        }
-      };
-      compile();
-      const glows = [windowGlow.current, screenGlow.current],
-        was = glows.map((g) => g?.visible);
-      for (const g of glows) if (g) g.visible = true;
-      compile();
-      glows.forEach((g, i) => {
-        if (g) g.visible = !!was[i];
-      });
+      const programs = compileAll();
       w.compiling = programs;
+      w.programs = programs.size;
       w.since = performance.now();
       return;
     }
@@ -3074,6 +3104,7 @@ export function RoomScene({
       // compileAsync threw on a material without a program.)
       for (const program of w.compiling)
         if (!program.isReady || program.isReady()) w.compiling.delete(program);
+      report(0.5 * (1 - w.compiling.size / w.programs));
       return;
     }
     if (w.step === WARM_UP.length) {
@@ -3085,6 +3116,7 @@ export function RoomScene({
       const ctx = gl.getContext() as WebGL2RenderingContext;
       if (!w.fence) {
         w.fence = ctx.fenceSync(ctx.SYNC_GPU_COMMANDS_COMPLETE, 0);
+        report(0.9);
         ctx.flush();
         w.since = performance.now();
         if (w.fence) return;
@@ -3098,10 +3130,12 @@ export function RoomScene({
       if (w.fence) ctx.deleteSync(w.fence);
       w.fence = null;
       w.step++;
+      report(1);
       onReady?.();
       return;
     }
     const place = WARM_UP[w.step++];
+    report(0.5 + (0.4 * w.step) / WARM_UP.length);
     for (const [k, g] of Object.entries(groups)) if (g) g.visible = k === place;
     lights(place, 0, 0, place === 'desk' ? 1 : 0);
     // What holds a light keeps its visibility (the place groups, the bars):
@@ -3360,7 +3394,7 @@ export function RoomScene({
   );
 }
 
-useGLTF.preload(ROOM);
-useLoader.preload(HeroLodLoader, HERO_LOD);
-useGLTF.preload(HERO, DRACO);
-useGLTF.preload(BAG, DRACO);
+useGLTF.preload(ROOM, DRACO, true, trackLoads);
+useLoader.preload(HeroLodLoader, HERO_LOD, trackLoads);
+useGLTF.preload(HERO, DRACO, true, trackLoads);
+useGLTF.preload(BAG, DRACO, true, trackLoads);

@@ -66,20 +66,183 @@
   position: absolute;
   inset: 0;
 }
+/* The scene settles from a touch larger as the loader fades off it. */
+.room-scene {
+  position: absolute;
+  inset: 0;
+  transform: scale(1.025);
+  transition: transform 1.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.room-scene[data-ready='true'] {
+  transform: none;
+}
+
+/* The loading screen: the focus pull (2026-11-25, the user's pick of three
+   mock-ups, art/portfolio-room/loader-options). The opening view, blurred
+   (poster/: scripts/build-loader-poster.mjs; the tiny ones are inlined),
+   comes into focus as it loads (.room-loader-focus's opacity, set with the
+   percentage), and fades off the live scene once ready. */
 .room-loader {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
+  overflow: hidden;
   background: #0f1322;
-  color: var(--muted);
-  font-size: 14px;
-  letter-spacing: 0.5px;
-  transition: opacity 0.8s ease;
+  color: var(--cream);
+  transition:
+    opacity 1s ease,
+    visibility 0s 1s;
 }
 .room-loader[data-done='true'] {
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
+}
+.room-loader-blur,
+.room-loader-focus {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+}
+.room-loader-blur {
+  background-image: url('./poster/wide-tiny.webp');
+  filter: blur(34px) brightness(0.48) saturate(1.1);
+  transform: scale(1.18);
+}
+.room-loader-focus {
+  background-image: url('./poster/wide-mid.webp');
+  filter: blur(9px) brightness(0.62);
+  transform: scale(1.06);
+  opacity: 0;
+}
+@media (max-aspect-ratio: 1/1) {
+  .room-loader-blur {
+    background-image: url('./poster/tall-tiny.webp');
+  }
+  .room-loader-focus {
+    background-image: url('./poster/tall-mid.webp');
+  }
+}
+.room-loader-veil {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 70% 60% at 50% 45%,
+    transparent 0%,
+    #0c101c88 100%
+  );
+}
+.room-loader-dust {
+  position: absolute;
+  inset: 0;
+}
+.room-loader-dust i {
+  position: absolute;
+  width: var(--s);
+  height: var(--s);
+  border-radius: 50%;
+  background: #ffe6bf;
+  box-shadow: 0 0 6px #ffd9a0aa;
+  opacity: 0;
+  animation: room-mote var(--d) linear var(--w) infinite;
+}
+@keyframes room-mote {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  15%,
+  85% {
+    opacity: var(--o);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--x), -90px);
+  }
+}
+.room-loader-status {
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  translate: -50% -50%;
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+}
+.room-loader-status p {
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 750;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.3),
+    0 2px 18px rgba(0, 0, 0, 0.5);
+}
+.room-loader-status div {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.room-loader-track {
+  position: relative;
+  width: 190px;
+  height: 1px;
+  overflow: hidden;
+  background: rgba(247, 242, 228, 0.22);
+}
+.room-loader-track i {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #e7b36a, var(--cream));
+  transform: scaleX(0);
+  transform-origin: left;
+}
+.room-loader-num {
+  width: 3.2em;
+  font-size: 11.5px;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 560px) {
+  .room-loader-status {
+    top: 44%;
+  }
+  .room-loader-track {
+    width: 150px;
+  }
+}
+/* The words go first, quickly, so the room comes up clean. */
+.room-loader-status {
+  transition: opacity 0.4s ease;
+}
+.room-loader[data-done='true'] .room-loader-status {
+  opacity: 0;
+}
+/* Over the loading screen the top bar stays cream: it is dark everywhere
+   (on a phone the opening view's top right is light, so ink, unreadable on
+   the loader's dark). */
+.room:not([data-ready='true']) .room-brand.is-ink,
+.room:not([data-ready='true']) .room-header nav.is-ink {
+  color: var(--cream);
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.25),
+    0 2px 18px rgba(0, 0, 0, 0.35);
+}
+/* "Scroll" comes in once the room is ready (its own opacity follows the
+   scroll). */
+.room:not([data-ready='true']) .room-hint {
+  filter: opacity(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .room-scene {
+    transform: none;
+  }
+  .room-loader-dust {
+    display: none;
+  }
 }
 .room-error {
   position: absolute;
@@ -640,6 +803,7 @@
   font-size: 13px;
   font-weight: 600;
   pointer-events: none;
+  transition: filter 0.6s ease 0.5s;
 }
 .room-hint span {
   display: inline-block;

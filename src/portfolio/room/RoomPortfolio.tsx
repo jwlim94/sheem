@@ -1,13 +1,13 @@
 import { Component, Suspense, useEffect, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode, RefObject } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { useProgress } from '@react-three/drei';
 import { MathUtils, PCFSoftShadowMap } from 'three';
 import { RoomAudio } from './audio';
 import { RoomScene } from './RoomScene';
 import { FrameBudget } from './FrameBudget';
 import { barLight } from './barLight';
 import { ChapterRail } from './ChapterRail';
+import { loaded } from './loadProgress';
 import type { RailApi } from './ChapterRail';
 import {
   CHAPTERS,
@@ -87,16 +87,100 @@ class RoomBoundary extends Component<
   }
 }
 
-function Loader({ ready }: { ready: boolean }) {
-  const { progress } = useProgress();
-  // Done once every place is in and has been drawn once behind it (the
-  // scene's warm-up), so nothing compiles or uploads mid-story; it holds at
-  // 99 % for that last step.
+/** The loading screen's percentage: the models in (to 75 %: their bytes, then
+ *  read; loadProgress.ts), then the warm-up (the rest: RoomScene draws every
+ *  place once behind it, so nothing compiles or uploads mid-story). Shown
+ *  eased toward that, a frame at a time and never back; 100 only once ready.
+ *  (After the last byte there are still about 3 s: building the scene, its
+ *  first frame, the warm-up. On a fast connection that is most of the wait.) */
+const LOAD_SHARE = 75;
+
+/** Dust in the loading screen's air: a fixed scatter, then CSS alone (it
+ *  keeps drifting while the page is too busy to update anything else). */
+const MOTES = Array.from({ length: 14 }, (_, i) => {
+  const r = (k: number) => {
+    const x = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453;
+    return x - Math.floor(x);
+  };
+  return {
+    left: `${(r(1) * 100).toFixed(1)}%`,
+    top: `${(r(2) * 100).toFixed(1)}%`,
+    '--s': `${(1.2 + r(3) * 2.2).toFixed(1)}px`,
+    '--d': `${(9 + r(4) * 9).toFixed(1)}s`,
+    '--w': `${(-r(5) * 18).toFixed(1)}s`,
+    '--o': (0.25 + r(6) * 0.5).toFixed(2),
+    '--x': `${Math.round(r(7) * 60 - 30)}px`,
+  } as CSSProperties;
+});
+
+/**
+ * The loading screen (2026-11-25, the user's pick of three mock-ups,
+ * art/portfolio-room/loader-options: A, the focus pull). The room's opening
+ * view, blurred (a thumbnail of it, scripts/build-loader-poster.mjs), comes
+ * into focus as it loads: a sharper copy fades in over it with the
+ * percentage. In the middle, "Setting up the room" in the top bar's small
+ * caps, a hairline that fills, and the number. Once ready it fades off the
+ * live scene, which settles from a touch larger (.room-scene).
+ */
+function Loader({
+  ready,
+  warmUp,
+}: {
+  ready: boolean;
+  warmUp: RefObject<number>;
+}) {
+  const num = useRef<HTMLSpanElement>(null),
+    fill = useRef<HTMLElement>(null),
+    focus = useRef<HTMLDivElement>(null),
+    shown = useRef(0);
+  useEffect(() => {
+    const write = (n: number) => {
+      if (num.current) num.current.textContent = `${n}%`;
+      fill.current?.style.setProperty('transform', `scaleX(${n / 100})`);
+      focus.current?.style.setProperty(
+        'opacity',
+        (0.9 * (n / 100) ** 1.4).toFixed(3)
+      );
+    };
+    if (ready) return write(100);
+    let raf = 0,
+      last = performance.now();
+    const tick = (now: number) => {
+      const dt = Math.min(0.1, (now - last) / 1000),
+        target = Math.min(
+          99,
+          LOAD_SHARE * loaded() + (100 - LOAD_SHARE) * warmUp.current
+        );
+      last = now;
+      shown.current +=
+        Math.max(0, target - shown.current) * (1 - Math.exp(-6 * dt));
+      write(Math.floor(shown.current));
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [ready, warmUp]);
   return (
     <div className="room-loader" data-done={ready}>
-      <span>
-        Setting up the room… {ready ? 100 : Math.min(99, Math.round(progress))}%
-      </span>
+      <div className="room-loader-blur" />
+      <div ref={focus} className="room-loader-focus" />
+      <div className="room-loader-veil" />
+      <div className="room-loader-dust">
+        {MOTES.map((style, i) => (
+          <i key={i} style={style} />
+        ))}
+      </div>
+      <div className="room-loader-status">
+        <p>Setting up the room</p>
+        <div>
+          <span className="room-loader-track">
+            <i ref={fill} />
+          </span>
+          <span ref={num} className="room-loader-num">
+            0%
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -198,6 +282,8 @@ export default function RoomPortfolio() {
   const [maxDpr, setMaxDpr] = useState(1.75);
   // Every place in and drawn once (RoomScene's warm-up): the loader lifts.
   const [ready, setReady] = useState(false);
+  // 0..1 through that warm-up, for the loader's percentage.
+  const warmUp = useRef(0);
 
   // Sound starts on the first click, tap or key press anywhere (browsers
   // require a gesture; scrolling does not count) unless the viewer turned it
@@ -956,44 +1042,52 @@ export default function RoomPortfolio() {
   };
 
   return (
-    <main className="room">
+    <main className="room" data-ready={ready}>
       {/* Behind the canvas: a morning sky replaces the night page in school. */}
       <div ref={sky} className="room-sky" aria-hidden="true" />
       <div className="room-stage" aria-hidden="true">
-        <RoomBoundary>
-          <Canvas
-            shadows={{ type: PCFSoftShadowMap }}
-            dpr={[1, maxDpr]}
-            camera={{ position: [5.4, 4.5, 6.4], fov: 36, near: 0.1, far: 900 }}
-            gl={{ stencil: true }}
-            onCreated={({ gl }) => {
-              gl.toneMappingExposure = 1.05;
-            }}
-          >
-            <Suspense fallback={null}>
-              <RoomScene
-                progress={progress}
-                rewind={rewind}
-                school={school}
-                mail={mail}
-                office={office}
-                desk={desk}
-                grad={grad}
-                arena={arena}
-                mism={mism}
-                fly={fly}
-                bridge={bridge}
-                end={end}
-                pointer={pointer}
-                reduced={reduced}
-                audio={audio}
-                onReady={() => setReady(true)}
-              />
-              <FrameBudget active={ready} onLower={setMaxDpr} />
-            </Suspense>
-          </Canvas>
-        </RoomBoundary>
-        <Loader ready={ready} />
+        <div className="room-scene" data-ready={ready}>
+          <RoomBoundary>
+            <Canvas
+              shadows={{ type: PCFSoftShadowMap }}
+              dpr={[1, maxDpr]}
+              camera={{
+                position: [5.4, 4.5, 6.4],
+                fov: 36,
+                near: 0.1,
+                far: 900,
+              }}
+              gl={{ stencil: true }}
+              onCreated={({ gl }) => {
+                gl.toneMappingExposure = 1.05;
+              }}
+            >
+              <Suspense fallback={null}>
+                <RoomScene
+                  progress={progress}
+                  rewind={rewind}
+                  school={school}
+                  mail={mail}
+                  office={office}
+                  desk={desk}
+                  grad={grad}
+                  arena={arena}
+                  mism={mism}
+                  fly={fly}
+                  bridge={bridge}
+                  end={end}
+                  pointer={pointer}
+                  reduced={reduced}
+                  audio={audio}
+                  onReady={() => setReady(true)}
+                  warmUp={warmUp}
+                />
+                <FrameBudget active={ready} onLower={setMaxDpr} />
+              </Suspense>
+            </Canvas>
+          </RoomBoundary>
+        </div>
+        <Loader ready={ready} warmUp={warmUp} />
       </div>
 
       {/* One line of small caps, no boxes (2026-11-22, the user's pick of

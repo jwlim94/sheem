@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import type { RefObject } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useLoader } from '@react-three/fiber';
 import { useTexture } from '@react-three/drei';
 import {
   AdditiveBlending,
@@ -18,11 +18,13 @@ import {
   ReplaceStencilOp,
   SRGBColorSpace,
   ShaderMaterial,
+  TextureLoader,
   Vector2,
   Vector3,
 } from 'three';
 import type { Texture } from 'three';
 import { masked } from './windowMask';
+import { trackLoads } from './loadProgress';
 
 // Window opening (three.js axes) from art/portfolio-room/build_room.py:
 // centre x -0.9, y 2.55; 2.2 x 1.5 m; the wall's outer face is at z -2.8.
@@ -614,4 +616,6 @@ export function Outside({
   );
 }
 
-useTexture.preload(FILES);
+// useTexture.preload, counted for the loader (the same cache: useTexture
+// loads with TextureLoader).
+useLoader.preload(TextureLoader, FILES, trackLoads);

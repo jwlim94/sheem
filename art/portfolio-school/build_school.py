@@ -745,7 +745,12 @@ bpy.ops.object.join()
 bpy.context.object.name = 'Lecture hall'
 bpy.context.view_layer.update()
 OUT.parent.mkdir(parents=True, exist_ok=True)
+# Draco compressed, as the room: positions and UVs at 16 bits, normals at 12
+# (2.4 MB uncompressed, 0.7 MB; the committed file was compressed with
+# glTF-Transform at the same settings, 2026-11-25).
 bpy.ops.export_scene.gltf(filepath=str(OUT), export_format='GLB', export_yup=True, export_apply=True,
                           export_lights=False, export_cameras=False, export_image_format='WEBP',
-                          export_image_quality=85)
+                          export_image_quality=85, export_draco_mesh_compression_enable=True,
+                          export_draco_mesh_compression_level=6, export_draco_position_quantization=16,
+                          export_draco_normal_quantization=12, export_draco_texcoord_quantization=16)
 print('SCHOOL_DONE', OUT.stat().st_size, 'objects', len(scene.objects))

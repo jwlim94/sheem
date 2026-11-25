@@ -1716,11 +1716,19 @@ gallery_frame(1, 2.05, 2.85, print_material('print-jeju', load_print('jeju-photo
 bpy.context.view_layer.update()
 print('DESK_TOP', round(desk_top, 3), 'CHAIR', tuple(round(v, 3) for v in chair.location))
 
-# Export the room (everything currently in the scene).
+# Export the room (everything currently in the scene), Draco compressed:
+# positions and UVs at 16 bits, normals at 12 (nothing moves by more than
+# 0.05 mm or a 50th of a texel; 6.6 MB uncompressed, 3.0 MB). The committed
+# file was compressed with glTF-Transform at the same settings (2026-11-25).
 out = ROOT / 'public/models/portfolio-room/room.glb'
 bpy.ops.export_scene.gltf(filepath=str(out), export_format='GLB', export_yup=True,
                           export_apply=True, export_lights=False, export_cameras=False,
-                          export_image_format='WEBP', export_image_quality=85)
+                          export_image_format='WEBP', export_image_quality=85,
+                          export_draco_mesh_compression_enable=True,
+                          export_draco_mesh_compression_level=6,
+                          export_draco_position_quantization=16,
+                          export_draco_normal_quantization=12,
+                          export_draco_texcoord_quantization=16)
 print('ROOM_DONE', out.stat().st_size)
 
 preview = os.environ.get('PREVIEW')

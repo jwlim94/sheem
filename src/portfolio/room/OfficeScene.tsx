@@ -23,6 +23,7 @@ import { loadKalam } from './officeDesk';
 import type { RoomAudio } from './audio';
 import { Soundbar } from './Soundbar';
 import { barOffWall } from './soundbarLayout';
+import { trackLoads } from './loadProgress';
 
 const OFFICE = '/models/portfolio-office/office.glb';
 // Draco-compressed; its decoder is served from public/draco/.
@@ -303,4 +304,4 @@ export function OfficeScene({
   );
 }
 
-useGLTF.preload(OFFICE, DRACO);
+useGLTF.preload(OFFICE, DRACO, true, trackLoads);
