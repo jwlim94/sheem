@@ -1388,3 +1388,93 @@
     animation: none;
   }
 }
+
+/* ?fit=1 (RoomPortfolio's FitDesktop, to compare, 2026-11-25): the desktop
+   page itself in a 1440x900 frame, shrunk to the screen, dark around it. */
+.room-fit {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #0c101c;
+}
+.room-fit iframe {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border: 0;
+  transform-origin: center;
+}
+
+/* ?fit=2 on a screen taller than wide (to compare, 2026-11-25): the scene as
+   on a desktop, in a 16:10 band under the top bar (RoomScene frames it as a
+   wide screen), and the words below it at a phone's size, so nothing covers
+   the scene. The washes between chapters still fill the screen. */
+@media (max-aspect-ratio: 1/1) {
+  .room[data-fit='2'] {
+    --band-top: 56px;
+    --band-h: calc(100vw * 10 / 16);
+    --below: calc(var(--band-top) + var(--band-h) + 18px);
+    background: #0c101c;
+  }
+  .room[data-fit='2'] .room-stage,
+  .room[data-fit='2'] .room-sky {
+    inset: var(--band-top) 0 auto;
+    height: var(--band-h);
+  }
+  /* The page's own sky behind the band's scene, as a wide screen has it. */
+  .room[data-fit='2'] .room-stage {
+    background:
+      radial-gradient(ellipse 60% 38% at 62% 0%, #e08a4a55 0%, transparent 70%),
+      linear-gradient(
+        in oklab 180deg,
+        #b8683c 0%,
+        #9a5539 9%,
+        #79453d 18%,
+        #5a3a44 27%,
+        #3d3045 36%,
+        #282740 45%,
+        #191d31 56%,
+        #0c101c 100%
+      );
+  }
+  .room[data-fit='2'] .room-intro,
+  .room[data-fit='2'] .room-welcome,
+  .room[data-fit='2'] .room-school,
+  .room[data-fit='2'] .room-school.room-up,
+  .room[data-fit='2'] .room-next {
+    top: var(--below);
+    bottom: auto;
+    left: 16px;
+    right: 16px;
+    width: auto;
+    max-width: none;
+    translate: none;
+  }
+  .room[data-fit='2'] .room-search {
+    top: var(--below);
+  }
+  /* Room for the job's points under its lead, the card a little tighter
+     to fit above the foot. */
+  .room[data-fit='2'] .room-neighbor .room-card-lead + ul {
+    display: grid;
+    gap: 5px;
+    margin-bottom: 10px;
+  }
+  .room[data-fit='2'] .room-school {
+    padding: 18px 18px 14px;
+  }
+  .room[data-fit='2'] .room-neighbor ul:not(.room-figures) li {
+    font-size: 12.5px;
+    line-height: 1.42;
+  }
+  /* The chapter rail at the band's left, in the scene. */
+  .room[data-fit='2'] .room-rail {
+    top: calc(var(--band-top) + var(--band-h) / 2);
+  }
+  .room[data-fit='2'] .room-loader-blur {
+    background-image: url('./poster/wide-tiny.webp');
+  }
+  .room[data-fit='2'] .room-loader-focus {
+    background-image: url('./poster/wide-mid.webp');
+  }
+}

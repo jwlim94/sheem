@@ -213,7 +213,69 @@ const CREAM = [244, 234, 214],
 const mix = (t: number) =>
   `rgb(${CREAM.map((c, i) => Math.round(c + (INK[i] - c) * t)).join(',')})`;
 
+/**
+ * How /portfolio shows on a phone held upright, while the user compares two
+ * ways (2026-11-25; without ?fit, as before):
+ * - ?fit=1: the desktop page itself, 1440x900 in a frame, shrunk to the
+ *   screen (FitDesktop). Nothing on it changes.
+ * - ?fit=2: the scene as on a desktop, in a 16:10 band under the top bar,
+ *   and the words below it at a phone's size, so nothing covers the scene
+ *   (room.css, [data-fit='2']).
+ */
 export default function RoomPortfolio() {
+  const [fit] = useState(() => new URLSearchParams(location.search).get('fit'));
+  return fit === '1' ? <FitDesktop /> : <RoomPage band={fit === '2'} />;
+}
+
+/** The desktop page's size, which ?fit=1 shrinks to the screen. */
+const DESKTOP = { w: 1440, h: 900 };
+const fitScale = () =>
+  Math.min(innerWidth / DESKTOP.w, innerHeight / DESKTOP.h);
+
+function FitDesktop() {
+  const [scale, setScale] = useState(fitScale);
+  useEffect(() => {
+    const resize = () => setScale(fitScale());
+    addEventListener('resize', resize);
+    return () => removeEventListener('resize', resize);
+  }, []);
+  return (
+    <div className="room-fit">
+      <iframe
+        src="/portfolio?embed"
+        title="Jongwoo Lim, Software Engineer"
+        style={{
+          width: DESKTOP.w,
+          height: DESKTOP.h,
+          transform: `translate(-50%, -50%) scale(${scale})`,
+        }}
+      />
+    </div>
+  );
+}
+
+/** The canvas's starting pixel ratio: in ?fit=1's frame, no sharper than
+ *  the frame is shown (shrunk to the screen). */
+function startDpr() {
+  try {
+    if (window.parent !== window)
+      return Math.min(
+        1.75,
+        Math.max(
+          1,
+          Math.min(
+            window.parent.innerWidth / DESKTOP.w,
+            window.parent.innerHeight / DESKTOP.h
+          ) * devicePixelRatio
+        )
+      );
+  } catch {
+    // (Framed elsewhere: as usual.)
+  }
+  return 1.75;
+}
+
+function RoomPage({ band }: { band: boolean }) {
   const scroll = useRef<HTMLDivElement>(null),
     page = useRef(0), // eased scroll over the whole page
     progress = useRef(0), // the room story, 0..1
@@ -279,7 +341,7 @@ export default function RoomPortfolio() {
   const [sound, setSound] = useState(false);
   // The canvas's highest pixel ratio, lowered by FrameBudget a step at a time
   // if frames keep missing their budget.
-  const [maxDpr, setMaxDpr] = useState(1.75);
+  const [maxDpr, setMaxDpr] = useState(startDpr);
   // Every place in and drawn once (RoomScene's warm-up): the loader lifts.
   const [ready, setReady] = useState(false);
   // 0..1 through that warm-up, for the loader's percentage.
@@ -587,30 +649,37 @@ export default function RoomPortfolio() {
           parts.rewind >= SWITCH ? '1' : '0'
         );
         // The cream lifts off the lecture hall's clock, taking the card with it.
-        if (flash.current)
-          flash.current.style.opacity = String(rb.flash * (1 - sb.reveal));
+        const cream = rb.flash * (1 - sb.reveal);
+        if (flash.current) flash.current.style.opacity = String(cream);
         show(caption.current.chapter, rb.card * (1 - sb.reveal));
         show(caption.current.school, fade(parts.school, 0.32, 0.66));
         // The mail's white lifts off the meeting room's whiteboard.
+        const white = Math.max(
+          mb.flash * (1 - ob.reveal),
+          gb.flash * (1 - reveal3),
+          // Up through the classroom's ceiling, and at his window (it
+          // lifts off Bridge's office).
+          fb.punch,
+          fb.flash * (1 - bb.reveal),
+          // The ending: over Bridge's office, lifting off his room.
+          eb.flash * (1 - eb.reveal)
+        );
         if (flashWhite.current)
-          flashWhite.current.style.opacity = String(
-            Math.max(
-              mb.flash * (1 - ob.reveal),
-              gb.flash * (1 - reveal3),
-              // Up through the classroom's ceiling, and at his window (it
-              // lifts off Bridge's office).
-              fb.punch,
-              fb.flash * (1 - bb.reveal),
-              // The ending: over Bridge's office, lifting off his room.
-              eb.flash * (1 - eb.reveal)
-            )
-          );
+          flashWhite.current.style.opacity = String(white);
         // The top bar's text: cream on the dark and busy scenes, ink-dark
         // where it is light behind it (how light, from the table sampled
         // off the story itself: barLight.ts), each end on its own, with a
         // little hysteresis so it does not flicker on the edge.
         {
-          const behind = barLight(page.current, innerWidth < innerHeight),
+          // (In ?fit=2's band the scene is framed as on a wide screen, and
+          // the top bar is over the dark above it, light only under a wash.)
+          const tall = innerWidth < innerHeight,
+            light = barLight(page.current, tall && !band),
+            wash = Math.max(cream, white),
+            behind =
+              band && tall
+                ? { left: wash, right: wash, rail: light.rail }
+                : light,
             ink = (was: boolean, l: number) => (was ? l > 0.14 : l > 0.2),
             l = ink(inkLeft, behind.left),
             r = ink(inkRight, behind.right);
@@ -749,7 +818,7 @@ export default function RoomPortfolio() {
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [reduced]);
+  }, [reduced, band]);
 
   // The brakes (story.ts HOLDS: the welcome, chapter 1's card). Scrolling
   // down onto one stops dead there, however fast: the scroll is held on it,
@@ -1042,7 +1111,7 @@ export default function RoomPortfolio() {
   };
 
   return (
-    <main className="room" data-ready={ready}>
+    <main className="room" data-ready={ready} data-fit={band ? 2 : undefined}>
       {/* Behind the canvas: a morning sky replaces the night page in school. */}
       <div ref={sky} className="room-sky" aria-hidden="true" />
       <div className="room-stage" aria-hidden="true">
